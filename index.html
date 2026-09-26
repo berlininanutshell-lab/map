@@ -430,6 +430,7 @@
           <option value="streets">Streets (MapTiler)</option>
           <option value="hybrid">Satellite Hybrid</option>
           <option value="terrain">Mapzen Global Terrain</option>
+          <option value="darkmatteralt">Dark Matter (OpenMapTiles)</option>
         </select>
       </div>
     </aside>
@@ -469,6 +470,10 @@
                 paint: { 'background-color': '#0b0f14' }
             }]
           }
+        },
+        darkmatteralt: {
+          name: 'Dark Matter (OpenMapTiles)',
+          url: 'https://openmaptiles.github.io/dark-matter-gl-style/style-cdn.json'
         }
       };
 
@@ -702,7 +707,7 @@
 
       function showCoordinates(lat, lng, originalEvent) {
         currentCoordinates = lat.toFixed(11) + ', ' + lng.toFixed(11);
-        coordinateText.textContent = 'Lat: ' + lat.toFixed(11) + '\nLng: ' + lng.toFixed(11);
+        coordinateText.textContent = currentCoordinates;
         copyCoordinatesBtn.textContent = 'Copy coordinates';
 
         if (coordinatePopupHideTimeout) {
