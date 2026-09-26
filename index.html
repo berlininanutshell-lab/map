@@ -32,7 +32,7 @@
       #coordinatePopup {
         position: fixed;
         z-index: 1000;
-        min-width: 210px;
+        min-width: 240px;
         padding: 12px;
         border: 1px solid rgba(0, 0, 0, 0.12);
         border-radius: 8px;
@@ -701,8 +701,8 @@
       }
 
       function showCoordinates(lat, lng, originalEvent) {
-        currentCoordinates = lat.toFixed(6) + ', ' + lng.toFixed(6);
-        coordinateText.textContent = 'Lat: ' + lat.toFixed(6) + '\nLng: ' + lng.toFixed(6);
+        currentCoordinates = lat.toFixed(11) + ', ' + lng.toFixed(11);
+        coordinateText.textContent = 'Lat: ' + lat.toFixed(11) + '\nLng: ' + lng.toFixed(11);
         copyCoordinatesBtn.textContent = 'Copy coordinates';
 
         if (coordinatePopupHideTimeout) {
@@ -711,7 +711,7 @@
         }
 
         // Position near the click, but keep the popup fully on-screen.
-        const popupWidth = 230;
+        const popupWidth = 260;
         const popupHeight = 130;
         let left = (originalEvent ? originalEvent.clientX : window.innerWidth / 2) + 12;
         let top = (originalEvent ? originalEvent.clientY : window.innerHeight / 2) + 12;
