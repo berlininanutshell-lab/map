@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dark Matter Map (public dark style)</title>
+    <link href="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        font-family: Arial, sans-serif;
+        background: #0b0f14;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+
+      #error {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        display: none;
+        z-index: 9999;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="error"></div>
+
+    <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
+    <script>
+      const mapStyle = 'https://api.maptiler.com/maps/dataviz-v4-dark/style.json?key=okpdMcXQXKD9GKjumNOC';
+
+      if (!window.WebGLRenderingContext) {
+        const e = document.getElementById('error');
+        e.textContent = 'WebGL is not available in this browser.';
+        e.style.display = 'block';
+        throw new Error('WebGL not supported');
+      }
+
+      const map = new maplibregl.Map({
+        container: 'map',
+        style: mapStyle,
+        center: [-74.006, 40.7128],
+        zoom: 11,
+        minZoom: 2,
+        attributionControl: true,
+      });
+
+      map.on('load', () => {
+        const styleLayers = map.getStyle().layers || [];
+        const safeSet = (layerId, prop, value) => {
+          if (styleLayers.some((layer) => layer.id === layerId)) {
+            map.setPaintProperty(layerId, prop, value);
+          }
+        };
+
+        safeSet('background', 'background-color', '#0b0f14');
+        safeSet('countries-fill', 'fill-color', '#171d25');
+        safeSet('countries-boundary', 'line-color', '#394958');
+        safeSet('countries-boundary', 'line-width', 1);
+        safeSet('geolines', 'line-color', '#1d7bb8');
+        safeSet('countries-label', 'text-color', '#dfe7ee');
+        safeSet('countries-label', 'text-halo-color', '#0b0f14');
+      });
+
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
+      map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
+
+      map.on('error', (err) => {
+        console.error('map error', err);
+        const e = document.getElementById('error');
+        e.textContent = 'Map error: ' + (err && err.error ? err.error.message || err.error : err);
+        e.style.display = 'block';
+      });
+    </script>
+  </body>
+</html>
