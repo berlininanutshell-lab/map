@@ -570,7 +570,6 @@
     <div id="error"></div>
 
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script>
       const mapStyles = {
         dark: {
@@ -990,37 +989,13 @@
       // — and loads every listed file from kml/<layerId>/<file>. Silently
       // does nothing if the manifest or a file isn't there (e.g. while
       // previewing this page without the kml/ folder alongside it).
-      async function loadKmlOrKmz(url) {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Failed to fetch ' + url);
-        }
-
-        const lowerUrl = url.toLowerCase();
-
-        // Plain KML: just return its text.
-        if (!lowerUrl.endsWith('.kmz')) {
-          return await response.text();
-        }
-
-        // KMZ is a ZIP archive. JSZip extracts the KML inside it.
-        if (typeof JSZip === 'undefined') {
-          throw new Error('JSZip is not available.');
-        }
-
-        const zip = await JSZip.loadAsync(await response.arrayBuffer());
-
-        // Google My Maps normally uses doc.kml, but don't depend on that name.
-        const kmlEntry = Object.values(zip.files).find((entry) => {
-          return !entry.dir && entry.name.toLowerCase().endsWith('.kml');
-        });
-
-        if (!kmlEntry) {
-          throw new Error('No KML file was found inside ' + url);
-        }
-
-        return await kmlEntry.async('text');
-      }
+      async function loadKml(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load KML: ${response.status} ${response.statusText}`);
+  }
+  return await response.text();
+}
 
       async function loadKmlManifestAndData() {
         let manifest;
@@ -1041,10 +1016,10 @@
           for (const fileName of fileNames) {
             try {
               const url = 'kml/' + layerId + '/' + fileName;
-              const kmlText = await loadKmlOrKmz(url);
+              const kmlText = await loadKml(url);
               features.push(...parseKmlToGeoJSON(kmlText).features);
             } catch (error) {
-              console.error('Failed to load KML/KMZ file', layerId, fileName, error);
+              console.error('Failed to load KML file', layerId, fileName, error);
             }
           }
 
