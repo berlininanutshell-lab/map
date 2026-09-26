@@ -21,8 +21,11 @@
 
       #map {
         position: absolute;
-        inset: 0;
-        width: 100%;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 320px;
+        width: calc(100% - 320px);
         height: 100%;
       }
 
@@ -368,6 +371,11 @@
           width: 70vw;
         }
 
+        #map {
+          left: 70vw;
+          width: 30vw;
+        }
+
         #sidebar-header h1 {
           font-size: 22px;
         }
@@ -415,7 +423,6 @@
           <option value="dark">Dark Matter</option>
           <option value="streets">Streets (MapTiler)</option>
           <option value="hybrid">Satellite Hybrid</option>
-          <option value="google-hybrid">Google Hybrid</option>
           <option value="terrain">Mapzen Global Terrain</option>
         </select>
       </div>
@@ -432,10 +439,9 @@
 
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
     <script>
-      const googleMapsApiKey = 'AIzaSyBm4k8AaMjuAu4mXo4CJoNRPZpVR0ki5XA';
       const mapStyles = {
         dark: {
-          name: 'Dark Theme',
+          name: 'Dark Matter',
           url: 'https://api.maptiler.com/maps/dataviz-v4-dark/style.json?key=okpdMcXQXKD9GKjumNOC'
         },
         streets: {
@@ -445,9 +451,6 @@
         hybrid: {
           name: 'Satellite Hybrid',
           url: 'https://api.maptiler.com/maps/hybrid/style.json?key=okpdMcXQXKD9GKjumNOC'
-        },
-        'google-hybrid': {
-          name: 'Google Hybrid'
         },
         terrain: {
           name: 'Mapzen Terrain',
@@ -471,7 +474,6 @@
         ],
         currentStyle: 'Dark Matter',
         currentStyleValue: 'dark',
-        googleSession: null,
         drawingColor: '#FF9400',
         drawingTool: null,
         drawings: [],
@@ -488,27 +490,6 @@
       const mapSummary = document.getElementById('mapSummary');
       const mapStyleSelect = document.getElementById('mapStyleSelect');
 
-      const googleCopyrightControl = {
-        container: null,
-        onAdd() {
-          this.container = document.createElement('div');
-          this.container.className = 'maplibregl-ctrl maplibregl-ctrl-attrib';
-          this.container.style.display = 'none';
-          this.container.setAttribute('aria-label', 'Google Maps data attribution');
-          return this.container;
-        },
-        onRemove() {
-          this.container.remove();
-        },
-        update(copyright) {
-          if (!this.container) {
-            return;
-          }
-
-          this.container.textContent = copyright || '';
-          this.container.style.display = copyright ? 'block' : 'none';
-        }
-      };
       const coordinatePopup = document.getElementById('coordinatePopup');
       const coordinateText = document.getElementById('coordinateText');
       const closeCoordinatesBtn = document.getElementById('closeCoordinatesBtn');
@@ -522,6 +503,8 @@
       closeCoordinatesBtn.addEventListener('click', () => {
         coordinatePopup.hidden = true;
       });
+
+      mapStyleSelect.addEventListener('change', closeCoordinatePopup, true);
 
       function renderLayers() {
         const visibleCount = state.layers.filter((layer) => layer.visible).length;
@@ -596,7 +579,7 @@
             pinpoint: 'Click the map to place a pinpoint.'
           };
           drawHint.textContent = hints[state.drawingTool];
-          map.getCanvas().style.cursor = 'crosshair';
+          map.getContainer().style.cursor = 'crosshair';
         });
       });
 
@@ -626,66 +609,16 @@
         updateDrawings();
       });
 
-      mapStyleSelect.addEventListener('change', async () => {
+      mapStyleSelect.addEventListener('change', () => {
         const selectedValue = mapStyleSelect.value;
         const selectedStyle = mapStyles[selectedValue];
-        let nextStyle = selectedStyle.style || selectedStyle.url;
+        closeCoordinatePopup();
+        map.setStyle(selectedStyle.style || selectedStyle.url, { diff: false });
 
-        try {
-          if (selectedValue === 'google-hybrid') {
-            const response = await fetch('https://tile.googleapis.com/v1/createSession?key=' + encodeURIComponent(googleMapsApiKey), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                mapType: 'satellite',
-                layerTypes: ['layerRoadmap'],
-                overlay: false,
-                language: 'en',
-                region: 'UA'
-              })
-            });
-
-            if (!response.ok) {
-              throw new Error('Google Maps session request failed (' + response.status + '). Check that the Map Tiles API is enabled and the key is restricted correctly.');
-            }
-
-            const sessionData = await response.json();
-            state.googleSession = sessionData.session;
-            googleCopyrightControl.update('');
-            nextStyle = {
-              version: 8,
-              sources: {
-                googleHybrid: {
-                  type: 'raster',
-                  tiles: ['https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=' + encodeURIComponent(state.googleSession) + '&key=' + encodeURIComponent(googleMapsApiKey)],
-                  tileSize: sessionData.tileWidth || 256,
-                  maxzoom: 22,
-                  attribution: 'Google Maps'
-                }
-              },
-              layers: [{ id: 'google-hybrid', type: 'raster', source: 'googleHybrid' }]
-            };
-          } else {
-            state.googleSession = null;
-            googleCopyrightControl.update('');
-          }
-
-          state.currentStyle = selectedStyle.name;
-          state.currentStyleValue = selectedValue;
-          renderLayers();
-          map.setStyle(nextStyle, { diff: false });
-          if (selectedValue === 'google-hybrid') {
-            updateGoogleCopyright();
-          }
-          document.getElementById('error').style.display = 'none';
-        } catch (error) {
-          mapStyleSelect.value = state.currentStyleValue;
-          state.currentStyle = mapStyles[state.currentStyleValue].name;
-          renderLayers();
-          const errorOverlay = document.getElementById('error');
-          errorOverlay.textContent = error.message || String(error);
-          errorOverlay.style.display = 'block';
-        }
+        state.currentStyle = selectedStyle.name;
+        state.currentStyleValue = selectedValue;
+        renderLayers();
+        document.getElementById('error').style.display = 'none';
       });
 
       renderLayers();
@@ -706,40 +639,9 @@
         attributionControl: true,
       });
 
-      map.addControl(googleCopyrightControl, 'bottom-right');
-
-      async function updateGoogleCopyright() {
-        if (!state.googleSession || mapStyleSelect.value !== 'google-hybrid') {
-          return;
-        }
-
-        const bounds = map.getBounds();
-        const params = new URLSearchParams({
-          session: state.googleSession,
-          key: googleMapsApiKey,
-          zoom: String(Math.floor(map.getZoom())),
-          north: String(bounds.getNorth()),
-          south: String(bounds.getSouth()),
-          east: String(bounds.getEast()),
-          west: String(bounds.getWest())
-        });
-
-        try {
-          const response = await fetch('https://tile.googleapis.com/tile/v1/viewport?' + params.toString());
-          if (response.ok) {
-            const viewportInfo = await response.json();
-            googleCopyrightControl.update(viewportInfo.copyright);
-          }
-        } catch (error) {
-          console.error('Google Maps attribution request failed', error);
-        }
-      }
-
-      map.on('moveend', updateGoogleCopyright);
-
-      map.on('movestart', () => {
+      function closeCoordinatePopup() {
         coordinatePopup.hidden = true;
-      });
+      }
 
       function updateDrawings() {
         const features = state.drawings.slice();
@@ -767,19 +669,7 @@
         if (event.originalEvent) {
           event.originalEvent.preventDefault();
         }
-
-        const longitude = event.lngLat.lng;
-        const latitude = event.lngLat.lat;
-        currentCoordinates = Number(latitude.toFixed(7)) + ', ' + Number(longitude.toFixed(7));
-        coordinateText.textContent = currentCoordinates;
-        copyCoordinatesBtn.textContent = 'Copy coordinates';
-
-        const mouseEvent = event.originalEvent;
-        const popupLeft = mouseEvent ? mouseEvent.clientX + 12 : event.point.x + 12;
-        const popupTop = mouseEvent ? mouseEvent.clientY + 12 : event.point.y + 12;
-        coordinatePopup.style.left = Math.max(8, Math.min(popupLeft, window.innerWidth - 230)) + 'px';
-        coordinatePopup.style.top = Math.max(8, Math.min(popupTop, window.innerHeight - 120)) + 'px';
-        coordinatePopup.hidden = false;
+        showCoordinates(event.lngLat.lat, event.lngLat.lng, event.originalEvent);
       });
 
       copyCoordinatesBtn.addEventListener('click', async () => {
