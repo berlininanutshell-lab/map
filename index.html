@@ -300,27 +300,6 @@
         color: #7c8a97;
       }
 
-      #searchBtn {
-        height: 38px;
-        padding: 0 14px;
-        border: 1px solid rgba(255, 255, 255, 0.11);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.06);
-        color: #edf5ff;
-        font: inherit;
-        font-size: 13px;
-        cursor: pointer;
-      }
-
-      #searchBtn:hover {
-        background: rgba(255, 255, 255, 0.1);
-      }
-
-      #searchBtn:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
-
       #searchResults {
         position: absolute;
         top: calc(100% + 2px);
@@ -365,6 +344,63 @@
         padding: 10px 12px;
         color: #94a5b4;
         font-size: 12px;
+      }
+
+      .maplibregl-popup-content {
+        padding: 14px;
+        border-radius: 10px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      .maplibregl-popup-tip {
+        border-top-color: #111820 !important;
+        border-bottom-color: #111820 !important;
+      }
+
+      .maplibregl-popup-close-button {
+        color: #edf5ff;
+        font-size: 18px;
+        padding: 4px 8px;
+      }
+
+      .maplibregl-popup-close-button:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .marker-popup-title {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0 18px 2px 0;
+      }
+
+      .marker-popup-subtitle {
+        font-size: 12px;
+        color: #98a9b9;
+        margin-bottom: 8px;
+      }
+
+      .marker-popup-coords {
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      .marker-popup-copy {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .marker-popup-copy:hover {
+        background: rgba(255, 255, 255, 0.12);
       }
 
       #layersList {
@@ -514,7 +550,6 @@
       </header>
       <div id="searchBox">
         <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
-        <button id="searchBtn" type="button">Search</button>
         <div id="searchResults" hidden></div>
       </div>
       <div id="mapSummary">Dark theme • 3 visible layers</div>
@@ -605,7 +640,6 @@
       let coordinatePopupHideTimeout = null;
 
       const searchInput = document.getElementById('searchInput');
-      const searchBtn = document.getElementById('searchBtn');
       const searchResults = document.getElementById('searchResults');
       let searchMarker = null;
 
@@ -819,7 +853,51 @@
         return null;
       }
 
-      function flyToResult(lat, lng, zoom) {
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : text;
+        return div.innerHTML;
+      }
+
+      function buildMarkerPopupHTML(lat, lng, cityName, countryName) {
+        const coordsText = lat.toFixed(11) + ', ' + lng.toFixed(11);
+        return (
+          '<div class="marker-popup">' +
+          '<div class="marker-popup-title">' + escapeHtml(cityName || 'Selected location') + '</div>' +
+          (countryName ? '<div class="marker-popup-subtitle">' + escapeHtml(countryName) + '</div>' : '') +
+          '<div class="marker-popup-coords">' + coordsText + '</div>' +
+          '<button type="button" class="marker-popup-copy" data-coords="' + escapeHtml(coordsText) + '">Copy coordinates</button>' +
+          '</div>'
+        );
+      }
+
+      function attachMarkerPopup(marker, lat, lng, cityName, countryName) {
+        const popup = new maplibregl.Popup({ offset: 28, closeButton: true, closeOnClick: false })
+          .setHTML(buildMarkerPopupHTML(lat, lng, cityName, countryName));
+
+        popup.on('open', () => {
+          const container = popup.getElement();
+          const copyBtn = container && container.querySelector('.marker-popup-copy');
+          if (!copyBtn) {
+            return;
+          }
+          copyBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(copyBtn.dataset.coords);
+              copyBtn.textContent = 'Copied';
+              setTimeout(() => {
+                copyBtn.textContent = 'Copy coordinates';
+              }, 1500);
+            } catch (error) {
+              copyBtn.textContent = 'Copy unavailable';
+            }
+          });
+        });
+
+        marker.setPopup(popup);
+      }
+
+      function flyToResult(lat, lng, zoom, cityName, countryName) {
         map.flyTo({
           center: [lng, lat],
           zoom: typeof zoom === 'number' ? zoom : Math.max(map.getZoom(), 10),
@@ -832,6 +910,7 @@
         searchMarker = new maplibregl.Marker({ color: '#ff9400' })
           .setLngLat([lng, lat])
           .addTo(map);
+        attachMarkerPopup(searchMarker, lat, lng, cityName, countryName);
       }
 
       function closeSearchResults() {
@@ -856,7 +935,7 @@
           button.className = 'search-result-item';
           button.textContent = result.label;
           button.addEventListener('click', () => {
-            flyToResult(result.lat, result.lng, result.zoom);
+            flyToResult(result.lat, result.lng, result.zoom, result.city, result.country);
             searchInput.value = result.label;
             closeSearchResults();
           });
@@ -868,6 +947,7 @@
       async function runSearch() {
         const query = searchInput.value.trim();
         if (!query) {
+          closeSearchResults();
           return;
         }
 
@@ -878,18 +958,30 @@
           return;
         }
 
-        searchBtn.disabled = true;
-        searchBtn.textContent = 'Searching…';
+        if (query.length < 2) {
+          closeSearchResults();
+          return;
+        }
+
+        showSearchMessage('Searching…');
 
         try {
           const url = 'https://api.maptiler.com/geocoding/' + encodeURIComponent(query) +
-            '.json?key=okpdMcXQXKD9GKjumNOC&limit=5';
+            '.json?key=okpdMcXQXKD9GKjumNOC&limit=5&autocomplete=true';
           const response = await fetch(url);
           if (!response.ok) {
             throw new Error('Geocoding request failed');
           }
 
           const data = await response.json();
+
+          // A later keystroke may have started a newer search already —
+          // don't overwrite its (possibly still loading) results with a
+          // stale response from this older request.
+          if (searchInput.value.trim() !== query) {
+            return;
+          }
+
           const features = data.features || [];
 
           if (features.length === 0) {
@@ -897,25 +989,40 @@
             return;
           }
 
-          renderSearchResults(features.map((feature) => ({
-            label: feature.place_name || feature.text,
-            lat: feature.center[1],
-            lng: feature.center[0],
-            zoom: 11
-          })));
+          renderSearchResults(features.map((feature) => {
+            const countryContext = (feature.context || []).find(
+              (entry) => entry.id && entry.id.startsWith('country')
+            );
+            return {
+              label: feature.place_name || feature.text,
+              lat: feature.center[1],
+              lng: feature.center[0],
+              zoom: 11,
+              city: feature.text,
+              country: countryContext ? countryContext.text : ''
+            };
+          }));
         } catch (error) {
           console.error('search error', error);
-          showSearchMessage('Search failed — check your connection and try again.');
-        } finally {
-          searchBtn.disabled = false;
-          searchBtn.textContent = 'Search';
+          if (searchInput.value.trim() === query) {
+            showSearchMessage('Search failed — check your connection and try again.');
+          }
         }
       }
 
-      searchBtn.addEventListener('click', runSearch);
+      let searchDebounceTimer = null;
+      searchInput.addEventListener('input', () => {
+        if (searchDebounceTimer) {
+          clearTimeout(searchDebounceTimer);
+        }
+        searchDebounceTimer = setTimeout(runSearch, 300);
+      });
       searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
+          if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+          }
           runSearch();
         }
       });
@@ -929,8 +1036,7 @@
         if (
           !searchResults.hidden &&
           !searchResults.contains(event.target) &&
-          event.target !== searchInput &&
-          event.target !== searchBtn
+          event.target !== searchInput
         ) {
           closeSearchResults();
         }
@@ -1158,6 +1264,13 @@
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
       map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right');
+
+      // The popup already fades out via its CSS transition (see
+      // #coordinatePopup.visible) — closeCoordinatePopup() just removes
+      // the class, so panning/zooming/rotating away from a pinned
+      // coordinate dismisses it smoothly instead of leaving it stuck
+      // over the wrong spot.
+      map.on('movestart', closeCoordinatePopup);
 
       map.on('error', (err) => {
         console.error('map error', err);
