@@ -770,8 +770,15 @@
         state.drawingColor = drawColor.value;
       });
 
+      const mapContainer = document.getElementById('map');
+
       document.addEventListener('click', (event) => {
-        if (!toolMenu.hidden && !toolMenu.contains(event.target) && !drawToolsBtn.contains(event.target)) {
+        if (
+          !toolMenu.hidden &&
+          !toolMenu.contains(event.target) &&
+          !drawToolsBtn.contains(event.target) &&
+          !mapContainer.contains(event.target)
+        ) {
           closeToolMenu();
         }
       });
@@ -877,21 +884,35 @@
 
         popup.on('open', () => {
           const container = popup.getElement();
-          const copyBtn = container && container.querySelector('.marker-popup-copy');
-          if (!copyBtn) {
+          if (!container) {
             return;
           }
-          copyBtn.addEventListener('click', async () => {
-            try {
-              await navigator.clipboard.writeText(copyBtn.dataset.coords);
-              copyBtn.textContent = 'Copied';
-              setTimeout(() => {
-                copyBtn.textContent = 'Copy coordinates';
-              }, 1500);
-            } catch (error) {
-              copyBtn.textContent = 'Copy unavailable';
-            }
-          });
+
+          const copyBtn = container.querySelector('.marker-popup-copy');
+          if (copyBtn) {
+            copyBtn.addEventListener('click', async () => {
+              try {
+                await navigator.clipboard.writeText(copyBtn.dataset.coords);
+                copyBtn.textContent = 'Copied';
+                setTimeout(() => {
+                  copyBtn.textContent = 'Copy coordinates';
+                }, 1500);
+              } catch (error) {
+                copyBtn.textContent = 'Copy unavailable';
+              }
+            });
+          }
+
+          // The × button removes the pinpoint itself, not just the popup.
+          const closeBtn = container.querySelector('.maplibregl-popup-close-button');
+          if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+              marker.remove();
+              if (marker === searchMarker) {
+                searchMarker = null;
+              }
+            });
+          }
         });
 
         marker.setPopup(popup);
