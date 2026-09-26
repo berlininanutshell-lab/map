@@ -40,10 +40,16 @@
         color: #111111;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
         font-size: 13px;
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.16s ease, transform 0.16s ease;
       }
 
-      #coordinatePopup[hidden] {
-        display: none;
+      #coordinatePopup.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
       }
 
       #coordinateHeader {
@@ -427,7 +433,7 @@
         </select>
       </div>
     </aside>
-    <div id="coordinatePopup" role="status" aria-live="polite" hidden>
+    <div id="coordinatePopup" role="status" aria-live="polite">
       <div id="coordinateHeader">
         <strong>Coordinates</strong>
         <button id="closeCoordinatesBtn" type="button" aria-label="Close coordinates">×</button>
@@ -495,16 +501,49 @@
       const closeCoordinatesBtn = document.getElementById('closeCoordinatesBtn');
       const copyCoordinatesBtn = document.getElementById('copyCoordinatesBtn');
       let currentCoordinates = '';
+      let coordinatePopupHideTimeout = null;
 
       coordinatePopup.addEventListener('click', (event) => {
         event.stopPropagation();
       });
 
       closeCoordinatesBtn.addEventListener('click', () => {
-        coordinatePopup.hidden = true;
+        closeCoordinatePopup();
       });
 
       mapStyleSelect.addEventListener('change', closeCoordinatePopup, true);
+
+      // ---- Drawing tool activation / deactivation ----
+      // The map only responds to draw gestures while a tool is armed
+      // (state.drawingTool !== null). Closing the tool menu, in any way,
+      // disarms the current tool so clicks/drags on the map behave like
+      // normal panning again until the user reopens the menu and picks
+      // a tool explicitly.
+      function deactivateDrawingTool() {
+        state.drawingTool = null;
+        document.querySelectorAll('.tool-option').forEach((option) => {
+          option.setAttribute('aria-pressed', 'false');
+        });
+        drawHint.textContent = 'Choose a tool to start drawing.';
+        map.getContainer().style.cursor = '';
+
+        // Discard any in-progress drawing (e.g. a line waiting for its
+        // second click, or an active brush stroke) so nothing is left
+        // half-drawn once the tool is disarmed.
+        state.isBrushing = false;
+        state.draft = null;
+        map.dragPan.enable();
+        updateDrawings();
+      }
+
+      function closeToolMenu() {
+        if (toolMenu.hidden) {
+          return;
+        }
+        toolMenu.hidden = true;
+        drawToolsBtn.setAttribute('aria-expanded', 'false');
+        deactivateDrawingTool();
+      }
 
       function renderLayers() {
         const visibleCount = state.layers.filter((layer) => layer.visible).length;
@@ -562,8 +601,12 @@
 
       drawToolsBtn.addEventListener('click', () => {
         const isOpen = !toolMenu.hidden;
-        toolMenu.hidden = isOpen;
-        drawToolsBtn.setAttribute('aria-expanded', String(!isOpen));
+        if (isOpen) {
+          closeToolMenu();
+        } else {
+          toolMenu.hidden = false;
+          drawToolsBtn.setAttribute('aria-expanded', 'true');
+        }
       });
 
       document.querySelectorAll('.tool-option').forEach((button) => {
@@ -589,15 +632,13 @@
 
       document.addEventListener('click', (event) => {
         if (!toolMenu.hidden && !toolMenu.contains(event.target) && !drawToolsBtn.contains(event.target)) {
-          toolMenu.hidden = true;
-          drawToolsBtn.setAttribute('aria-expanded', 'false');
+          closeToolMenu();
         }
       });
 
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !toolMenu.hidden) {
-          toolMenu.hidden = true;
-          drawToolsBtn.setAttribute('aria-expanded', 'false');
+          closeToolMenu();
         }
       });
 
@@ -637,10 +678,53 @@
         zoom: 5.3,
         minZoom: 2,
         attributionControl: true,
+        // Right-click drag is used only to show coordinates (see the
+        // 'contextmenu' handler below), never to tilt/rotate the map.
+        pitchWithRotate: false,
+        dragRotate: false,
+        touchPitch: false
       });
 
+      // Belt-and-suspenders: some builds still wire up rotate/pitch via
+      // touch gestures even with the constructor options above, so
+      // explicitly disable them once the map instance exists too.
+      map.dragRotate.disable();
+      map.touchZoomRotate.disableRotation();
+      map.touchPitch.disable();
+
       function closeCoordinatePopup() {
-        coordinatePopup.hidden = true;
+        if (coordinatePopupHideTimeout) {
+          clearTimeout(coordinatePopupHideTimeout);
+          coordinatePopupHideTimeout = null;
+        }
+        coordinatePopup.classList.remove('visible');
+      }
+
+      function showCoordinates(lat, lng, originalEvent) {
+        currentCoordinates = lat.toFixed(6) + ', ' + lng.toFixed(6);
+        coordinateText.textContent = 'Lat: ' + lat.toFixed(6) + '\nLng: ' + lng.toFixed(6);
+        copyCoordinatesBtn.textContent = 'Copy coordinates';
+
+        if (coordinatePopupHideTimeout) {
+          clearTimeout(coordinatePopupHideTimeout);
+          coordinatePopupHideTimeout = null;
+        }
+
+        // Position near the click, but keep the popup fully on-screen.
+        const popupWidth = 230;
+        const popupHeight = 130;
+        let left = (originalEvent ? originalEvent.clientX : window.innerWidth / 2) + 12;
+        let top = (originalEvent ? originalEvent.clientY : window.innerHeight / 2) + 12;
+        left = Math.min(left, window.innerWidth - popupWidth - 12);
+        top = Math.min(top, window.innerHeight - popupHeight - 12);
+
+        coordinatePopup.style.left = Math.max(12, left) + 'px';
+        coordinatePopup.style.top = Math.max(12, top) + 'px';
+
+        // Fade in on the next frame so the transition actually runs.
+        requestAnimationFrame(() => {
+          coordinatePopup.classList.add('visible');
+        });
       }
 
       function updateDrawings() {
