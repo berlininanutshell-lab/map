@@ -1,8 +1,5 @@
 {
-  "main": [
-    "front for website.kml",
-    "front for website but line.kml"
-  ],
+  "main": ["front for website.kml", "front for website but line.kml"],
   "russian-advances": [],
   "ukrainian-advances": []
 }
