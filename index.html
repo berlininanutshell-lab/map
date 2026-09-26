@@ -276,6 +276,97 @@
         opacity: 0.9;
       }
 
+      #searchBox {
+        position: relative;
+        display: flex;
+        gap: 8px;
+        padding: 14px 18px 4px;
+      }
+
+      #searchInput {
+        flex: 1;
+        min-width: 0;
+        height: 38px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 13px;
+      }
+
+      #searchInput::placeholder {
+        color: #7c8a97;
+      }
+
+      #searchBtn {
+        height: 38px;
+        padding: 0 14px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      #searchBtn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      #searchBtn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      #searchResults {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 18px;
+        right: 18px;
+        z-index: 20;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: #111820;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      #searchResults[hidden] {
+        display: none;
+      }
+
+      .search-result-item {
+        display: block;
+        width: 100%;
+        padding: 10px 12px;
+        border: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: transparent;
+        color: #edf5ff;
+        text-align: left;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .search-result-item:last-child {
+        border-bottom: 0;
+      }
+
+      .search-result-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .search-result-message {
+        padding: 10px 12px;
+        color: #94a5b4;
+        font-size: 12px;
+      }
+
       #layersList {
         flex: 1;
         overflow-y: auto;
@@ -421,6 +512,11 @@
           <button id="clearDrawingsBtn" class="clear-drawings" type="button" disabled><span class="tool-symbol" aria-hidden="true">×</span>Clear all drawings</button>
         </div>
       </header>
+      <div id="searchBox">
+        <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
+        <button id="searchBtn" type="button">Search</button>
+        <div id="searchResults" hidden></div>
+      </div>
       <div id="mapSummary">Dark theme • 3 visible layers</div>
       <div id="layersList" aria-live="polite"></div>
       <div id="stylePicker">
@@ -507,6 +603,11 @@
       const copyCoordinatesBtn = document.getElementById('copyCoordinatesBtn');
       let currentCoordinates = '';
       let coordinatePopupHideTimeout = null;
+
+      const searchInput = document.getElementById('searchInput');
+      const searchBtn = document.getElementById('searchBtn');
+      const searchResults = document.getElementById('searchResults');
+      let searchMarker = null;
 
       coordinatePopup.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -696,6 +797,144 @@
       map.dragRotate.disable();
       map.touchZoomRotate.disableRotation();
       map.touchPitch.disable();
+
+      // ---- Search: jump the map to a typed place name or raw coordinates ----
+      function parseCoordinateInput(text) {
+        const match = text.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+        if (!match) {
+          return null;
+        }
+
+        const first = parseFloat(match[1]);
+        const second = parseFloat(match[2]);
+
+        // Accept "lat, lng" (the normal order). If the first number can't be
+        // a latitude but the second can, swap them so "lng, lat" still works.
+        if (Math.abs(first) <= 90 && Math.abs(second) <= 180) {
+          return { lat: first, lng: second };
+        }
+        if (Math.abs(second) <= 90 && Math.abs(first) <= 180) {
+          return { lat: second, lng: first };
+        }
+        return null;
+      }
+
+      function flyToResult(lat, lng, zoom) {
+        map.flyTo({
+          center: [lng, lat],
+          zoom: typeof zoom === 'number' ? zoom : Math.max(map.getZoom(), 10),
+          essential: true
+        });
+
+        if (searchMarker) {
+          searchMarker.remove();
+        }
+        searchMarker = new maplibregl.Marker({ color: '#ff9400' })
+          .setLngLat([lng, lat])
+          .addTo(map);
+      }
+
+      function closeSearchResults() {
+        searchResults.hidden = true;
+        searchResults.innerHTML = '';
+      }
+
+      function showSearchMessage(message) {
+        searchResults.innerHTML = '';
+        const item = document.createElement('div');
+        item.className = 'search-result-message';
+        item.textContent = message;
+        searchResults.appendChild(item);
+        searchResults.hidden = false;
+      }
+
+      function renderSearchResults(placeResults) {
+        searchResults.innerHTML = '';
+        placeResults.forEach((result) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'search-result-item';
+          button.textContent = result.label;
+          button.addEventListener('click', () => {
+            flyToResult(result.lat, result.lng, result.zoom);
+            searchInput.value = result.label;
+            closeSearchResults();
+          });
+          searchResults.appendChild(button);
+        });
+        searchResults.hidden = placeResults.length === 0;
+      }
+
+      async function runSearch() {
+        const query = searchInput.value.trim();
+        if (!query) {
+          return;
+        }
+
+        const coordinates = parseCoordinateInput(query);
+        if (coordinates) {
+          flyToResult(coordinates.lat, coordinates.lng, 12);
+          closeSearchResults();
+          return;
+        }
+
+        searchBtn.disabled = true;
+        searchBtn.textContent = 'Searching…';
+
+        try {
+          const url = 'https://api.maptiler.com/geocoding/' + encodeURIComponent(query) +
+            '.json?key=okpdMcXQXKD9GKjumNOC&limit=5';
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error('Geocoding request failed');
+          }
+
+          const data = await response.json();
+          const features = data.features || [];
+
+          if (features.length === 0) {
+            showSearchMessage('No results found.');
+            return;
+          }
+
+          renderSearchResults(features.map((feature) => ({
+            label: feature.place_name || feature.text,
+            lat: feature.center[1],
+            lng: feature.center[0],
+            zoom: 11
+          })));
+        } catch (error) {
+          console.error('search error', error);
+          showSearchMessage('Search failed — check your connection and try again.');
+        } finally {
+          searchBtn.disabled = false;
+          searchBtn.textContent = 'Search';
+        }
+      }
+
+      searchBtn.addEventListener('click', runSearch);
+      searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          runSearch();
+        }
+      });
+      searchInput.addEventListener('focus', () => {
+        if (searchResults.children.length > 0) {
+          searchResults.hidden = false;
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (
+          !searchResults.hidden &&
+          !searchResults.contains(event.target) &&
+          event.target !== searchInput &&
+          event.target !== searchBtn
+        ) {
+          closeSearchResults();
+        }
+      });
 
       function closeCoordinatePopup() {
         if (coordinatePopupHideTimeout) {
