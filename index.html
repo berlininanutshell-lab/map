@@ -479,8 +479,7 @@
         gap: 8px;
       }
 
-      .toggle-btn,
-      .remove-btn {
+      .toggle-btn {
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(255, 255, 255, 0.04);
         color: #edf5ff;
@@ -490,13 +489,8 @@
         cursor: pointer;
       }
 
-      .toggle-btn:hover,
-      .remove-btn:hover {
+      .toggle-btn:hover {
         background: rgba(255, 255, 255, 0.08);
-      }
-
-      .remove-btn {
-        padding: 5px 7px;
       }
 
       @media (max-width: 640px) {
@@ -576,6 +570,7 @@
     <div id="error"></div>
 
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script>
       const mapStyles = {
         dark: {
@@ -665,7 +660,7 @@
           option.setAttribute('aria-pressed', 'false');
         });
         drawHint.textContent = 'Choose a tool to start drawing.';
-        map.getContainer().style.cursor = '';
+        map.getContainer().style.cursor = 'default';
 
         // Discard any in-progress drawing (e.g. a line waiting for its
         // second click, or an active brush stroke) so nothing is left
@@ -713,24 +708,10 @@
           toggle.addEventListener('click', () => {
             layer.visible = !layer.visible;
             renderLayers();
-          });
-
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'remove-btn';
-          remove.textContent = '×';
-          remove.title = 'Remove layer';
-          remove.addEventListener('click', () => {
-            if (state.layers.length <= 1) {
-              return;
-            }
-
-            state.layers = state.layers.filter((entry) => entry.id !== layer.id);
-            renderLayers();
+            ensureKmlLayersForLayer(layer.id);
           });
 
           actions.appendChild(toggle);
-          actions.appendChild(remove);
 
           item.appendChild(dot);
           item.appendChild(name);
@@ -762,7 +743,7 @@
             pinpoint: 'Click the map to place a pinpoint.'
           };
           drawHint.textContent = hints[state.drawingTool];
-          map.getContainer().style.cursor = 'crosshair';
+          map.getContainer().style.cursor = 'default';
         });
       });
 
@@ -838,6 +819,245 @@
       map.dragRotate.disable();
       map.touchZoomRotate.disableRotation();
       map.touchPitch.disable();
+
+      // ---- KML layers ----
+      // Each entry in state.layers can carry KML data of its own, kept
+      // separate per layer id so toggling a layer's On/Off switch also
+      // shows/hides only the KML shapes that belong to it. Files are
+      // loaded from kml/<layerId>/<file>.kml on the same host as this
+      // page, listed in kml/manifest.json — see the README in the kml
+      // folder for how to add your own.
+      const layerKmlData = {};
+
+      function getLayerById(layerId) {
+        return state.layers.find((layer) => layer.id === layerId);
+      }
+
+      function kmlGetText(node, tag) {
+        const el = node.getElementsByTagName(tag)[0];
+        return el ? el.textContent.trim() : '';
+      }
+
+      function kmlParseCoordinates(text) {
+        return text
+          .trim()
+          .split(/\s+/)
+          .map((triplet) => {
+            const parts = triplet.split(',').map(Number);
+            return parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])
+              ? [parts[0], parts[1]]
+              : null;
+          })
+          .filter(Boolean);
+      }
+
+      // getElementsByTagName searches all descendants, so this also picks
+      // up geometries nested inside a <MultiGeometry> without any extra
+      // handling — each one just becomes its own GeoJSON feature.
+      function kmlExtractGeometries(placemark) {
+        const geometries = [];
+
+        Array.from(placemark.getElementsByTagName('Point')).forEach((point) => {
+          const coords = kmlParseCoordinates(kmlGetText(point, 'coordinates'))[0];
+          if (coords) {
+            geometries.push({ type: 'Point', coordinates: coords });
+          }
+        });
+
+        Array.from(placemark.getElementsByTagName('LineString')).forEach((lineString) => {
+          const coords = kmlParseCoordinates(kmlGetText(lineString, 'coordinates'));
+          if (coords.length > 1) {
+            geometries.push({ type: 'LineString', coordinates: coords });
+          }
+        });
+
+        Array.from(placemark.getElementsByTagName('Polygon')).forEach((polygon) => {
+          const outer = polygon.getElementsByTagName('outerBoundaryIs')[0];
+          const outerRing = outer ? outer.getElementsByTagName('LinearRing')[0] : null;
+          const outerCoords = outerRing ? kmlParseCoordinates(kmlGetText(outerRing, 'coordinates')) : [];
+          if (outerCoords.length <= 2) {
+            return;
+          }
+
+          const rings = [outerCoords];
+          Array.from(polygon.getElementsByTagName('innerBoundaryIs')).forEach((inner) => {
+            const innerRing = inner.getElementsByTagName('LinearRing')[0];
+            const innerCoords = innerRing ? kmlParseCoordinates(kmlGetText(innerRing, 'coordinates')) : [];
+            if (innerCoords.length > 2) {
+              rings.push(innerCoords);
+            }
+          });
+          geometries.push({ type: 'Polygon', coordinates: rings });
+        });
+
+        return geometries;
+      }
+
+      function parseKmlToGeoJSON(kmlString) {
+        const dom = new DOMParser().parseFromString(kmlString, 'text/xml');
+        if (dom.getElementsByTagName('parsererror').length > 0) {
+          throw new Error('Could not parse KML file.');
+        }
+
+        const features = [];
+        Array.from(dom.getElementsByTagName('Placemark')).forEach((placemark) => {
+          const name = kmlGetText(placemark, 'name');
+          const description = kmlGetText(placemark, 'description');
+          kmlExtractGeometries(placemark).forEach((geometry) => {
+            features.push({ type: 'Feature', properties: { name, description }, geometry });
+          });
+        });
+
+        return { type: 'FeatureCollection', features };
+      }
+
+      // Adds (or updates) the geojson source + fill/line/point layers for
+      // one layer's KML data, and syncs their visibility to that layer's
+      // On/Off state. Safe to call repeatedly, including after a style
+      // change wipes custom sources/layers (see 'style.load' below).
+      function ensureKmlLayersForLayer(layerId) {
+        const layer = getLayerById(layerId);
+        if (!layer || !map.isStyleLoaded()) {
+          return;
+        }
+
+        const sourceId = 'kml-' + layerId;
+        const data = layerKmlData[layerId] || { type: 'FeatureCollection', features: [] };
+        const visibility = layer.visible ? 'visible' : 'none';
+        const color = layer.color;
+
+        if (map.getSource(sourceId)) {
+          map.getSource(sourceId).setData(data);
+        } else {
+          map.addSource(sourceId, { type: 'geojson', data });
+        }
+
+        const fillId = sourceId + '-fill';
+        if (!map.getLayer(fillId)) {
+          map.addLayer({
+            id: fillId,
+            type: 'fill',
+            source: sourceId,
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            layout: { visibility },
+            paint: { 'fill-color': color, 'fill-opacity': 0.25, 'fill-outline-color': color }
+          });
+        } else {
+          map.setLayoutProperty(fillId, 'visibility', visibility);
+          map.setPaintProperty(fillId, 'fill-color', color);
+          map.setPaintProperty(fillId, 'fill-outline-color', color);
+        }
+
+        const lineId = sourceId + '-line';
+        if (!map.getLayer(lineId)) {
+          map.addLayer({
+            id: lineId,
+            type: 'line',
+            source: sourceId,
+            filter: ['==', ['geometry-type'], 'LineString'],
+            layout: { visibility, 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': color, 'line-width': 3 }
+          });
+        } else {
+          map.setLayoutProperty(lineId, 'visibility', visibility);
+          map.setPaintProperty(lineId, 'line-color', color);
+        }
+
+        const pointId = sourceId + '-point';
+        if (!map.getLayer(pointId)) {
+          map.addLayer({
+            id: pointId,
+            type: 'circle',
+            source: sourceId,
+            filter: ['==', ['geometry-type'], 'Point'],
+            layout: { visibility },
+            paint: {
+              'circle-radius': 6,
+              'circle-color': color,
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 1.5
+            }
+          });
+        } else {
+          map.setLayoutProperty(pointId, 'visibility', visibility);
+          map.setPaintProperty(pointId, 'circle-color', color);
+        }
+      }
+
+      // Reads kml/manifest.json — an object like
+      // { "main": ["occupation.kmz"], "russian-advances": ["push-1.kmz"] }
+      // or a mixture of .kml and .kmz files.
+      // — and loads every listed file from kml/<layerId>/<file>. Silently
+      // does nothing if the manifest or a file isn't there (e.g. while
+      // previewing this page without the kml/ folder alongside it).
+      async function loadKmlOrKmz(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Failed to fetch ' + url);
+        }
+
+        const lowerUrl = url.toLowerCase();
+
+        // Plain KML: just return its text.
+        if (!lowerUrl.endsWith('.kmz')) {
+          return await response.text();
+        }
+
+        // KMZ is a ZIP archive. JSZip extracts the KML inside it.
+        if (typeof JSZip === 'undefined') {
+          throw new Error('JSZip is not available.');
+        }
+
+        const zip = await JSZip.loadAsync(await response.arrayBuffer());
+
+        // Google My Maps normally uses doc.kml, but don't depend on that name.
+        const kmlEntry = Object.values(zip.files).find((entry) => {
+          return !entry.dir && entry.name.toLowerCase().endsWith('.kml');
+        });
+
+        if (!kmlEntry) {
+          throw new Error('No KML file was found inside ' + url);
+        }
+
+        return await kmlEntry.async('text');
+      }
+
+      async function loadKmlManifestAndData() {
+        let manifest;
+        try {
+          const manifestResponse = await fetch('kml/manifest.json');
+          if (!manifestResponse.ok) {
+            return;
+          }
+          manifest = await manifestResponse.json();
+        } catch (error) {
+          console.error('Failed to load kml/manifest.json', error);
+          return;
+        }
+
+        for (const [layerId, fileNames] of Object.entries(manifest)) {
+          const features = [];
+
+          for (const fileName of fileNames) {
+            try {
+              const url = 'kml/' + layerId + '/' + fileName;
+              const kmlText = await loadKmlOrKmz(url);
+              features.push(...parseKmlToGeoJSON(kmlText).features);
+            } catch (error) {
+              console.error('Failed to load KML/KMZ file', layerId, fileName, error);
+            }
+          }
+
+          layerKmlData[layerId] = {
+            type: 'FeatureCollection',
+            features
+          };
+
+          ensureKmlLayersForLayer(layerId);
+        }
+      }
+
+      map.on('load', loadKmlManifestAndData);
 
       // ---- Search: jump the map to a typed place name or raw coordinates ----
       function parseCoordinateInput(text) {
@@ -1281,6 +1501,11 @@
         safeSet('geolines', 'line-color', '#1d7bb8');
         safeSet('countries-label', 'text-color', '#dfe7ee');
         safeSet('countries-label', 'text-halo-color', '#0b0f14');
+
+        // Changing the base style (via the dropdown) wipes every custom
+        // source/layer, so re-create each layer's KML shapes from the
+        // data already loaded in memory.
+        state.layers.forEach((layer) => ensureKmlLayersForLayer(layer.id));
       });
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
