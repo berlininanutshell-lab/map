@@ -329,6 +329,59 @@
         background: rgba(255, 255, 255, 0.09);
       }
 
+      /* Layer picker shown under the Territory polygon tool while it's
+         armed, so an admin picks which layer a drawn shape edits before
+         (or while) drawing it. Built dynamically in JS from state.layers
+         so the dots always match each layer's current color. */
+      .territory-layer-picker {
+        margin: 2px 2px 6px;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .territory-layer-picker[hidden] {
+        display: none;
+      }
+
+      .territory-layer-picker-title {
+        padding: 0 2px 6px;
+        color: #94a5b4;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .territory-layer-option {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 7px 8px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #edf5ff;
+        text-align: left;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+      }
+
+      .territory-layer-option:hover,
+      .territory-layer-option[aria-pressed="true"] {
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .territory-layer-dot {
+        width: 10px;
+        height: 10px;
+        flex: none;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+      }
+
       /* Right-click flyout on the Line tool button, offering a dashed
          variant. Positioned in JS (fixed, at the cursor) rather than
          anchored to the button, since it opens wherever the user
@@ -1640,6 +1693,10 @@
           <button class="tool-option" type="button" data-tool="line" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Line</button>
           <button class="tool-option" type="button" data-tool="arrow" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⇢</span>Arrow</button>
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
+          <button class="tool-option admin-only" type="button" data-tool="polygon" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⬠</span>Territory polygon</button>
+          <div id="territoryLayerPicker" class="territory-layer-picker admin-only" hidden>
+            <div class="territory-layer-picker-title">Apply to layer</div>
+          </div>
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="ukraine" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ua.png" alt="" /></span>Flag: Ukraine</button>
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ru.png" alt="" /></span>Flag: Russia</button>
           <div class="tool-divider"></div>
@@ -1806,6 +1863,7 @@
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
     <script>
       // ---- Register / log in (Firebase Authentication) ----
       // Real accounts, held by Firebase — not this browser.
@@ -2705,7 +2763,10 @@
         isBrushing: false,
         role: 'guest',
         flagType: 'ukraine',
-        nickname: ''
+        nickname: '',
+        // Which layer a drawn Territory polygon will be applied to —
+        // see the "Territory polygon" tool below.
+        territoryLayerId: 'main'
       };
 
       // Flags are plain maplibregl.Markers (not GeoJSON features like the
@@ -2724,6 +2785,51 @@
       const mapStyleSelect = document.getElementById('mapStyleSelect');
       const lineToolBtn = document.querySelector('.tool-option[data-tool="line"]');
       const lineVariantMenu = document.getElementById('lineVariantMenu');
+      const polygonToolBtn = document.querySelector('.tool-option[data-tool="polygon"]');
+      const territoryLayerPicker = document.getElementById('territoryLayerPicker');
+
+      // The three layer ids the Territory polygon tool knows how to
+      // target. Built here (rather than from state.layers directly) so
+      // the picker only ever offers layers the boolean-op logic below
+      // actually supports.
+      const territoryLayerIds = ['main', 'russian-advances', 'ukrainian-advances'];
+
+      // Rebuilds the "Apply to layer" buttons from the current layer
+      // names/colors. Called once at startup and again every time
+      // renderLayers() runs, so a color change (admin recolor, or the
+      // shared-color Firestore sync) is reflected here too.
+      function renderTerritoryLayerPicker() {
+        territoryLayerPicker.querySelectorAll('.territory-layer-option').forEach((btn) => btn.remove());
+
+        territoryLayerIds.forEach((layerId) => {
+          const layer = getLayerById(layerId);
+          if (!layer) {
+            return;
+          }
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'territory-layer-option';
+          btn.dataset.layer = layerId;
+          btn.setAttribute('aria-pressed', String(state.territoryLayerId === layerId));
+
+          const dot = document.createElement('span');
+          dot.className = 'territory-layer-dot';
+          dot.style.background = layer.color;
+
+          btn.appendChild(dot);
+          btn.appendChild(document.createTextNode(layer.name));
+
+          btn.addEventListener('click', () => {
+            state.territoryLayerId = layerId;
+            territoryLayerPicker.querySelectorAll('.territory-layer-option').forEach((option) => {
+              option.setAttribute('aria-pressed', String(option === btn));
+            });
+          });
+
+          territoryLayerPicker.appendChild(btn);
+        });
+      }
 
       // Hint text shown under the tool list for whichever tool is armed.
       // Kept at module scope so both the main tool-option click handler
@@ -2734,7 +2840,8 @@
         line: 'Left-click to add points, right-click to finish the line.',
         lineDashed: 'Left-click to add points, right-click to finish the dashed line.',
         arrow: 'Left-click to add points, right-click to finish the arrow.',
-        pinpoint: 'Click the map to place a pinpoint.'
+        pinpoint: 'Click the map to place a pinpoint.',
+        polygon: 'Left-click to add points, right-click to finish the shape.'
       };
 
       // ---- Collapse sidebar (hides the Legend/Casualties panel) ----
@@ -2788,6 +2895,7 @@
         });
         drawHint.textContent = 'Choose a tool to start drawing.';
         map.getCanvasContainer().style.cursor = '';
+        territoryLayerPicker.hidden = true;
 
         // Discard any in-progress drawing (e.g. a line waiting for its
         // second click, or an active brush stroke) so nothing is left
@@ -2811,6 +2919,8 @@
       function renderLayers() {
         const visibleCount = state.layers.filter((layer) => layer.visible).length;
         mapSummary.textContent = state.currentStyle + ' • ' + visibleCount + ' visible layer' + (visibleCount === 1 ? '' : 's');
+
+        renderTerritoryLayerPicker();
 
         layersList.innerHTML = '';
 
@@ -2964,7 +3074,7 @@
           // The flag tool is only ever meant to be reachable by admins —
           // it's hidden via CSS for everyone else, but this guard covers
           // it too in case the role changed after the menu was opened.
-          if (button.dataset.tool === 'flag' && state.role !== 'admin') {
+          if ((button.dataset.tool === 'flag' || button.dataset.tool === 'polygon') && state.role !== 'admin') {
             return;
           }
 
@@ -2975,6 +3085,7 @@
           document.querySelectorAll('.tool-option').forEach((option) => {
             option.setAttribute('aria-pressed', String(option === button));
           });
+          territoryLayerPicker.hidden = button.dataset.tool !== 'polygon';
 
           drawHint.textContent = state.drawingTool === 'flag'
             ? 'Click the map to place a ' + (state.flagType === 'russia' ? 'Russian' : 'Ukrainian') + ' flag. Drag a flag to move it.'
@@ -3014,6 +3125,7 @@
             const isActive = option === button || (option === lineToolBtn && button.dataset.tool === 'lineDashed');
             option.setAttribute('aria-pressed', String(isActive));
           });
+          territoryLayerPicker.hidden = true;
           drawHint.textContent = toolHints[state.drawingTool];
           map.getCanvasContainer().style.cursor = 'crosshair';
           closeLineVariantMenu();
@@ -3296,6 +3408,130 @@
         } else {
           map.setLayoutProperty(pointId, 'visibility', visibility);
           map.setPaintProperty(pointId, 'circle-color', color);
+        }
+      }
+
+      // ---- Territory polygon tool ----
+      // Lets an admin redraw the front line by hand: pick a layer, draw
+      // a closed shape, and it's merged into that layer's polygon data
+      // with turf.js boolean ops (rather than just being dropped on top
+      // as its own overlapping shape). Like the rest of layerKmlData,
+      // this only lives in memory for the current page load — it isn't
+      // written back to the kml/ files or Firestore.
+
+      // All Polygon/MultiPolygon features currently held by a layer
+      // (from its loaded KML plus any earlier territory edits).
+      function layerPolygonFeatures(layerId) {
+        const data = layerKmlData[layerId];
+        if (!data) {
+          return [];
+        }
+        return data.features.filter(
+          (feature) => feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
+        );
+      }
+
+      // Merges a layer's separate polygon features into one
+      // Polygon/MultiPolygon geometry (or null if the layer has none),
+      // so the boolean ops below have a single shape to compare against.
+      function unionPolygonFeatures(features) {
+        if (!features.length) {
+          return null;
+        }
+        return features.reduce((merged, feature) => (merged ? turf.union(merged, feature) : feature), null);
+      }
+
+      // Replaces a layer's polygon features with the given (possibly
+      // null) geometry, splitting a MultiPolygon back into one feature
+      // per part so each renders and can be re-selected like an
+      // ordinary KML placemark. Non-polygon features already on the
+      // layer (KML lines/points) are left untouched.
+      function setLayerPolygonGeometry(layerId, geometry) {
+        if (!layerKmlData[layerId]) {
+          layerKmlData[layerId] = { type: 'FeatureCollection', features: [] };
+        }
+        const data = layerKmlData[layerId];
+        const keptFeatures = data.features.filter(
+          (feature) => !feature.geometry || (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')
+        );
+
+        let newPolygonFeatures = [];
+        if (geometry) {
+          newPolygonFeatures = turf.flatten(geometry).features.map((feature) => ({
+            type: 'Feature',
+            properties: { name: '', description: '' },
+            geometry: feature.geometry
+          }));
+        }
+
+        data.features = keptFeatures.concat(newPolygonFeatures);
+        ensureKmlLayersForLayer(layerId);
+      }
+
+      // Applies a hand-drawn ring (an array of [lng, lat] positions,
+      // first === last) to whichever layer was selected in the
+      // territory-layer picker:
+      //  - main: added straight in, merged with whatever main already
+      //    covers.
+      //  - russian-advances: clipped to the part NOT already inside
+      //    main (so a Russian-advance shape can never re-claim ground
+      //    main already shows as taken), then that clipped shape is
+      //    merged into both russian-advances and main.
+      //  - ukrainian-advances: clipped to the part that IS inside main
+      //    (Ukraine can only be shown "advancing" through ground main
+      //    currently shows as taken — draw entirely outside main and
+      //    nothing is added anywhere), then that clipped shape is
+      //    merged into ukrainian-advances and subtracted from main.
+      function applyTerritoryPolygon(ring, layerId) {
+        let drawnPolygon;
+        try {
+          drawnPolygon = turf.polygon([ring]);
+        } catch (error) {
+          console.error('Invalid territory polygon shape', error);
+          drawHint.textContent = 'That shape was too small or self-crossing — try again.';
+          return;
+        }
+
+        const mainGeometry = unionPolygonFeatures(layerPolygonFeatures('main'));
+
+        if (layerId === 'main') {
+          const newMain = mainGeometry ? turf.union(mainGeometry, drawnPolygon) : drawnPolygon;
+          setLayerPolygonGeometry('main', newMain);
+          drawHint.textContent = 'Added to the main layer.';
+          return;
+        }
+
+        if (layerId === 'russian-advances') {
+          const clipped = mainGeometry ? turf.difference(drawnPolygon, mainGeometry) : drawnPolygon;
+          if (!clipped) {
+            drawHint.textContent = 'That area is already inside the main layer — nothing added.';
+            return;
+          }
+
+          const existingAdvance = unionPolygonFeatures(layerPolygonFeatures('russian-advances'));
+          setLayerPolygonGeometry('russian-advances', existingAdvance ? turf.union(existingAdvance, clipped) : clipped);
+          setLayerPolygonGeometry('main', mainGeometry ? turf.union(mainGeometry, clipped) : clipped);
+          drawHint.textContent = 'Added to Russian advances and merged into the main layer.';
+          return;
+        }
+
+        if (layerId === 'ukrainian-advances') {
+          if (!mainGeometry) {
+            drawHint.textContent = 'Nothing to draw — the main layer has no territory yet.';
+            return;
+          }
+
+          const clipped = turf.intersect(drawnPolygon, mainGeometry);
+          if (!clipped) {
+            drawHint.textContent = 'That area is outside the main layer — nothing drawn.';
+            return;
+          }
+
+          const existingAdvance = unionPolygonFeatures(layerPolygonFeatures('ukrainian-advances'));
+          setLayerPolygonGeometry('ukrainian-advances', existingAdvance ? turf.union(existingAdvance, clipped) : clipped);
+          setLayerPolygonGeometry('main', turf.difference(mainGeometry, clipped));
+          drawHint.textContent = 'Added to Ukrainian advances and cut out of the main layer.';
+          return;
         }
       }
 
@@ -3864,6 +4100,11 @@
           event.originalEvent.preventDefault();
         }
 
+        if (state.drawingTool === 'polygon' && state.draft) {
+          finishPolygonDraft();
+          return;
+        }
+
         if (isOpenLineTool(state.drawingTool) && state.draft) {
           finishOpenLineDraft();
           return;
@@ -3876,7 +4117,7 @@
       // left-click adds a point and keeps going, right-click ends the
       // drawing. They share this helper.
       function isOpenLineTool(tool) {
-        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow';
+        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow' || tool === 'polygon';
       }
 
       // Right-click ends an in-progress line/dashed-line/arrow: drop
@@ -3895,6 +4136,31 @@
         }
         state.draft = null;
         updateDrawings();
+      }
+
+      // Right-click ends an in-progress Territory polygon the same way
+      // finishOpenLineDraft ends a line/arrow — drop the trailing
+      // rubber-band point, then, if enough vertices are left, close the
+      // ring and hand it off to applyTerritoryPolygon instead of pushing
+      // it into state.drawings (a territory polygon is never a plain
+      // drawing: it edits main/russian-advances/ukrainian-advances
+      // directly and is never shown as its own shape).
+      function finishPolygonDraft() {
+        if (!state.draft) {
+          return;
+        }
+        const coords = state.draft.geometry.coordinates;
+        coords.pop();
+        state.draft = null;
+        updateDrawings();
+
+        if (coords.length < 3) {
+          drawHint.textContent = 'Need at least 3 points for a polygon — try again.';
+          return;
+        }
+
+        const ring = coords.concat([coords[0]]);
+        applyTerritoryPolygon(ring, state.territoryLayerId);
       }
 
       copyCoordinatesBtn.addEventListener('click', async () => {
@@ -4038,6 +4304,9 @@
         }
 
         if (isOpenLineTool(state.drawingTool)) {
+          if (state.drawingTool === 'polygon' && state.role !== 'admin') {
+            return;
+          }
           if (!state.draft) {
             state.draft = makeLineFeature([coordinate, coordinate], state.drawingTool);
           } else {
