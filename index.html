@@ -897,7 +897,8 @@
           <button class="tool-option" type="button" data-tool="brush" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">〰</span>Brush</button>
           <button class="tool-option" type="button" data-tool="line" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Line</button>
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
-          <button class="tool-option admin-only" type="button" data-tool="flag" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">🚩</span>Flag (admin)</button>
+          <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="ukraine" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">🇺🇦</span>Flag: Ukraine</button>
+          <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">🇷🇺</span>Flag: Russia</button>
           <div class="tool-divider"></div>
           <label class="color-option" for="drawColor">Drawing color<input id="drawColor" type="color" value="#FF9400" /></label>
           <div id="drawHint" aria-live="polite">Choose a tool to start drawing.</div>
@@ -968,6 +969,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
     <script>
       // ---- Register / log in (Firebase Authentication) ----
@@ -981,14 +983,24 @@
         appId: '1:517884260174:web:b254ab7f4915d10853b81f'
       };
       let auth = null;
+      let db = null;
       if (typeof firebase !== 'undefined') {
         try {
           firebase.initializeApp(firebaseConfig);
           auth = firebase.auth();
+          db = firebase.firestore();
         } catch (error) {
           console.error('Firebase init failed', error);
         }
       }
+
+      // Shared layer colors live in this one Firestore document so every
+      // visitor's browser sees the same colors — not just the admin who
+      // set them. Requires Cloud Firestore to be enabled on the Firebase
+      // project (Build → Firestore Database → Create database) and a
+      // rule allowing public read / admin-only write — see the rules
+      // block noted alongside ADMIN_EMAILS below.
+      const layerColorsDocRef = db ? db.collection('mapState').doc('layerColors') : null;
 
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
@@ -1013,7 +1025,7 @@
       // pickers. Edit this list to set who's an admin — it's a simple
       // client-side check, not a real access-control boundary, so don't
       // rely on it to keep out a determined visitor with dev tools.
-      const ADMIN_EMAILS = ['berlininanutshell@gmail.com'];
+      const ADMIN_EMAILS = ['admin@example.com'];
 
       function currentRole() {
         if (!auth || !auth.currentUser) {
@@ -1246,7 +1258,8 @@
         drawings: [],
         draft: null,
         isBrushing: false,
-        role: 'guest'
+        role: 'guest',
+        flagType: 'ukraine'
       };
 
       // Flags are plain maplibregl.Markers (not GeoJSON features like the
@@ -1351,6 +1364,17 @@
             layer.color = colorInput.value;
             dot.style.background = colorInput.value;
             ensureKmlLayersForLayer(layer.id);
+
+            // Push the change to Firestore so every other visitor's
+            // browser picks it up too (see the onSnapshot listener
+            // below) — not just this admin's own tab.
+            if (layerColorsDocRef) {
+              layerColorsDocRef
+                .set({ colors: { [layer.id]: colorInput.value } }, { merge: true })
+                .catch((error) => {
+                  console.error('Failed to save shared layer color', error);
+                });
+            }
           });
 
           const toggle = document.createElement('button');
@@ -1370,6 +1394,35 @@
           item.appendChild(name);
           item.appendChild(actions);
           layersList.appendChild(item);
+        });
+      }
+
+      // Keeps every visitor's layer colors in sync with whatever the
+      // admin last set, in real time — including on first page load, so
+      // a fresh guest sees the admin's colors, not the hardcoded
+      // defaults in state.layers above.
+      if (layerColorsDocRef) {
+        layerColorsDocRef.onSnapshot((doc) => {
+          if (!doc.exists) {
+            return;
+          }
+          const colors = doc.data().colors || {};
+          let changed = false;
+          state.layers.forEach((layer) => {
+            const sharedColor = colors[layer.id];
+            if (sharedColor && sharedColor !== layer.color) {
+              layer.color = sharedColor;
+              changed = true;
+              if (map.isStyleLoaded()) {
+                ensureKmlLayersForLayer(layer.id);
+              }
+            }
+          });
+          if (changed) {
+            renderLayers();
+          }
+        }, (error) => {
+          console.error('Failed to sync shared layer colors', error);
         });
       }
 
@@ -1393,6 +1446,9 @@
           }
 
           state.drawingTool = button.dataset.tool;
+          if (button.dataset.tool === 'flag') {
+            state.flagType = button.dataset.flagNation === 'russia' ? 'russia' : 'ukraine';
+          }
           document.querySelectorAll('.tool-option').forEach((option) => {
             option.setAttribute('aria-pressed', String(option === button));
           });
@@ -1401,7 +1457,7 @@
             brush: 'Drag on the map to draw a freehand stroke.',
             line: 'Click two points on the map to draw a line.',
             pinpoint: 'Click the map to place a pinpoint.',
-            flag: 'Click the map to place a flag. Drag a flag to move it.'
+            flag: 'Click the map to place a ' + (state.flagType === 'russia' ? 'Russian' : 'Ukrainian') + ' flag. Drag a flag to move it.'
           };
           drawHint.textContent = hints[state.drawingTool];
           map.getCanvasContainer().style.cursor = 'crosshair';
@@ -1719,14 +1775,30 @@
         }
 
         const features = map.queryRenderedFeatures(event.point, { layers: fillLayerIds });
-        const named = features.find((feature) => feature.properties && feature.properties.name);
+        const hovered = features[0];
 
-        if (!named) {
+        if (!hovered) {
           kmlHoverLabel.hidden = true;
           return;
         }
 
-        kmlHoverLabel.textContent = named.properties.name;
+        // Prefer the KML placemark's own <name>, but most placemarks in
+        // practice don't have one set — fall back to the sidebar layer's
+        // name (e.g. "Russian advances") so hovering a polygon always
+        // shows something instead of silently doing nothing.
+        const placemarkName = hovered.properties && hovered.properties.name
+          ? String(hovered.properties.name).trim()
+          : '';
+        const layerId = hovered.layer.id.replace(/^kml-/, '').replace(/-fill$/, '');
+        const parentLayer = getLayerById(layerId);
+        const label = placemarkName || (parentLayer ? parentLayer.name : '');
+
+        if (!label) {
+          kmlHoverLabel.hidden = true;
+          return;
+        }
+
+        kmlHoverLabel.textContent = label;
         kmlHoverLabel.style.left = event.originalEvent.clientX + 14 + 'px';
         kmlHoverLabel.style.top = event.originalEvent.clientY + 14 + 'px';
         kmlHoverLabel.hidden = false;
@@ -2023,10 +2095,14 @@
       // there's nothing extra to wire up for "move flags" beyond
       // draggable: true. Only ever created from the map-click handler,
       // which already checks state.role === 'admin'.
-      function placeFlag(lng, lat) {
+      function placeFlag(lng, lat, flagType) {
+        const nation = flagType === 'russia' ? 'russia' : 'ukraine';
+        const emoji = nation === 'russia' ? '🇷🇺' : '🇺🇦';
+        const label = nation === 'russia' ? 'Russia' : 'Ukraine';
+
         const el = document.createElement('div');
         el.className = 'flag-marker';
-        el.textContent = '🚩';
+        el.textContent = emoji;
 
         const marker = new maplibregl.Marker({ element: el, draggable: true, anchor: 'bottom-left' })
           .setLngLat([lng, lat])
@@ -2035,7 +2111,7 @@
         const popup = new maplibregl.Popup({ offset: 18, closeButton: true, closeOnClick: false })
           .setHTML(
             '<div class="marker-popup">' +
-            '<div class="marker-popup-title">Flag</div>' +
+            '<div class="marker-popup-title">' + label + ' flag</div>' +
             '<div class="marker-popup-actions">' +
             '<button type="button" class="marker-popup-delete">Delete flag</button>' +
             '</div>' +
@@ -2200,7 +2276,7 @@
           if (state.role !== 'admin') {
             return;
           }
-          placeFlag(event.lngLat.lng, event.lngLat.lat);
+          placeFlag(event.lngLat.lng, event.lngLat.lat, state.flagType);
           return;
         }
 
