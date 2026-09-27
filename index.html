@@ -992,6 +992,87 @@
         text-align: right;
       }
 
+      #welcomeOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 6000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 9, 13, 0.88);
+        backdrop-filter: blur(2px);
+      }
+
+      #welcomeOverlay[hidden] {
+        display: none;
+      }
+
+      #welcomeCard {
+        position: relative;
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        padding: 26px 24px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+
+      #welcomeCard h2 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+
+      #welcomeCard p {
+        margin: 0 0 10px;
+        color: #ccd6e1;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      #welcomeCard p:last-of-type {
+        margin-bottom: 0;
+      }
+
+      #welcomeCloseBtn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #98a9b9;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      #welcomeCloseBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #edf5ff;
+      }
+
+      #welcomeDismissBtn {
+        width: 100%;
+        margin-top: 16px;
+        height: 40px;
+        border: 0;
+        border-radius: 8px;
+        background: #ff9400;
+        color: #16110a;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #welcomeDismissBtn:hover {
+        background: #ffab33;
+      }
+
       /* ---- Role-based visibility ----
          Guests (not logged in) never see the draw tools or the layer
          on/off toggles at all. Logged-in non-admins see both, but not
@@ -1460,6 +1541,7 @@
         <div id="toolMenu" hidden>
           <button class="tool-option" type="button" data-tool="brush" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">〰</span>Brush</button>
           <button class="tool-option" type="button" data-tool="line" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Line</button>
+          <button class="tool-option" type="button" data-tool="arrow" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⇢</span>Arrow</button>
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="ukraine" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ua.png" alt="" /></span>Flag: Ukraine</button>
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ru.png" alt="" /></span>Flag: Russia</button>
@@ -1595,6 +1677,17 @@
       </div>
     </div>
 
+    <div id="welcomeOverlay">
+      <div id="welcomeCard">
+        <button type="button" id="welcomeCloseBtn" aria-label="Close">×</button>
+        <div class="eyebrow">Welcome</div>
+        <h2>Russo-Ukrainian War Map</h2>
+        <p>This map tracks the front line, territorial control, and reported casualties of the war. Browse freely as a guest, or log in to draw on the map and place markers.</p>
+        <p>Casualty figures are claims reported by each side about its opponent, not confirmed numbers — see the Casualties tab for details.</p>
+        <button type="button" id="welcomeDismissBtn">Got it</button>
+      </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
@@ -1636,6 +1729,13 @@
       // admin's own tab) sees the update in real time. Falls back to
       // local-only editing (lost on refresh) if Firestore isn't set up.
       const casualtyDataDocRef = db ? db.collection('mapState').doc('casualtyData') : null;
+
+      // Same idea again, but for flags: whenever an admin places, moves,
+      // or deletes a flag, the full current list of flags is pushed
+      // here so every visitor's browser sees it too — not just the
+      // admin's own tab. Falls back to local-only flags (lost on
+      // refresh, not seen by anyone else) if Firestore isn't set up.
+      const flagsDocRef = db ? db.collection('mapState').doc('flags') : null;
 
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
@@ -1969,6 +2069,33 @@
           .finally(() => {
             settingsSaveBtn.disabled = false;
           });
+      });
+
+      // ---- Welcome modal ----
+      // No hidden attribute in the HTML, so this shows on every page
+      // load (not just first-time visitors) and stays up until the
+      // visitor dismisses it — nothing is remembered between sessions.
+      const welcomeOverlay = document.getElementById('welcomeOverlay');
+      const welcomeCloseBtn = document.getElementById('welcomeCloseBtn');
+      const welcomeDismissBtn = document.getElementById('welcomeDismissBtn');
+
+      function hideWelcomeOverlay() {
+        welcomeOverlay.hidden = true;
+      }
+
+      welcomeCloseBtn.addEventListener('click', hideWelcomeOverlay);
+      welcomeDismissBtn.addEventListener('click', hideWelcomeOverlay);
+
+      welcomeOverlay.addEventListener('click', (event) => {
+        if (event.target === welcomeOverlay) {
+          hideWelcomeOverlay();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !welcomeOverlay.hidden) {
+          hideWelcomeOverlay();
+        }
       });
 
       // ---- Sidebar tabs: Legend / Casualties ----
@@ -2631,6 +2758,49 @@
         });
       }
 
+      // Keeps every visitor's flags in sync with whatever an admin last
+      // placed/moved/deleted, in real time — including on first page
+      // load, so a fresh guest sees the admin's flags, not an empty
+      // map. Reconciles by flagId: moves markers that already exist
+      // locally, creates ones that are new, and removes ones no longer
+      // in the remote list.
+      if (flagsDocRef) {
+        flagsDocRef.onSnapshot((doc) => {
+          if (!doc.exists) {
+            return;
+          }
+          const remoteList = Array.isArray(doc.data().list) ? doc.data().list : [];
+          const remoteIds = new Set(remoteList.map((entry) => entry && entry.id));
+
+          flagMarkers = flagMarkers.filter((marker) => {
+            if (remoteIds.has(marker.flagId)) {
+              return true;
+            }
+            marker.remove();
+            return false;
+          });
+
+          const localById = new Map(flagMarkers.map((marker) => [marker.flagId, marker]));
+
+          remoteList.forEach((entry) => {
+            if (!entry || typeof entry.lng !== 'number' || typeof entry.lat !== 'number') {
+              return;
+            }
+            const existing = localById.get(entry.id);
+            if (existing) {
+              const current = existing.getLngLat();
+              if (current.lng !== entry.lng || current.lat !== entry.lat) {
+                existing.setLngLat([entry.lng, entry.lat]);
+              }
+            } else {
+              placeFlag(entry.lng, entry.lat, entry.nation, entry.id);
+            }
+          });
+        }, (error) => {
+          console.error('Failed to sync shared flags', error);
+        });
+      }
+
       drawToolsBtn.addEventListener('click', () => {
         const isOpen = !toolMenu.hidden;
         if (isOpen) {
@@ -2661,6 +2831,7 @@
           const hints = {
             brush: 'Drag on the map to draw a freehand stroke.',
             line: 'Click two points on the map to draw a line.',
+            arrow: 'Left-click to add points, right-click to finish the arrow.',
             pinpoint: 'Click the map to place a pinpoint.',
             flag: 'Click the map to place a ' + (state.flagType === 'russia' ? 'Russian' : 'Ukrainian') + ' flag. Drag a flag to move it.'
           };
@@ -2701,6 +2872,7 @@
         if (state.role === 'admin') {
           flagMarkers.forEach((marker) => marker.remove());
           flagMarkers = [];
+          pushFlagsToFirestore();
         }
       });
 
@@ -3257,9 +3429,28 @@
         }
 
         clearDrawingsBtn.disabled = features.length === 0;
+
+        // Arrows get an extra little chevron feature at their tip,
+        // computed fresh each render from the arrow's last segment —
+        // this covers both finished arrows and the in-progress draft,
+        // so the arrowhead follows the cursor while drawing too.
+        const arrowHeadFeatures = [];
+        features.forEach((feature) => {
+          if (
+            feature.properties &&
+            feature.properties.tool === 'arrow' &&
+            feature.geometry.type === 'LineString'
+          ) {
+            const head = computeArrowHeadFeature(feature.geometry.coordinates, feature.properties.color);
+            if (head) {
+              arrowHeadFeatures.push(head);
+            }
+          }
+        });
+
         const source = map.getSource('user-drawings');
         if (source) {
-          source.setData({ type: 'FeatureCollection', features });
+          source.setData({ type: 'FeatureCollection', features: features.concat(arrowHeadFeatures) });
         }
       }
 
@@ -3271,31 +3462,107 @@
         };
       }
 
-      // ---- Flags (admin only) ----
+      // Builds a small V-shaped chevron at the last point of an arrow's
+      // coordinates, pointing the way the line is heading. Worked out
+      // in screen pixels (via project/unproject) so the chevron stays
+      // a sensible, constant size on screen regardless of how zoomed
+      // in or out the map is at the moment the arrow is drawn.
+      function computeArrowHeadFeature(coordinates, color) {
+        const count = coordinates.length;
+        if (count < 2) {
+          return null;
+        }
+
+        const tip = coordinates[count - 1];
+        const from = coordinates[count - 2];
+        if (tip[0] === from[0] && tip[1] === from[1]) {
+          return null;
+        }
+
+        const tipPx = map.project(tip);
+        const fromPx = map.project(from);
+        const dx = tipPx.x - fromPx.x;
+        const dy = tipPx.y - fromPx.y;
+        const len = Math.hypot(dx, dy);
+        if (len < 1) {
+          return null;
+        }
+
+        const ux = dx / len;
+        const uy = dy / len;
+        const headLength = 12;
+        const headAngle = (28 * Math.PI) / 180;
+
+        const rotate = (x, y, angle) => [
+          x * Math.cos(angle) - y * Math.sin(angle),
+          x * Math.sin(angle) + y * Math.cos(angle)
+        ];
+
+        const [w1x, w1y] = rotate(-ux, -uy, headAngle);
+        const [w2x, w2y] = rotate(-ux, -uy, -headAngle);
+
+        const wing1 = map.unproject([tipPx.x + w1x * headLength, tipPx.y + w1y * headLength]);
+        const wing2 = map.unproject([tipPx.x + w2x * headLength, tipPx.y + w2y * headLength]);
+
+        return {
+          type: 'Feature',
+          properties: { color, tool: 'arrow', arrowHead: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [[wing1.lng, wing1.lat], tip, [wing2.lng, wing2.lat]]
+          }
+        };
+      }
+
+      // ---- Flags (placed/moved by admins, visible to everyone) ----
       // Flags are draggable maplibregl.Markers, not part of the
-      // GeoJSON drawings source — dragging a marker is built in, so
-      // there's nothing extra to wire up for "move flags" beyond
-      // draggable: true. Only ever created from the map-click handler,
-      // which already checks state.role === 'admin'.
-      function placeFlag(lng, lat, flagType) {
+      // GeoJSON drawings source — dragging a marker is built in.
+      // placeFlag() is used two ways: (1) from the map-click handler,
+      // which already checks state.role === 'admin', to create a new
+      // flag locally and push it to everyone via Firestore; and (2)
+      // from the flagsDocRef onSnapshot listener, to build the local
+      // marker for a flag some other admin already placed — in that
+      // case an existing flagId is passed in so both sides agree on
+      // which marker is which.
+      function currentFlagsPayload() {
+        return flagMarkers.map((marker) => {
+          const lngLat = marker.getLngLat();
+          return { id: marker.flagId, nation: marker.flagNation, lng: lngLat.lng, lat: lngLat.lat };
+        });
+      }
+
+      function pushFlagsToFirestore() {
+        if (!flagsDocRef) {
+          return;
+        }
+        flagsDocRef.set({ list: currentFlagsPayload() }).catch((error) => {
+          console.error('Failed to save shared flags', error);
+        });
+      }
+
+      function placeFlag(lng, lat, flagType, flagId) {
         const nation = flagType === 'russia' ? 'russia' : 'ukraine';
         const code = nation === 'russia' ? 'ru' : 'ua';
         const label = nation === 'russia' ? 'Russia' : 'Ukraine';
+        const canManage = state.role === 'admin';
 
         const el = document.createElement('div');
         el.className = 'flag-marker';
         el.innerHTML = '<img src="https://flagcdn.com/w40/' + code + '.png" alt="' + label + ' flag" draggable="false" />';
 
-        const marker = new maplibregl.Marker({ element: el, draggable: true, anchor: 'bottom-left' })
+        const marker = new maplibregl.Marker({ element: el, draggable: canManage, anchor: 'bottom-left' })
           .setLngLat([lng, lat])
           .addTo(map);
+
+        marker.flagId = flagId || ('flag-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+        marker.flagNation = nation;
 
         const popup = new maplibregl.Popup({ offset: 18, closeButton: true, closeOnClick: false })
           .setHTML(
             '<div class="marker-popup">' +
             '<div class="marker-popup-title">' + label + ' flag</div>' +
             '<div class="marker-popup-actions">' +
-            '<button type="button" class="marker-popup-delete">Delete flag</button>' +
+            '<button type="button" class="marker-popup-delete admin-only">Delete flag</button>' +
             '</div>' +
             '</div>'
           );
@@ -3305,11 +3572,21 @@
           const deleteBtn = container && container.querySelector('.marker-popup-delete');
           if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
+              if (state.role !== 'admin') {
+                return;
+              }
               marker.remove();
               flagMarkers = flagMarkers.filter((m) => m !== marker);
+              pushFlagsToFirestore();
             });
           }
         });
+
+        if (canManage) {
+          marker.on('dragend', () => {
+            pushFlagsToFirestore();
+          });
+        }
 
         marker.setPopup(popup);
         flagMarkers.push(marker);
@@ -3321,8 +3598,32 @@
         if (event.originalEvent) {
           event.originalEvent.preventDefault();
         }
+
+        if (state.drawingTool === 'arrow' && state.draft) {
+          finishArrow();
+          return;
+        }
+
         showCoordinates(event.lngLat.lat, event.lngLat.lng, event.originalEvent);
       });
+
+      // Right-click ends an in-progress arrow: drop the trailing point
+      // that was only ever a rubber-band preview (never confirmed with
+      // a left-click), then commit whatever's left as a finished
+      // drawing. The arrow tool stays armed afterwards so another arrow
+      // can be started right away, same as the line tool.
+      function finishArrow() {
+        if (!state.draft) {
+          return;
+        }
+        const coords = state.draft.geometry.coordinates;
+        coords.pop();
+        if (coords.length >= 2) {
+          state.drawings.push(state.draft);
+        }
+        state.draft = null;
+        updateDrawings();
+      }
 
       copyCoordinatesBtn.addEventListener('click', async () => {
         try {
@@ -3420,6 +3721,13 @@
         if (state.drawingTool === 'line' && state.draft) {
           state.draft.geometry.coordinates[1] = [event.lngLat.lng, event.lngLat.lat];
           updateDrawings();
+          return;
+        }
+
+        if (state.drawingTool === 'arrow' && state.draft) {
+          const coords = state.draft.geometry.coordinates;
+          coords[coords.length - 1] = [event.lngLat.lng, event.lngLat.lat];
+          updateDrawings();
         }
       });
 
@@ -3459,6 +3767,23 @@
             return;
           }
           placeFlag(event.lngLat.lng, event.lngLat.lat, state.flagType);
+          pushFlagsToFirestore();
+          return;
+        }
+
+        if (state.drawingTool === 'arrow') {
+          if (!state.draft) {
+            state.draft = makeLineFeature([coordinate, coordinate], 'arrow');
+          } else {
+            // Lock in the point the cursor was rubber-banding to, then
+            // start rubber-banding a new segment from it — this is what
+            // lets left-click keep extending the arrow instead of
+            // finishing it.
+            const coords = state.draft.geometry.coordinates;
+            coords[coords.length - 1] = coordinate;
+            coords.push(coordinate);
+          }
+          updateDrawings();
           return;
         }
 
@@ -3514,7 +3839,7 @@
           id: 'user-drawing-lines',
           type: 'line',
           source: 'user-drawings',
-          filter: ['==', ['geometry-type'], 'LineString'],
+          filter: ['all', ['==', ['geometry-type'], 'LineString'], ['!=', ['get', 'tool'], 'arrow']],
           layout: {
             'line-cap': 'round',
             'line-join': 'round'
@@ -3522,6 +3847,44 @@
           paint: {
             'line-color': ['get', 'color'],
             'line-width': ['case', ['==', ['get', 'tool'], 'brush'], 5, 3]
+          }
+        });
+        // Arrow strokes get their own layer so they can be dashed —
+        // line-dasharray isn't data-driven, so a shared layer can't
+        // switch per feature between solid and dashed.
+        map.addLayer({
+          id: 'user-drawing-arrow-lines',
+          type: 'line',
+          source: 'user-drawings',
+          filter: [
+            'all',
+            ['==', ['geometry-type'], 'LineString'],
+            ['==', ['get', 'tool'], 'arrow'],
+            ['!=', ['get', 'arrowHead'], true]
+          ],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 3,
+            'line-dasharray': [2, 2]
+          }
+        });
+        // The little solid chevron at an arrow's tip.
+        map.addLayer({
+          id: 'user-drawing-arrow-heads',
+          type: 'line',
+          source: 'user-drawings',
+          filter: ['==', ['get', 'arrowHead'], true],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 3
           }
         });
         map.addLayer({
