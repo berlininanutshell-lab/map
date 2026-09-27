@@ -1086,6 +1086,121 @@
         color: #ff9400;
       }
 
+      .casualty-admin {
+        margin-top: 4px;
+        padding: 10px;
+        border: 1px dashed rgba(255, 148, 0, 0.35);
+        border-radius: 8px;
+        background: rgba(255, 148, 0, 0.04);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .casualty-admin-title {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #ff9400;
+        font-weight: 700;
+      }
+
+      .casualty-admin-total-row,
+      .casualty-admin-add-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .casualty-admin-total-row label {
+        flex: 1;
+        color: #98a9b9;
+        font-size: 12px;
+      }
+
+      .casualty-admin input[type="number"],
+      .casualty-admin input[type="date"] {
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 6px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+      }
+
+      .casualty-admin-total-row input[type="number"] {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .casualty-admin-add-row input[type="date"] {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .casualty-admin-add-row input[type="number"] {
+        width: 84px;
+      }
+
+      .casualty-admin-btn {
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .casualty-admin-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .casualty-admin-btn.danger {
+        border-color: rgba(255, 115, 102, 0.35);
+        background: rgba(255, 115, 102, 0.1);
+        color: #ff9b91;
+      }
+
+      .casualty-admin-btn.danger:hover {
+        background: rgba(255, 115, 102, 0.2);
+      }
+
+      .casualty-admin-entries {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+
+      .casualty-admin-entry {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .casualty-admin-entry .entry-date {
+        flex: 1;
+        color: #98a9b9;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .casualty-admin-entry input[type="number"] {
+        width: 76px;
+      }
+
+      .casualty-admin-empty {
+        color: #6d7d8c;
+        font-size: 12px;
+      }
+
       .casualty-sources {
         margin-top: auto;
         padding-top: 12px;
@@ -1199,6 +1314,7 @@
             <div class="casualty-total-since" id="russiaTotalSince"></div>
             <div class="casualty-total" id="russiaCasualtyTotal"></div>
             <div id="russiaCasualtyChart" class="casualty-chart-wrap"></div>
+            <div id="russiaCasualtyAdmin" class="casualty-admin admin-only"></div>
           </div>
           <div class="casualty-section">
             <div class="casualty-section-header">
@@ -1208,6 +1324,7 @@
             <div class="casualty-total-since" id="ukraineTotalSince"></div>
             <div class="casualty-total" id="ukraineCasualtyTotal"></div>
             <div id="ukraineCasualtyChart" class="casualty-chart-wrap"></div>
+            <div id="ukraineCasualtyAdmin" class="casualty-admin admin-only"></div>
           </div>
           <div id="casualtySources" class="casualty-sources"></div>
         </div>
@@ -1287,6 +1404,13 @@
       // rule allowing public read / admin-only write — see the rules
       // block noted alongside ADMIN_EMAILS below.
       const layerColorsDocRef = db ? db.collection('mapState').doc('layerColors') : null;
+
+      // Same idea as layerColorsDocRef, but for the Casualties tab: when
+      // an admin edits a total or adds/edits/removes a daily dot, the
+      // change is pushed here so every visitor's browser (not just the
+      // admin's own tab) sees the update in real time. Falls back to
+      // local-only editing (lost on refresh) if Firestore isn't set up.
+      const casualtyDataDocRef = db ? db.collection('mapState').doc('casualtyData') : null;
 
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
@@ -1682,14 +1806,12 @@
         );
       }
 
-      let casualtiesRendered = false;
-
+      // Unlike a lot of the rest of this page, the Casualties view is
+      // rebuilt every time it's shown (not just once) — it now needs to
+      // reflect whatever an admin last edited, and, when Firestore is
+      // set up, whatever any admin's edit synced in live while the tab
+      // is open (see the casualtyDataDocRef onSnapshot listener below).
       function renderCasualtiesView() {
-        if (casualtiesRendered) {
-          return;
-        }
-        casualtiesRendered = true;
-
         document.getElementById('russiaTotalSince').innerHTML =
           'Total since 24.02.2022<strong>' + casualtyData.russia.totalSince2022.toLocaleString() + '</strong>';
         document.getElementById('ukraineTotalSince').innerHTML =
@@ -1709,12 +1831,182 @@
         wireCasualtyChartDots(document.getElementById('russiaCasualtyChart'));
         wireCasualtyChartDots(document.getElementById('ukraineCasualtyChart'));
 
+        // Built and wired for every visitor (cheap — it's just a form),
+        // but only ever visible to admins: these containers already
+        // carry the .admin-only class, hidden via CSS for everyone else
+        // (see "body:not(.is-admin) .admin-only" near the top of the
+        // stylesheet).
+        const russiaAdminEl = document.getElementById('russiaCasualtyAdmin');
+        russiaAdminEl.innerHTML = buildCasualtyAdminHTML('russia');
+        wireCasualtyAdmin(russiaAdminEl, 'russia');
+
+        const ukraineAdminEl = document.getElementById('ukraineCasualtyAdmin');
+        ukraineAdminEl.innerHTML = buildCasualtyAdminHTML('ukraine');
+        wireCasualtyAdmin(ukraineAdminEl, 'ukraine');
+
         const sourcesContainer = document.getElementById('casualtySources');
         const titleHtml = '<div class="casualty-sources-title">Sources</div>';
         const linksHtml = (casualtyData.sources || []).map((source) =>
           '<a class="casualty-source-item" href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(source.label) + '</a>'
         ).join('');
         sourcesContainer.innerHTML = titleHtml + (linksHtml || '<div class="casualty-source-item" style="color:#6d7d8c;">No sources listed yet.</div>');
+      }
+
+      // ---- Casualty data editor (admin only) ----
+      // Lets an admin change a side's running total, edit or delete an
+      // existing daily dot, or add a brand new one. Every change is
+      // pushed to Firestore (when configured) so it's visible to every
+      // visitor, not just this admin's own browser — same pattern as
+      // the shared layer colors above.
+      function saveCasualtyDataRemote() {
+        if (!casualtyDataDocRef) {
+          return;
+        }
+        casualtyDataDocRef
+          .set({
+            russia: { totalSince2022: casualtyData.russia.totalSince2022, daily: casualtyData.russia.daily },
+            ukraine: { totalSince2022: casualtyData.ukraine.totalSince2022, daily: casualtyData.ukraine.daily }
+          }, { merge: true })
+          .catch((error) => {
+            console.error('Failed to save shared casualty data', error);
+          });
+      }
+
+      function buildCasualtyAdminHTML(sideKey) {
+        const side = casualtyData[sideKey];
+
+        const entriesHtml = side.daily.map((entry, index) => (
+          '<div class="casualty-admin-entry" data-index="' + index + '">' +
+          '<span class="entry-date">' + escapeHtml(formatShortDate(entry.date)) + '</span>' +
+          '<input type="number" class="entry-casualties-input" min="0" step="1" value="' + entry.casualties + '" aria-label="Casualties on ' + escapeHtml(entry.date) + '" />' +
+          '<button type="button" class="casualty-admin-btn entry-save-btn">Save</button>' +
+          '<button type="button" class="casualty-admin-btn danger entry-delete-btn">Delete</button>' +
+          '</div>'
+        )).join('');
+
+        return (
+          '<div class="casualty-admin-title">Admin: edit ' + (sideKey === 'russia' ? 'Russian' : 'Ukrainian') + ' data</div>' +
+          '<div class="casualty-admin-total-row">' +
+          '<label for="' + sideKey + 'TotalInput">Total since 24.02.2022</label>' +
+          '<input id="' + sideKey + 'TotalInput" type="number" class="total-input" min="0" step="1" value="' + side.totalSince2022 + '" />' +
+          '<button type="button" class="casualty-admin-btn total-save-btn">Save</button>' +
+          '</div>' +
+          '<div class="casualty-admin-entries">' +
+          (entriesHtml || '<div class="casualty-admin-empty">No daily dots yet — add one below.</div>') +
+          '</div>' +
+          '<div class="casualty-admin-add-row">' +
+          '<input type="date" class="new-date-input" aria-label="New dot date" />' +
+          '<input type="number" class="new-casualties-input" min="0" step="1" placeholder="Casualties" aria-label="New dot casualties" />' +
+          '<button type="button" class="casualty-admin-btn add-entry-btn">Add dot</button>' +
+          '</div>'
+        );
+      }
+
+      function wireCasualtyAdmin(container, sideKey) {
+        const totalInput = container.querySelector('.total-input');
+        const totalSaveBtn = container.querySelector('.total-save-btn');
+        if (totalSaveBtn) {
+          totalSaveBtn.addEventListener('click', () => {
+            const value = Math.round(Number(totalInput.value));
+            if (!Number.isFinite(value) || value < 0) {
+              return;
+            }
+            casualtyData[sideKey].totalSince2022 = value;
+            saveCasualtyDataRemote();
+            renderCasualtiesView();
+          });
+        }
+
+        container.querySelectorAll('.casualty-admin-entry').forEach((row) => {
+          const index = Number(row.dataset.index);
+          const input = row.querySelector('.entry-casualties-input');
+          const saveBtn = row.querySelector('.entry-save-btn');
+          const deleteBtn = row.querySelector('.entry-delete-btn');
+
+          if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+              const value = Math.round(Number(input.value));
+              if (!Number.isFinite(value) || value < 0) {
+                return;
+              }
+              casualtyData[sideKey].daily[index].casualties = value;
+              saveCasualtyDataRemote();
+              renderCasualtiesView();
+            });
+          }
+
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+              casualtyData[sideKey].daily.splice(index, 1);
+              saveCasualtyDataRemote();
+              renderCasualtiesView();
+            });
+          }
+        });
+
+        const newDateInput = container.querySelector('.new-date-input');
+        const newCasualtiesInput = container.querySelector('.new-casualties-input');
+        const addBtn = container.querySelector('.add-entry-btn');
+        if (addBtn) {
+          addBtn.addEventListener('click', () => {
+            const date = newDateInput.value;
+            const value = Math.round(Number(newCasualtiesInput.value));
+            if (!date || !Number.isFinite(value) || value < 0) {
+              return;
+            }
+
+            // Adding a dot for a date that already has one just updates
+            // it in place, rather than creating a confusing duplicate.
+            const existingIndex = casualtyData[sideKey].daily.findIndex((entry) => entry.date === date);
+            if (existingIndex >= 0) {
+              casualtyData[sideKey].daily[existingIndex].casualties = value;
+            } else {
+              casualtyData[sideKey].daily.push({ date, casualties: value });
+            }
+            casualtyData[sideKey].daily.sort((a, b) => a.date.localeCompare(b.date));
+
+            saveCasualtyDataRemote();
+            renderCasualtiesView();
+          });
+        }
+      }
+
+      // Keeps every visitor's casualty totals/dots in sync with
+      // whatever an admin last saved, in real time — including on first
+      // page load, so a fresh guest sees the admin's data, not the
+      // hardcoded defaults in casualtyData above. sources stays local
+      // (not synced) since it isn't editable from this panel.
+      if (casualtyDataDocRef) {
+        casualtyDataDocRef.onSnapshot((doc) => {
+          if (!doc.exists) {
+            return;
+          }
+          const remote = doc.data() || {};
+          let changed = false;
+
+          ['russia', 'ukraine'].forEach((sideKey) => {
+            const remoteSide = remote[sideKey];
+            if (!remoteSide) {
+              return;
+            }
+            if (typeof remoteSide.totalSince2022 === 'number') {
+              casualtyData[sideKey].totalSince2022 = remoteSide.totalSince2022;
+              changed = true;
+            }
+            if (Array.isArray(remoteSide.daily)) {
+              casualtyData[sideKey].daily = remoteSide.daily
+                .filter((entry) => entry && typeof entry.date === 'string' && typeof entry.casualties === 'number')
+                .sort((a, b) => a.date.localeCompare(b.date));
+              changed = true;
+            }
+          });
+
+          if (changed && sidebarTab === 'casualties') {
+            renderCasualtiesView();
+          }
+        }, (error) => {
+          console.error('Failed to sync shared casualty data', error);
+        });
       }
 
       // ---- Casualty chart dot tooltip: click a dot to see that day's figure ----
