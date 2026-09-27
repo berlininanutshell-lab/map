@@ -901,13 +901,37 @@
         color: #ff9400;
       }
 
-      #legendView,
-      #casualtiesView {
+      #sidebarViews {
+        position: relative;
         flex: 1;
         min-height: 0;
+      }
+
+      .sidebar-view {
+        position: absolute;
+        inset: 0;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.22s ease, transform 0.22s ease;
+        pointer-events: none;
+      }
+
+      .sidebar-view.is-active {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      /* Higher specificity than the base .sidebar-view rule above, so a
+         panel that has finished fading out is actually removed from
+         layout/hit-testing instead of just sitting there invisible
+         (which is what happens if [hidden] never wins over an
+         unconditional `display` declared on the same element). */
+      .sidebar-view[hidden] {
+        display: none;
       }
 
       #casualtiesView {
@@ -940,6 +964,21 @@
         border-radius: 50%;
         border: 1px solid rgba(255, 255, 255, 0.35);
         flex-shrink: 0;
+      }
+
+      .casualty-total-since {
+        font-size: 11px;
+        letter-spacing: 0.03em;
+        color: #98a9b9;
+      }
+
+      .casualty-total-since strong {
+        display: block;
+        margin-top: 2px;
+        color: #edf5ff;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: normal;
       }
 
       .casualty-total {
@@ -1042,7 +1081,7 @@
     <aside id="sidebar">
       <header id="sidebar-header">
         <div>
-          <div class="eyebrow">Legend</div>
+          <div class="eyebrow" id="sidebarEyebrow">Legend</div>
           <h1>Russo-Ukrainian War</h1>
         </div>
         <button id="drawToolsBtn" type="button" aria-label="Open drawing tools" aria-expanded="false" aria-controls="toolMenu"><span aria-hidden="true">✎</span>Draw</button>
@@ -1063,48 +1102,52 @@
         <button id="legendTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="legendView">Legend</button>
         <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
       </div>
-      <div id="legendView" role="tabpanel">
-        <div id="accountBar">
-          <span id="accountStatus">Browsing as guest</span>
-          <button id="openAuthBtn" type="button">Log in</button>
-          <button id="logoutBtn" type="button" hidden>Log out</button>
-        </div>
-        <div id="searchBox">
-          <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
-          <div id="searchResults" hidden></div>
-        </div>
-        <div id="mapSummary">Dark theme • 3 visible layers</div>
-        <div id="layersList" aria-live="polite"></div>
-        <div id="stylePicker">
-          <label for="mapStyleSelect">Map style</label>
-          <select id="mapStyleSelect">
-            <option value="dark">Dark Matter</option>
-            <option value="streets">Streets (MapTiler)</option>
-            <option value="hybrid">Satellite Hybrid</option>
-            <option value="terrain">Mapzen Global Terrain</option>
-            <option value="darkmatteralt">Dark Matter (OpenMapTiles)</option>
-          </select>
-        </div>
-      </div>
-      <div id="casualtiesView" role="tabpanel" hidden>
-        <div class="casualty-section">
-          <div class="casualty-section-header">
-            <span class="casualty-dot" style="background:#FF9400"></span>
-            <h2>Russian Casualties</h2>
+      <div id="sidebarViews">
+        <div id="legendView" class="sidebar-view is-active" role="tabpanel">
+          <div id="accountBar">
+            <span id="accountStatus">Browsing as guest</span>
+            <button id="openAuthBtn" type="button">Log in</button>
+            <button id="logoutBtn" type="button" hidden>Log out</button>
           </div>
-          <div class="casualty-total" id="russiaCasualtyTotal"></div>
-          <div id="russiaCasualtyChart" class="casualty-chart-wrap"></div>
-        </div>
-        <div class="casualty-section">
-          <div class="casualty-section-header">
-            <span class="casualty-dot" style="background:#0000ff"></span>
-            <h2>Ukrainian Casualties</h2>
+          <div id="searchBox">
+            <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
+            <div id="searchResults" hidden></div>
           </div>
-          <div class="casualty-total" id="ukraineCasualtyTotal"></div>
-          <div id="ukraineCasualtyChart" class="casualty-chart-wrap"></div>
+          <div id="mapSummary">Dark theme • 3 visible layers</div>
+          <div id="layersList" aria-live="polite"></div>
+          <div id="stylePicker">
+            <label for="mapStyleSelect">Map style</label>
+            <select id="mapStyleSelect">
+              <option value="dark">Dark Matter</option>
+              <option value="streets">Streets (MapTiler)</option>
+              <option value="hybrid">Satellite Hybrid</option>
+              <option value="terrain">Mapzen Global Terrain</option>
+              <option value="darkmatteralt">Dark Matter (OpenMapTiles)</option>
+            </select>
+          </div>
         </div>
-        <div class="casualty-note">Example figures for demonstration only — replace <code>casualtyData</code> in the page's script with verified numbers from the sources below before relying on this.</div>
-        <div id="casualtySources" class="casualty-sources"></div>
+        <div id="casualtiesView" class="sidebar-view" role="tabpanel" hidden>
+          <div class="casualty-section">
+            <div class="casualty-section-header">
+              <span class="casualty-dot" style="background:#FF9400"></span>
+              <h2>Russian Casualties</h2>
+            </div>
+            <div class="casualty-total-since" id="russiaTotalSince"></div>
+            <div class="casualty-total" id="russiaCasualtyTotal"></div>
+            <div id="russiaCasualtyChart" class="casualty-chart-wrap"></div>
+          </div>
+          <div class="casualty-section">
+            <div class="casualty-section-header">
+              <span class="casualty-dot" style="background:#0000ff"></span>
+              <h2>Ukrainian Casualties</h2>
+            </div>
+            <div class="casualty-total-since" id="ukraineTotalSince"></div>
+            <div class="casualty-total" id="ukraineCasualtyTotal"></div>
+            <div id="ukraineCasualtyChart" class="casualty-chart-wrap"></div>
+          </div>
+          <div class="casualty-note">Example figures for demonstration only — replace <code>casualtyData</code> in the page's script with verified numbers from the sources below before relying on this.</div>
+          <div id="casualtySources" class="casualty-sources"></div>
+        </div>
       </div>
     </aside>
     <div id="coordinatePopup" role="status" aria-live="polite">
@@ -1398,50 +1441,89 @@
       const casualtiesTabBtn = document.getElementById('casualtiesTabBtn');
       const legendView = document.getElementById('legendView');
       const casualtiesView = document.getElementById('casualtiesView');
+      const sidebarEyebrow = document.getElementById('sidebarEyebrow');
+      let sidebarTab = 'legend';
 
       function setSidebarTab(tab) {
+        if (tab === sidebarTab) {
+          return;
+        }
+        sidebarTab = tab;
         const showCasualties = tab === 'casualties';
-        legendView.hidden = showCasualties;
-        casualtiesView.hidden = !showCasualties;
+
         legendTabBtn.setAttribute('aria-selected', String(!showCasualties));
         casualtiesTabBtn.setAttribute('aria-selected', String(showCasualties));
+        sidebarEyebrow.textContent = showCasualties ? 'Casualties' : 'Legend';
+
         if (showCasualties) {
           renderCasualtiesView();
         }
+
+        const incoming = showCasualties ? casualtiesView : legendView;
+        const outgoing = showCasualties ? legendView : casualtiesView;
+
+        // Un-hide the incoming panel first, then force a reflow before
+        // adding .is-active so the opacity/transform transition actually
+        // animates from its starting (faded-out) state instead of
+        // jumping straight to visible.
+        incoming.hidden = false;
+        void incoming.offsetWidth;
+        incoming.classList.add('is-active');
+
+        // Fade the outgoing panel out, then remove it from layout once
+        // the transition finishes so it stops catching clicks/scroll.
+        outgoing.classList.remove('is-active');
+        outgoing.addEventListener('transitionend', function onFadeOut(event) {
+          if (event.target !== outgoing) {
+            return;
+          }
+          outgoing.removeEventListener('transitionend', onFadeOut);
+          if (outgoing.classList.contains('is-active')) {
+            return; // switched back before the fade-out finished
+          }
+          outgoing.hidden = true;
+        });
       }
 
       legendTabBtn.addEventListener('click', () => setSidebarTab('legend'));
       casualtiesTabBtn.addEventListener('click', () => setSidebarTab('casualties'));
 
       // ---- Casualty data ----
-      // EXAMPLE DATA ONLY. Each entry is that side's reported/estimated
-      // losses for that single day (not a running total) — the chart
-      // draws these day-by-day left (earliest) to right (latest). Swap
-      // this out for a real, sourced dataset — e.g. pulled from the
-      // `sources` list below — before treating any of it as factual.
+      // EXAMPLE DATA ONLY. totalSince2022 is meant to be a war-start-to-
+      // date running total (24.02.2022 onward); daily is that side's
+      // reported/estimated losses for each single day shown in the chart
+      // (not a running total). Swap both out for a real, sourced dataset
+      // — e.g. pulled from the `sources` list below — before treating
+      // any of it as factual.
       const casualtyData = {
-        russia: [
-          { date: '2026-08-01', casualties: 920 },
-          { date: '2026-08-08', casualties: 870 },
-          { date: '2026-08-15', casualties: 1010 },
-          { date: '2026-08-22', casualties: 940 },
-          { date: '2026-08-29', casualties: 1080 },
-          { date: '2026-09-05', casualties: 990 },
-          { date: '2026-09-12', casualties: 1050 },
-          { date: '2026-09-19', casualties: 970 },
-          { date: '2026-09-26', casualties: 1120 }
-        ],
-        ukraine: [
-          { date: '2026-08-01', casualties: 210 },
-          { date: '2026-08-08', casualties: 190 },
-          { date: '2026-08-15', casualties: 260 },
-          { date: '2026-08-22', casualties: 230 },
-          { date: '2026-08-29', casualties: 300 },
-          { date: '2026-09-05', casualties: 240 },
-          { date: '2026-09-12', casualties: 275 },
-          { date: '2026-09-19', casualties: 220 },
-          { date: '2026-09-26', casualties: 285 }
-        ],
+        russia: {
+          totalSince2022: 850000,
+          daily: [
+            { date: '2026-08-01', casualties: 920 },
+            { date: '2026-08-08', casualties: 870 },
+            { date: '2026-08-15', casualties: 1010 },
+            { date: '2026-08-22', casualties: 940 },
+            { date: '2026-08-29', casualties: 1080 },
+            { date: '2026-09-05', casualties: 990 },
+            { date: '2026-09-12', casualties: 1050 },
+            { date: '2026-09-19', casualties: 970 },
+            { date: '2026-09-26', casualties: 1120 }
+          ]
+        },
+        ukraine: {
+          totalSince2022: 120000,
+          daily: [
+            { date: '2026-08-01', casualties: 210 },
+            { date: '2026-08-08', casualties: 190 },
+            { date: '2026-08-15', casualties: 260 },
+            { date: '2026-08-22', casualties: 230 },
+            { date: '2026-08-29', casualties: 300 },
+            { date: '2026-09-05', casualties: 240 },
+            { date: '2026-09-12', casualties: 275 },
+            { date: '2026-09-19', casualties: 220 },
+            { date: '2026-09-26', casualties: 285 }
+          ]
+        },
         // Add real citations here — label + url — and they'll render as
         // links at the bottom of the Casualties tab.
         sources: [
@@ -1538,16 +1620,21 @@
         }
         casualtiesRendered = true;
 
-        const russiaTotal = casualtyData.russia.reduce((sum, d) => sum + d.casualties, 0);
-        const ukraineTotal = casualtyData.ukraine.reduce((sum, d) => sum + d.casualties, 0);
+        document.getElementById('russiaTotalSince').innerHTML =
+          'Total since 24.02.2022<strong>' + casualtyData.russia.totalSince2022.toLocaleString() + '</strong>';
+        document.getElementById('ukraineTotalSince').innerHTML =
+          'Total since 24.02.2022<strong>' + casualtyData.ukraine.totalSince2022.toLocaleString() + '</strong>';
+
+        const russiaChartTotal = casualtyData.russia.daily.reduce((sum, d) => sum + d.casualties, 0);
+        const ukraineChartTotal = casualtyData.ukraine.daily.reduce((sum, d) => sum + d.casualties, 0);
 
         document.getElementById('russiaCasualtyTotal').innerHTML =
-          'Total over period: <strong>' + russiaTotal.toLocaleString() + '</strong>';
+          'Shown in chart: <strong>' + russiaChartTotal.toLocaleString() + '</strong>';
         document.getElementById('ukraineCasualtyTotal').innerHTML =
-          'Total over period: <strong>' + ukraineTotal.toLocaleString() + '</strong>';
+          'Shown in chart: <strong>' + ukraineChartTotal.toLocaleString() + '</strong>';
 
-        document.getElementById('russiaCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.russia, '#FF9400');
-        document.getElementById('ukraineCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.ukraine, '#0000ff');
+        document.getElementById('russiaCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.russia.daily, '#FF9400');
+        document.getElementById('ukraineCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.ukraine.daily, '#0000ff');
 
         const sourcesContainer = document.getElementById('casualtySources');
         const titleHtml = '<div class="casualty-sources-title">Sources</div>';
