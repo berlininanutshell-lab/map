@@ -170,34 +170,36 @@
         background: #e9e9e9;
       }
 
-      /* Admin-only live viewer counter. Presence is tracked through
-         Firebase Realtime Database; anonymous visitors are counted too. */
+      /* Admin-only live viewer counter. It lives inside the sidebar header
+         so it stays attached to the panel when the sidebar is resized. */
       #adminViewerCount {
         position: absolute;
-        top: 14px;
-        left: 14px;
-        z-index: 700;
+        top: 8px;
+        right: 14px;
+        z-index: 3;
         display: inline-flex;
         align-items: center;
-        gap: 7px;
-        padding: 6px 9px;
-        border: 1px solid rgba(255, 148, 0, 0.32);
-        border-radius: 999px;
-        background: rgba(12, 12, 12, 0.9);
-        color: #dce7f2;
-        font-size: 11px;
-        font-weight: 700;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.035);
+        color: #98a9b9;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
         line-height: 1;
         pointer-events: none;
         backdrop-filter: blur(8px);
       }
 
       .admin-viewer-dot {
-        width: 7px;
-        height: 7px;
+        width: 6px;
+        height: 6px;
+        flex: 0 0 6px;
         border-radius: 50%;
         background: #39d353;
-        box-shadow: 0 0 0 3px rgba(57, 211, 83, 0.12);
+        box-shadow: 0 0 0 2px rgba(57, 211, 83, 0.10);
       }
 
       #sidebar {
@@ -304,7 +306,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 20px 18px 14px;
+        padding: 34px 18px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
 
@@ -2062,13 +2064,13 @@
     <button id="sidebarToggleBtn" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="sidebar">
       <span aria-hidden="true">‹</span>
     </button>
-    <div id="adminViewerCount" class="admin-only" aria-live="polite" aria-label="Current viewers" aria-hidden="true">
-      <span class="admin-viewer-dot" aria-hidden="true"></span>
-      <span id="adminViewerCountText">0 viewers</span>
-    </div>
     <aside id="sidebar">
       <div id="sidebarResizeHandle" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
       <header id="sidebar-header">
+        <div id="adminViewerCount" class="admin-only" aria-live="polite" aria-label="Current viewers" aria-hidden="true">
+          <span class="admin-viewer-dot" aria-hidden="true"></span>
+          <span id="adminViewerCountText">0 viewers</span>
+        </div>
         <div>
           <div class="eyebrow" id="sidebarEyebrow">Legend</div>
           <h1>Russo-Ukrainian War</h1>
