@@ -725,6 +725,111 @@
         line-height: 1.4;
         text-align: center;
       }
+
+      #authCloseBtn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #98a9b9;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      #authCloseBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #edf5ff;
+      }
+
+      /* ---- Role-based visibility ----
+         Guests (not logged in) never see the draw tools or the layer
+         on/off toggles at all. Logged-in non-admins see both, but not
+         admin-only controls (the flag tool and the per-layer color
+         pickers) — those need body.is-admin. */
+      body:not(.logged-in) #drawToolsBtn,
+      body:not(.logged-in) #toolMenu,
+      body:not(.logged-in) .layer-actions {
+        display: none !important;
+      }
+
+      body:not(.is-admin) .admin-only {
+        display: none !important;
+      }
+
+      #openAuthBtn {
+        border: 1px solid rgba(127, 196, 255, 0.4);
+        background: rgba(127, 196, 255, 0.12);
+        color: #7fc4ff;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      #openAuthBtn:hover {
+        background: rgba(127, 196, 255, 0.2);
+      }
+
+      #accountBar {
+        flex-wrap: wrap;
+      }
+
+      #accountStatus {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .role-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        vertical-align: 1px;
+      }
+
+      .role-badge.admin {
+        background: rgba(255, 148, 0, 0.18);
+        color: #ff9400;
+        border: 1px solid rgba(255, 148, 0, 0.4);
+      }
+
+      .role-badge.user {
+        background: rgba(127, 196, 255, 0.14);
+        color: #7fc4ff;
+        border: 1px solid rgba(127, 196, 255, 0.35);
+      }
+
+      .layer-color-input {
+        width: 26px;
+        height: 26px;
+        padding: 1px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .flag-marker {
+        font-size: 26px;
+        line-height: 1;
+        cursor: grab;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+        transform-origin: bottom left;
+      }
+
+      .flag-marker:active {
+        cursor: grabbing;
+      }
     </style>
   </head>
   <body>
@@ -740,6 +845,7 @@
           <button class="tool-option" type="button" data-tool="brush" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">〰</span>Brush</button>
           <button class="tool-option" type="button" data-tool="line" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Line</button>
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
+          <button class="tool-option admin-only" type="button" data-tool="flag" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">🚩</span>Flag (admin)</button>
           <div class="tool-divider"></div>
           <label class="color-option" for="drawColor">Drawing color<input id="drawColor" type="color" value="#FF9400" /></label>
           <div id="drawHint" aria-live="polite">Choose a tool to start drawing.</div>
@@ -748,8 +854,9 @@
         </div>
       </header>
       <div id="accountBar">
-        <span>Signed in as <strong id="accountLabel"></strong></span>
-        <button id="logoutBtn" type="button">Log out</button>
+        <span id="accountStatus">Browsing as guest</span>
+        <button id="openAuthBtn" type="button">Log in</button>
+        <button id="logoutBtn" type="button" hidden>Log out</button>
       </div>
       <div id="searchBox">
         <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
@@ -780,8 +887,9 @@
     <div id="error"></div>
     <div id="kmlHoverLabel" hidden></div>
 
-    <div id="authOverlay">
+    <div id="authOverlay" hidden>
       <div id="authCard">
+        <button type="button" id="authCloseBtn" aria-label="Close">×</button>
         <div class="eyebrow">Access</div>
         <h2 id="authTitle">Log in</h2>
         <form id="authForm">
@@ -827,6 +935,7 @@
 
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
+      const authCloseBtn = document.getElementById('authCloseBtn');
       const authTitle = document.getElementById('authTitle');
       const authForm = document.getElementById('authForm');
       const authUsername = document.getElementById('authUsername');
@@ -834,8 +943,61 @@
       const authError = document.getElementById('authError');
       const authSubmitBtn = document.getElementById('authSubmitBtn');
       const authToggleModeBtn = document.getElementById('authToggleModeBtn');
-      const accountLabel = document.getElementById('accountLabel');
+      const accountStatus = document.getElementById('accountStatus');
+      const openAuthBtn = document.getElementById('openAuthBtn');
       const logoutBtn = document.getElementById('logoutBtn');
+
+      // ---- Roles ----
+      // Anyone can browse the map without an account. Logging in (any
+      // account) unlocks the draw tools and the layer on/off toggles.
+      // An email listed here additionally gets admin-only controls: the
+      // flag tool (place + drag flags) and per-layer polygon color
+      // pickers. Edit this list to set who's an admin — it's a simple
+      // client-side check, not a real access-control boundary, so don't
+      // rely on it to keep out a determined visitor with dev tools.
+      const ADMIN_EMAILS = ['berlininanutshell@gmail.com'];
+
+      function currentRole() {
+        if (!auth || !auth.currentUser) {
+          return 'guest';
+        }
+        const email = (auth.currentUser.email || '').toLowerCase();
+        return ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
+      }
+
+      // Applies the current role to the page: shows/hides the draw
+      // tools, layer toggles and admin-only controls, and updates the
+      // account bar. Called on every auth-state change.
+      function applyRole() {
+        const role = currentRole();
+        state.role = role;
+
+        document.body.classList.toggle('logged-in', role !== 'guest');
+        document.body.classList.toggle('is-admin', role === 'admin');
+
+        if (role === 'guest') {
+          accountStatus.textContent = 'Browsing as guest';
+          openAuthBtn.hidden = false;
+          logoutBtn.hidden = true;
+          // Guests can't draw or toggle layers — make sure nothing is
+          // left armed/open from a previous session.
+          closeToolMenu();
+        } else {
+          const email = auth.currentUser.email || '';
+          accountStatus.innerHTML =
+            'Signed in as <strong>' + escapeHtml(email) + '</strong>' +
+            '<span class="role-badge ' + role + '">' + role + '</span>';
+          openAuthBtn.hidden = true;
+          logoutBtn.hidden = false;
+        }
+
+        // Non-admins can't have the flag tool armed, and the layer list
+        // needs to add/remove its admin-only color pickers.
+        if (role !== 'admin' && state.drawingTool === 'flag') {
+          deactivateDrawingTool();
+        }
+        renderLayers();
+      }
 
       let authMode = 'login';
 
@@ -886,6 +1048,28 @@
       }
 
       if (auth) {
+        openAuthBtn.addEventListener('click', () => {
+          showAuthOverlay();
+        });
+
+        authCloseBtn.addEventListener('click', () => {
+          hideAuthOverlay();
+        });
+
+        // Clicking the dimmed backdrop dismisses it too, same as the ×
+        // — login is optional now, so nothing should trap the visitor.
+        authOverlay.addEventListener('click', (event) => {
+          if (event.target === authOverlay) {
+            hideAuthOverlay();
+          }
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !authOverlay.hidden) {
+            hideAuthOverlay();
+          }
+        });
+
         authToggleModeBtn.addEventListener('click', () => {
           setAuthMode(authMode === 'login' ? 'register' : 'login');
         });
@@ -921,18 +1105,16 @@
 
         auth.onAuthStateChanged((user) => {
           if (user) {
-            accountLabel.textContent = user.email;
             hideAuthOverlay();
-          } else {
-            showAuthOverlay();
           }
+          applyRole();
         });
       } else {
         // Firebase didn't load (SDK blocked, offline, or the config
-        // above is still the placeholder) — don't let the map itself
-        // get stuck behind a login gate that can't work.
-        console.warn('Firebase Authentication unavailable — skipping the login gate.');
-        hideAuthOverlay();
+        // above is still the placeholder) — the map stays fully usable
+        // as a guest; logging in just won't be available.
+        console.warn('Firebase Authentication unavailable — continuing as guest only.');
+        openAuthBtn.hidden = true;
       }
 
       const mapStyles = {
@@ -978,8 +1160,15 @@
         drawingTool: null,
         drawings: [],
         draft: null,
-        isBrushing: false
+        isBrushing: false,
+        role: 'guest'
       };
+
+      // Flags are plain maplibregl.Markers (not GeoJSON features like the
+      // other drawings) so admins can drag them around freely. Kept in
+      // their own array purely so "Clear all drawings" doesn't have to
+      // guess which markers on the map are flags.
+      let flagMarkers = [];
 
       const layersList = document.getElementById('layersList');
       const drawToolsBtn = document.getElementById('drawToolsBtn');
@@ -1066,6 +1255,19 @@
           const actions = document.createElement('div');
           actions.className = 'layer-actions';
 
+          // Admin-only: recolor this layer's polygons/lines/points
+          // directly on the map.
+          const colorInput = document.createElement('input');
+          colorInput.type = 'color';
+          colorInput.className = 'layer-color-input admin-only';
+          colorInput.value = layer.color;
+          colorInput.setAttribute('aria-label', 'Change ' + layer.name + ' color');
+          colorInput.addEventListener('input', () => {
+            layer.color = colorInput.value;
+            dot.style.background = colorInput.value;
+            ensureKmlLayersForLayer(layer.id);
+          });
+
           const toggle = document.createElement('button');
           toggle.type = 'button';
           toggle.className = 'toggle-btn';
@@ -1076,6 +1278,7 @@
             ensureKmlLayersForLayer(layer.id);
           });
 
+          actions.appendChild(colorInput);
           actions.appendChild(toggle);
 
           item.appendChild(dot);
@@ -1097,6 +1300,13 @@
 
       document.querySelectorAll('.tool-option').forEach((button) => {
         button.addEventListener('click', () => {
+          // The flag tool is only ever meant to be reachable by admins —
+          // it's hidden via CSS for everyone else, but this guard covers
+          // it too in case the role changed after the menu was opened.
+          if (button.dataset.tool === 'flag' && state.role !== 'admin') {
+            return;
+          }
+
           state.drawingTool = button.dataset.tool;
           document.querySelectorAll('.tool-option').forEach((option) => {
             option.setAttribute('aria-pressed', String(option === button));
@@ -1105,7 +1315,8 @@
           const hints = {
             brush: 'Drag on the map to draw a freehand stroke.',
             line: 'Click two points on the map to draw a line.',
-            pinpoint: 'Click the map to place a pinpoint.'
+            pinpoint: 'Click the map to place a pinpoint.',
+            flag: 'Click the map to place a flag. Drag a flag to move it.'
           };
           drawHint.textContent = hints[state.drawingTool];
           map.getCanvasContainer().style.cursor = 'crosshair';
@@ -1141,6 +1352,10 @@
         state.isBrushing = false;
         map.dragPan.enable();
         updateDrawings();
+        if (state.role === 'admin') {
+          flagMarkers.forEach((marker) => marker.remove());
+          flagMarkers = [];
+        }
       });
 
       mapStyleSelect.addEventListener('change', () => {
@@ -1717,6 +1932,47 @@
         };
       }
 
+      // ---- Flags (admin only) ----
+      // Flags are draggable maplibregl.Markers, not part of the
+      // GeoJSON drawings source — dragging a marker is built in, so
+      // there's nothing extra to wire up for "move flags" beyond
+      // draggable: true. Only ever created from the map-click handler,
+      // which already checks state.role === 'admin'.
+      function placeFlag(lng, lat) {
+        const el = document.createElement('div');
+        el.className = 'flag-marker';
+        el.textContent = '🚩';
+
+        const marker = new maplibregl.Marker({ element: el, draggable: true, anchor: 'bottom-left' })
+          .setLngLat([lng, lat])
+          .addTo(map);
+
+        const popup = new maplibregl.Popup({ offset: 18, closeButton: true, closeOnClick: false })
+          .setHTML(
+            '<div class="marker-popup">' +
+            '<div class="marker-popup-title">Flag</div>' +
+            '<div class="marker-popup-actions">' +
+            '<button type="button" class="marker-popup-delete">Delete flag</button>' +
+            '</div>' +
+            '</div>'
+          );
+
+        popup.on('open', () => {
+          const container = popup.getElement();
+          const deleteBtn = container && container.querySelector('.marker-popup-delete');
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+              marker.remove();
+              flagMarkers = flagMarkers.filter((m) => m !== marker);
+            });
+          }
+        });
+
+        marker.setPopup(popup);
+        flagMarkers.push(marker);
+        return marker;
+      }
+
       map.on('contextmenu', (event) => {
         event.preventDefault();
         if (event.originalEvent) {
@@ -1852,6 +2108,14 @@
             geometry: { type: 'Point', coordinates: coordinate }
           });
           updateDrawings();
+          return;
+        }
+
+        if (state.drawingTool === 'flag') {
+          if (state.role !== 'admin') {
+            return;
+          }
+          placeFlag(event.lngLat.lng, event.lngLat.lat);
           return;
         }
 
