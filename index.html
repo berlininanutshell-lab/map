@@ -1651,7 +1651,15 @@
       // change wipes custom sources/layers (see 'style.load' below).
       function ensureKmlLayersForLayer(layerId) {
         const layer = getLayerById(layerId);
-        if (!layer || !map.isStyleLoaded()) {
+        // Note: no map.isStyleLoaded() guard here. This function is
+        // called from the 'style.load' handler (right after a style
+        // switch wipes custom sources/layers), where addSource/addLayer
+        // are safe to call even though isStyleLoaded() can still
+        // momentarily report false — that mismatch was causing KML
+        // polygons to silently fail to re-appear after switching map
+        // styles, until something else (like toggling a layer) called
+        // this function again a bit later.
+        if (!layer || !map.getStyle()) {
           return;
         }
 
