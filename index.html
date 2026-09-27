@@ -840,6 +840,158 @@
         background: rgba(255, 255, 255, 0.1);
       }
 
+      #settingsBtn {
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(255, 255, 255, 0.04);
+        color: #edf5ff;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      #settingsBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      #settingsOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 9, 13, 0.88);
+        backdrop-filter: blur(2px);
+      }
+
+      #settingsOverlay[hidden] {
+        display: none;
+      }
+
+      #settingsCard {
+        position: relative;
+        width: 340px;
+        max-width: calc(100vw - 32px);
+        padding: 26px 24px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+
+      #settingsCard h2 {
+        margin: 0 0 16px;
+        font-size: 21px;
+      }
+
+      #settingsCloseBtn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #98a9b9;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      #settingsCloseBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #edf5ff;
+      }
+
+      .settings-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        color: #98a9b9;
+        margin-bottom: 6px;
+      }
+
+      .settings-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .settings-row input {
+        flex: 1;
+        min-width: 0;
+        height: 38px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 14px;
+      }
+
+      #settingsSaveBtn {
+        flex-shrink: 0;
+        height: 38px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #ff9400;
+        color: #16110a;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #settingsSaveBtn:hover {
+        background: #ffab33;
+      }
+
+      #settingsSaveBtn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      #settingsStatus {
+        min-height: 16px;
+        margin-bottom: 10px;
+        color: #7fc4ff;
+        font-size: 11px;
+      }
+
+      .settings-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .settings-info-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 13px;
+      }
+
+      .settings-info-label {
+        color: #98a9b9;
+        flex-shrink: 0;
+      }
+
+      .settings-info-value {
+        color: #edf5ff;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+        text-align: right;
+      }
+
       /* ---- Role-based visibility ----
          Guests (not logged in) never see the draw tools or the layer
          on/off toggles at all. Logged-in non-admins see both, but not
@@ -1327,6 +1479,7 @@
           <div id="accountBar">
             <span id="accountStatus">Browsing as guest</span>
             <button id="openAuthBtn" type="button">Log in</button>
+            <button id="settingsBtn" type="button" hidden>Settings</button>
             <button id="logoutBtn" type="button" hidden>Log out</button>
           </div>
           <div id="searchBox">
@@ -1409,6 +1562,36 @@
         </form>
         <button type="button" id="authToggleModeBtn">Need an account? Register</button>
         <p class="auth-note">Real accounts via Firebase Authentication. Passwords must be at least 6 characters.</p>
+      </div>
+    </div>
+
+    <div id="settingsOverlay" hidden>
+      <div id="settingsCard">
+        <button type="button" id="settingsCloseBtn" aria-label="Close">×</button>
+        <div class="eyebrow">Account</div>
+        <h2>Settings</h2>
+        <label class="settings-field" for="nicknameInput">
+          Nickname
+          <div class="settings-row">
+            <input id="nicknameInput" type="text" maxlength="40" placeholder="Add a nickname" autocomplete="off" />
+            <button type="button" id="settingsSaveBtn">Save</button>
+          </div>
+        </label>
+        <div id="settingsStatus" aria-live="polite"></div>
+        <div class="settings-info">
+          <div class="settings-info-row">
+            <span class="settings-info-label">Email</span>
+            <span class="settings-info-value" id="settingsEmailValue"></span>
+          </div>
+          <div class="settings-info-row">
+            <span class="settings-info-label">Role</span>
+            <span class="settings-info-value" id="settingsRoleValue"></span>
+          </div>
+          <div class="settings-info-row">
+            <span class="settings-info-label">User ID</span>
+            <span class="settings-info-value" id="settingsUidValue"></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1498,19 +1681,24 @@
         document.body.classList.toggle('is-admin', role === 'admin');
 
         if (role === 'guest') {
+          state.nickname = '';
           accountStatus.textContent = 'Browsing as guest';
           openAuthBtn.hidden = false;
           logoutBtn.hidden = true;
+          settingsBtn.hidden = true;
+          hideSettingsOverlay();
           // Guests can't draw or toggle layers — make sure nothing is
           // left armed/open from a previous session.
           closeToolMenu();
         } else {
-          const email = auth.currentUser.email || '';
-          accountStatus.innerHTML =
-            'Signed in as <strong>' + escapeHtml(email) + '</strong>' +
-            '<span class="role-badge ' + role + '">' + role + '</span>';
+          // Render immediately with whatever's in state.nickname (email,
+          // most likely, until loadProfile() below resolves), then
+          // re-render once the saved nickname comes back from Firestore.
+          renderAccountStatus();
           openAuthBtn.hidden = true;
           logoutBtn.hidden = false;
+          settingsBtn.hidden = false;
+          loadProfile();
         }
 
         // Non-admins can't have the flag tool armed, and the layer list
@@ -1519,6 +1707,56 @@
           deactivateDrawingTool();
         }
         renderLayers();
+      }
+
+      // Shows "Signed in as <nickname or email>" plus the role badge.
+      // Called right away on login (using whatever's already in
+      // state.nickname) and again once loadProfile() resolves the saved
+      // nickname from Firestore, and again after a settings save.
+      function renderAccountStatus() {
+        if (!auth || !auth.currentUser) {
+          return;
+        }
+        const email = auth.currentUser.email || '';
+        const displayName = state.nickname || email;
+        accountStatus.innerHTML =
+          'Signed in as <strong>' + escapeHtml(displayName) + '</strong>' +
+          '<span class="role-badge ' + state.role + '">' + state.role + '</span>';
+      }
+
+      // ---- Per-user profile (nickname) ----
+      // Stored per Firebase uid in its own Firestore document, separate
+      // from the shared mapState docs above — this is per-account data,
+      // not something every visitor should be able to edit. (If you add
+      // Firestore security rules, restrict read/write on userProfiles/{uid}
+      // to that same uid.) Falls back to showing the email if Firestore
+      // isn't configured or no nickname has been saved yet.
+      function profileDocRef() {
+        if (!db || !auth || !auth.currentUser) {
+          return null;
+        }
+        return db.collection('userProfiles').doc(auth.currentUser.uid);
+      }
+
+      function loadProfile() {
+        const ref = profileDocRef();
+        if (!ref) {
+          return;
+        }
+        const uidAtRequest = auth.currentUser.uid;
+        ref.get().then((doc) => {
+          // The user may have logged out, or switched accounts, while
+          // this was in flight — don't overwrite newer state with a
+          // stale response.
+          if (!auth.currentUser || auth.currentUser.uid !== uidAtRequest) {
+            return;
+          }
+          const data = doc.exists ? doc.data() : {};
+          state.nickname = (data && data.nickname) || '';
+          renderAccountStatus();
+        }).catch((error) => {
+          console.error('Failed to load profile', error);
+        });
       }
 
       let authMode = 'login';
@@ -1665,6 +1903,73 @@
         console.warn('Firebase Authentication unavailable — continuing as guest only.');
         openAuthBtn.hidden = true;
       }
+
+      // ---- Settings modal: nickname + account info (email, role, uid) ----
+      const settingsBtn = document.getElementById('settingsBtn');
+      const settingsOverlay = document.getElementById('settingsOverlay');
+      const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+      const nicknameInput = document.getElementById('nicknameInput');
+      const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+      const settingsStatus = document.getElementById('settingsStatus');
+      const settingsEmailValue = document.getElementById('settingsEmailValue');
+      const settingsRoleValue = document.getElementById('settingsRoleValue');
+      const settingsUidValue = document.getElementById('settingsUidValue');
+
+      function showSettingsOverlay() {
+        if (!auth || !auth.currentUser) {
+          return;
+        }
+        nicknameInput.value = state.nickname || '';
+        settingsStatus.textContent = '';
+        settingsEmailValue.textContent = auth.currentUser.email || '';
+        settingsRoleValue.innerHTML = '<span class="role-badge ' + state.role + '">' + state.role + '</span>';
+        settingsUidValue.textContent = auth.currentUser.uid;
+        settingsOverlay.hidden = false;
+        nicknameInput.focus();
+      }
+
+      function hideSettingsOverlay() {
+        settingsOverlay.hidden = true;
+      }
+
+      settingsBtn.addEventListener('click', showSettingsOverlay);
+      settingsCloseBtn.addEventListener('click', hideSettingsOverlay);
+
+      settingsOverlay.addEventListener('click', (event) => {
+        if (event.target === settingsOverlay) {
+          hideSettingsOverlay();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !settingsOverlay.hidden) {
+          hideSettingsOverlay();
+        }
+      });
+
+      settingsSaveBtn.addEventListener('click', () => {
+        const ref = profileDocRef();
+        if (!ref) {
+          settingsStatus.textContent = 'Not available right now.';
+          return;
+        }
+
+        const nickname = nicknameInput.value.trim().slice(0, 40);
+        settingsSaveBtn.disabled = true;
+        ref.set({ nickname, email: auth.currentUser.email || '' }, { merge: true })
+          .then(() => {
+            state.nickname = nickname;
+            renderAccountStatus();
+            settingsStatus.textContent = 'Saved.';
+          })
+          .catch((error) => {
+            console.error('Failed to save nickname', error);
+            settingsStatus.textContent = 'Could not save — try again.';
+          })
+          .finally(() => {
+            settingsSaveBtn.disabled = false;
+          });
+      });
 
       // ---- Sidebar tabs: Legend / Casualties ----
       const legendTabBtn = document.getElementById('legendTabBtn');
@@ -2158,7 +2463,8 @@
         draft: null,
         isBrushing: false,
         role: 'guest',
-        flagType: 'ukraine'
+        flagType: 'ukraine',
+        nickname: ''
       };
 
       // Flags are plain maplibregl.Markers (not GeoJSON features like the
