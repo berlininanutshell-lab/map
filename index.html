@@ -175,7 +175,7 @@
         top: 0;
         left: 0;
         bottom: 0;
-        width: 320px;
+        width: var(--sidebar-width, 320px);
         z-index: 500;
         background: rgba(10, 10, 10, 0.96);
         border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -184,6 +184,44 @@
         display: flex;
         flex-direction: column;
         transition: transform 0.22s ease;
+      }
+
+      /* The whole sidebar can be resized by dragging its right edge. */
+      #sidebarResizeHandle {
+        position: absolute;
+        top: 0;
+        right: -5px;
+        bottom: 0;
+        width: 10px;
+        z-index: 10;
+        cursor: ew-resize;
+        touch-action: none;
+      }
+
+      #sidebarResizeHandle::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 2px;
+        width: 2px;
+        height: 54px;
+        transform: translateY(-50%);
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.16);
+        opacity: 0;
+        transition: opacity 0.15s ease, background 0.15s ease;
+      }
+
+      #sidebarResizeHandle:hover::after,
+      body.sidebar-resizing #sidebarResizeHandle::after {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      body.sidebar-resizing,
+      body.sidebar-resizing * {
+        cursor: ew-resize !important;
+        user-select: none !important;
       }
 
       /* Sidebar collapse: slides #sidebar fully off-screen (by its own
@@ -202,7 +240,7 @@
       #sidebarToggleBtn {
         position: fixed;
         top: 22px;
-        left: 320px;
+        left: var(--sidebar-width, 320px);
         z-index: 600;
         width: 20px;
         height: 56px;
@@ -811,11 +849,12 @@
 
       @media (max-width: 640px) {
         #sidebar {
-          width: 70vw;
+          width: var(--sidebar-width, 70vw);
+          max-width: 88vw;
         }
 
         #sidebarToggleBtn {
-          left: 70vw;
+          left: var(--sidebar-width, 70vw);
         }
 
         body.sidebar-collapsed #sidebarToggleBtn {
@@ -1994,6 +2033,7 @@
       <span aria-hidden="true">‹</span>
     </button>
     <aside id="sidebar">
+      <div id="sidebarResizeHandle" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
       <header id="sidebar-header">
         <div>
           <div class="eyebrow" id="sidebarEyebrow">Legend</div>
@@ -3596,6 +3636,90 @@
       // #map's CSS), so this only ever slides the sidebar itself away
       // and back — the map's own size/position/camera never changes,
       // and nothing needs to be re-resized.
+      // ---- Resizable sidebar ----
+      const sidebar = document.getElementById('sidebar');
+      const sidebarResizeHandle = document.getElementById('sidebarResizeHandle');
+      const SIDEBAR_MIN_WIDTH = 260;
+      const SIDEBAR_MAX_WIDTH = 620;
+      const SIDEBAR_MAX_VIEWPORT_RATIO = 0.65;
+      const SIDEBAR_STORAGE_KEY = 'mapSidebarWidth';
+
+      function sidebarWidthBounds() {
+        const maxByViewport = Math.floor(window.innerWidth * SIDEBAR_MAX_VIEWPORT_RATIO);
+        const max = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, maxByViewport));
+        return { min: Math.min(SIDEBAR_MIN_WIDTH, max), max };
+      }
+
+      function clampSidebarWidth(width) {
+        const { min, max } = sidebarWidthBounds();
+        return Math.round(Math.max(min, Math.min(max, width)));
+      }
+
+      function setSidebarWidth(width, save = true) {
+        const nextWidth = clampSidebarWidth(Number(width));
+        document.documentElement.style.setProperty('--sidebar-width', `${nextWidth}px`);
+        if (save) {
+          try {
+            localStorage.setItem(SIDEBAR_STORAGE_KEY, String(nextWidth));
+          } catch (error) {
+            // Storage may be unavailable; resizing still works normally.
+          }
+        }
+      }
+
+      try {
+        const savedWidth = Number(localStorage.getItem(SIDEBAR_STORAGE_KEY));
+        if (Number.isFinite(savedWidth) && savedWidth > 0) {
+          setSidebarWidth(savedWidth, false);
+        } else {
+          setSidebarWidth(320, false);
+        }
+      } catch (error) {
+        setSidebarWidth(320, false);
+      }
+
+      let resizingSidebar = false;
+      let resizePointerId = null;
+
+      function stopSidebarResize() {
+        if (!resizingSidebar) return;
+        resizingSidebar = false;
+        resizePointerId = null;
+        document.body.classList.remove('sidebar-resizing');
+      }
+
+      sidebarResizeHandle.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || document.body.classList.contains('sidebar-collapsed')) return;
+        resizingSidebar = true;
+        resizePointerId = event.pointerId;
+        document.body.classList.add('sidebar-resizing');
+        sidebarResizeHandle.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+      });
+
+      sidebarResizeHandle.addEventListener('pointermove', (event) => {
+        if (!resizingSidebar || event.pointerId !== resizePointerId) return;
+        setSidebarWidth(event.clientX);
+      });
+
+      sidebarResizeHandle.addEventListener('pointerup', (event) => {
+        if (event.pointerId === resizePointerId) stopSidebarResize();
+      });
+      sidebarResizeHandle.addEventListener('pointercancel', stopSidebarResize);
+      sidebarResizeHandle.addEventListener('lostpointercapture', stopSidebarResize);
+
+      sidebarResizeHandle.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        const current = sidebar.getBoundingClientRect().width;
+        const step = event.shiftKey ? 50 : 10;
+        setSidebarWidth(current + (event.key === 'ArrowRight' ? step : -step));
+        event.preventDefault();
+      });
+
+      window.addEventListener('resize', () => {
+        setSidebarWidth(sidebar.getBoundingClientRect().width, false);
+      });
+
       const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
       const sidebarToggleIcon = sidebarToggleBtn.querySelector('span');
 
