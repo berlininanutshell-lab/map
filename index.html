@@ -2894,6 +2894,14 @@
       // actually supports.
       const territoryLayerIds = ['main', 'russian-advances', 'ukrainian-advances'];
 
+      // Set of territory layer ids for which we've already received an
+      // authoritative update from Firestore (territoriesDocRef) at
+      // least once this page load. Used by loadKmlManifestAndData below
+      // to avoid clobbering live, admin-synced territory data with the
+      // static KML baseline — see the comment there for why this
+      // exists.
+      const territoryLoadedFromFirestore = new Set();
+
       // Rebuilds the "Apply to layer" buttons from the current layer
       // names/colors. Called once at startup and again every time
       // renderLayers() runs, so a color change (admin recolor, or the
@@ -3195,6 +3203,11 @@
               return;
             }
             layerKmlData[layerId] = parsed;
+            // Remember that this layer now has an authoritative
+            // Firestore-backed value, so a later (possibly delayed)
+            // KML-manifest load doesn't stomp on it — see
+            // loadKmlManifestAndData below.
+            territoryLoadedFromFirestore.add(layerId);
             changed = true;
             if (map.isStyleLoaded()) {
               ensureKmlLayersForLayer(layerId);
@@ -4150,6 +4163,26 @@
       // — and loads every listed file from kml/<layerId>/<file>. Silently
       // does nothing if the manifest or a file isn't there (e.g. while
       // previewing this page without the kml/ folder alongside it).
+      //
+      // IMPORTANT: for the three territory layers (main /
+      // russian-advances / ukrainian-advances), the Firestore-synced
+      // territoriesDocRef listener above is the authoritative source
+      // once it has reported in — it's what "Apply the advance" and
+      // vertex-editing actually write to, and it's what makes a drawn
+      // advance visible to every visitor. This KML manifest load fires
+      // on the map's 'load' event, independently of (and often *after*)
+      // that Firestore listener's first callback, and used to
+      // unconditionally overwrite layerKmlData[layerId] for every layer
+      // named in the manifest — including the three territory layers —
+      // clobbering whatever Firestore had just synced in (typically
+      // with an empty baseline, since pending advances have no KML
+      // file of their own). That's why a drawn-but-not-yet-applied
+      // advance would flash in from Firestore and then vanish shortly
+      // after the map finished loading, and why it was gone again on
+      // every reload. Skip a territory layer here if Firestore has
+      // already provided (or later provides) its data for this page
+      // load — KML for those layers is only ever a fallback baseline
+      // for when Firestore isn't configured or hasn't returned yet.
       async function loadKml(url) {
   const response = await fetch(url);
   if (!response.ok) {
@@ -4172,6 +4205,13 @@
         }
 
         for (const [layerId, fileNames] of Object.entries(manifest)) {
+          if (territoryLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
+            // Firestore already gave us (or will give us) this layer's
+            // authoritative data — don't stomp on it with the static
+            // KML baseline.
+            continue;
+          }
+
           const features = [];
 
           for (const fileName of fileNames) {
@@ -4182,6 +4222,14 @@
             } catch (error) {
               console.error('Failed to load KML file', layerId, fileName, error);
             }
+          }
+
+          // A territory layer's Firestore data may have arrived while
+          // the KML files above were still being fetched (they're
+          // awaited one at a time) — re-check before writing, so a
+          // late-arriving sync still wins over this stale KML read.
+          if (territoryLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
+            continue;
           }
 
           layerKmlData[layerId] = {
