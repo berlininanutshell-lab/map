@@ -1008,6 +1008,69 @@
         cursor: pointer;
       }
 
+      .casualty-chart circle:hover,
+      .casualty-chart circle.active {
+        r: 4.2;
+      }
+
+      #casualtyTooltip {
+        position: fixed;
+        z-index: 1200;
+        min-width: 150px;
+        padding: 9px 11px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+        font-size: 12px;
+        line-height: 1.5;
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.14s ease, transform 0.14s ease;
+      }
+
+      #casualtyTooltip.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+
+      #casualtyTooltip .casualty-tooltip-date {
+        color: #98a9b9;
+        font-size: 10.5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+      }
+
+      #casualtyTooltip .casualty-tooltip-value {
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      #casualtyTooltip .casualty-tooltip-label {
+        font-weight: 400;
+        color: #98a9b9;
+        font-size: 11px;
+        margin-left: 4px;
+      }
+
+      .casualty-disclaimer {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(255, 115, 102, 0.1);
+        border: 1px solid rgba(255, 115, 102, 0.3);
+        color: #f2c9c4;
+        font-size: 11.5px;
+        line-height: 1.55;
+      }
+
+      .casualty-disclaimer strong {
+        color: #ff9b91;
+      }
+
       .casualty-note {
         padding: 10px 12px;
         border-radius: 8px;
@@ -1127,6 +1190,7 @@
           </div>
         </div>
         <div id="casualtiesView" class="sidebar-view" role="tabpanel" hidden>
+          <div class="casualty-disclaimer">These are casualty <strong>claims reported by each side</strong> about its opponent — not confirmed or verified figures. Both militaries have strong incentives to inflate enemy losses and understate their own, so treat every number here as a claim, not a fact.</div>
           <div class="casualty-section">
             <div class="casualty-section-header">
               <span class="casualty-dot" style="background:#FF9400"></span>
@@ -1159,6 +1223,7 @@
       <button id="copyCoordinatesBtn" type="button">Copy coordinates</button>
       <button id="addPinpointBtn" type="button">Add pinpoint here</button>
     </div>
+    <div id="casualtyTooltip" role="status" aria-live="polite"></div>
     <div id="error"></div>
     <div id="kmlHoverLabel" hidden></div>
 
@@ -1541,6 +1606,14 @@
         return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       }
 
+      function formatFullDate(isoDate) {
+        const d = new Date(isoDate + 'T00:00:00');
+        if (Number.isNaN(d.getTime())) {
+          return isoDate;
+        }
+        return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+
       function buildCasualtyChartSVG(data, color) {
         const width = 264;
         const height = 150;
@@ -1596,7 +1669,9 @@
 
         const dots = points.map((p, i) => {
           const d = data[i];
-          return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="' + color + '" stroke="#0b0f14" stroke-width="1">' +
+          return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="' + color +
+            '" stroke="#0b0f14" stroke-width="1" tabindex="0" role="button" ' +
+            'data-date="' + escapeHtml(d.date) + '" data-casualties="' + d.casualties + '" data-color="' + escapeHtml(color) + '">' +
             '<title>' + escapeHtml(formatShortDate(d.date)) + ': ' + d.casualties + '</title></circle>';
         }).join('');
 
@@ -1636,6 +1711,9 @@
         document.getElementById('russiaCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.russia.daily, '#FF9400');
         document.getElementById('ukraineCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.ukraine.daily, '#0000ff');
 
+        wireCasualtyChartDots(document.getElementById('russiaCasualtyChart'));
+        wireCasualtyChartDots(document.getElementById('ukraineCasualtyChart'));
+
         const sourcesContainer = document.getElementById('casualtySources');
         const titleHtml = '<div class="casualty-sources-title">Sources</div>';
         const linksHtml = (casualtyData.sources || []).map((source) =>
@@ -1643,6 +1721,68 @@
         ).join('');
         sourcesContainer.innerHTML = titleHtml + (linksHtml || '<div class="casualty-source-item" style="color:#6d7d8c;">No sources listed yet.</div>');
       }
+
+      // ---- Casualty chart dot tooltip: click a dot to see that day's figure ----
+      const casualtyTooltip = document.getElementById('casualtyTooltip');
+      let activeCasualtyDot = null;
+
+      function hideCasualtyTooltip() {
+        casualtyTooltip.classList.remove('visible');
+        if (activeCasualtyDot) {
+          activeCasualtyDot.classList.remove('active');
+          activeCasualtyDot = null;
+        }
+      }
+
+      function showCasualtyTooltip(dotEl) {
+        const date = dotEl.getAttribute('data-date');
+        const casualties = Number(dotEl.getAttribute('data-casualties'));
+        const color = dotEl.getAttribute('data-color') || '#edf5ff';
+
+        casualtyTooltip.innerHTML =
+          '<div class="casualty-tooltip-date">' + escapeHtml(formatFullDate(date)) + '</div>' +
+          '<span class="casualty-tooltip-value" style="color:' + escapeHtml(color) + '">' + casualties.toLocaleString() + '</span>' +
+          '<span class="casualty-tooltip-label">reported that day</span>';
+
+        // Position near the clicked dot, keeping the box on-screen.
+        const rect = dotEl.getBoundingClientRect();
+        casualtyTooltip.classList.add('visible');
+        const tooltipRect = casualtyTooltip.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+        let top = rect.top - tooltipRect.height - 10;
+        if (top < 8) {
+          top = rect.bottom + 10;
+        }
+        left = Math.min(Math.max(8, left), window.innerWidth - tooltipRect.width - 8);
+        casualtyTooltip.style.left = left + 'px';
+        casualtyTooltip.style.top = top + 'px';
+
+        if (activeCasualtyDot && activeCasualtyDot !== dotEl) {
+          activeCasualtyDot.classList.remove('active');
+        }
+        dotEl.classList.add('active');
+        activeCasualtyDot = dotEl;
+      }
+
+      function wireCasualtyChartDots(container) {
+        container.querySelectorAll('.casualty-chart circle').forEach((circle) => {
+          circle.addEventListener('click', (event) => {
+            event.stopPropagation();
+            showCasualtyTooltip(circle);
+          });
+          circle.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              showCasualtyTooltip(circle);
+            }
+          });
+        });
+      }
+
+      casualtyTooltip.addEventListener('click', (event) => event.stopPropagation());
+      document.addEventListener('click', hideCasualtyTooltip);
+      window.addEventListener('resize', hideCasualtyTooltip);
 
       const mapStyles = {
         dark: {
