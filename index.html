@@ -871,6 +871,146 @@
         cursor: pointer;
       }
 
+      #sidebarTabs {
+        display: flex;
+        gap: 6px;
+        padding: 12px 18px 0;
+      }
+
+      .sidebar-tab {
+        flex: 1;
+        height: 36px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+        color: #98a9b9;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .sidebar-tab:hover {
+        background: rgba(255, 255, 255, 0.07);
+        color: #edf5ff;
+      }
+
+      .sidebar-tab[aria-selected="true"] {
+        background: rgba(255, 148, 0, 0.14);
+        border-color: rgba(255, 148, 0, 0.4);
+        color: #ff9400;
+      }
+
+      #legendView,
+      #casualtiesView {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+
+      #casualtiesView {
+        padding: 16px 18px 20px;
+        gap: 18px;
+      }
+
+      .casualty-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .casualty-section-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .casualty-section-header h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #edf5ff;
+      }
+
+      .casualty-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        flex-shrink: 0;
+      }
+
+      .casualty-total {
+        font-size: 12px;
+        color: #98a9b9;
+      }
+
+      .casualty-total strong {
+        color: #edf5ff;
+        font-size: 14px;
+      }
+
+      .casualty-chart-wrap {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 6px;
+      }
+
+      .casualty-chart {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .casualty-chart circle {
+        cursor: pointer;
+      }
+
+      .casualty-note {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(255, 148, 0, 0.08);
+        border: 1px solid rgba(255, 148, 0, 0.25);
+        color: #d9c2a0;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .casualty-note code {
+        font-family: monospace;
+        color: #ff9400;
+      }
+
+      .casualty-sources {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .casualty-sources-title {
+        color: #98a9b9;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .casualty-source-item {
+        display: block;
+        color: #7fc4ff;
+        font-size: 12px;
+        line-height: 1.7;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+      }
+
+      .casualty-source-item:hover {
+        text-decoration: underline;
+      }
+
       .flag-marker {
         cursor: grab;
         filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
@@ -919,26 +1059,52 @@
           <button id="clearDrawingsBtn" class="clear-drawings" type="button" disabled><span class="tool-symbol" aria-hidden="true">×</span>Clear all drawings</button>
         </div>
       </header>
-      <div id="accountBar">
-        <span id="accountStatus">Browsing as guest</span>
-        <button id="openAuthBtn" type="button">Log in</button>
-        <button id="logoutBtn" type="button" hidden>Log out</button>
+      <div id="sidebarTabs" role="tablist">
+        <button id="legendTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="legendView">Legend</button>
+        <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
       </div>
-      <div id="searchBox">
-        <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
-        <div id="searchResults" hidden></div>
+      <div id="legendView" role="tabpanel">
+        <div id="accountBar">
+          <span id="accountStatus">Browsing as guest</span>
+          <button id="openAuthBtn" type="button">Log in</button>
+          <button id="logoutBtn" type="button" hidden>Log out</button>
+        </div>
+        <div id="searchBox">
+          <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
+          <div id="searchResults" hidden></div>
+        </div>
+        <div id="mapSummary">Dark theme • 3 visible layers</div>
+        <div id="layersList" aria-live="polite"></div>
+        <div id="stylePicker">
+          <label for="mapStyleSelect">Map style</label>
+          <select id="mapStyleSelect">
+            <option value="dark">Dark Matter</option>
+            <option value="streets">Streets (MapTiler)</option>
+            <option value="hybrid">Satellite Hybrid</option>
+            <option value="terrain">Mapzen Global Terrain</option>
+            <option value="darkmatteralt">Dark Matter (OpenMapTiles)</option>
+          </select>
+        </div>
       </div>
-      <div id="mapSummary">Dark theme • 3 visible layers</div>
-      <div id="layersList" aria-live="polite"></div>
-      <div id="stylePicker">
-        <label for="mapStyleSelect">Map style</label>
-        <select id="mapStyleSelect">
-          <option value="dark">Dark Matter</option>
-          <option value="streets">Streets (MapTiler)</option>
-          <option value="hybrid">Satellite Hybrid</option>
-          <option value="terrain">Mapzen Global Terrain</option>
-          <option value="darkmatteralt">Dark Matter (OpenMapTiles)</option>
-        </select>
+      <div id="casualtiesView" role="tabpanel" hidden>
+        <div class="casualty-section">
+          <div class="casualty-section-header">
+            <span class="casualty-dot" style="background:#FF9400"></span>
+            <h2>Russian Casualties</h2>
+          </div>
+          <div class="casualty-total" id="russiaCasualtyTotal"></div>
+          <div id="russiaCasualtyChart" class="casualty-chart-wrap"></div>
+        </div>
+        <div class="casualty-section">
+          <div class="casualty-section-header">
+            <span class="casualty-dot" style="background:#0000ff"></span>
+            <h2>Ukrainian Casualties</h2>
+          </div>
+          <div class="casualty-total" id="ukraineCasualtyTotal"></div>
+          <div id="ukraineCasualtyChart" class="casualty-chart-wrap"></div>
+        </div>
+        <div class="casualty-note">Example figures for demonstration only — replace <code>casualtyData</code> in the page's script with verified numbers from the sources below before relying on this.</div>
+        <div id="casualtySources" class="casualty-sources"></div>
       </div>
     </aside>
     <div id="coordinatePopup" role="status" aria-live="polite">
@@ -1225,6 +1391,170 @@
         // as a guest; logging in just won't be available.
         console.warn('Firebase Authentication unavailable — continuing as guest only.');
         openAuthBtn.hidden = true;
+      }
+
+      // ---- Sidebar tabs: Legend / Casualties ----
+      const legendTabBtn = document.getElementById('legendTabBtn');
+      const casualtiesTabBtn = document.getElementById('casualtiesTabBtn');
+      const legendView = document.getElementById('legendView');
+      const casualtiesView = document.getElementById('casualtiesView');
+
+      function setSidebarTab(tab) {
+        const showCasualties = tab === 'casualties';
+        legendView.hidden = showCasualties;
+        casualtiesView.hidden = !showCasualties;
+        legendTabBtn.setAttribute('aria-selected', String(!showCasualties));
+        casualtiesTabBtn.setAttribute('aria-selected', String(showCasualties));
+        if (showCasualties) {
+          renderCasualtiesView();
+        }
+      }
+
+      legendTabBtn.addEventListener('click', () => setSidebarTab('legend'));
+      casualtiesTabBtn.addEventListener('click', () => setSidebarTab('casualties'));
+
+      // ---- Casualty data ----
+      // EXAMPLE DATA ONLY. Each entry is that side's reported/estimated
+      // losses for that single day (not a running total) — the chart
+      // draws these day-by-day left (earliest) to right (latest). Swap
+      // this out for a real, sourced dataset — e.g. pulled from the
+      // `sources` list below — before treating any of it as factual.
+      const casualtyData = {
+        russia: [
+          { date: '2026-08-01', casualties: 920 },
+          { date: '2026-08-08', casualties: 870 },
+          { date: '2026-08-15', casualties: 1010 },
+          { date: '2026-08-22', casualties: 940 },
+          { date: '2026-08-29', casualties: 1080 },
+          { date: '2026-09-05', casualties: 990 },
+          { date: '2026-09-12', casualties: 1050 },
+          { date: '2026-09-19', casualties: 970 },
+          { date: '2026-09-26', casualties: 1120 }
+        ],
+        ukraine: [
+          { date: '2026-08-01', casualties: 210 },
+          { date: '2026-08-08', casualties: 190 },
+          { date: '2026-08-15', casualties: 260 },
+          { date: '2026-08-22', casualties: 230 },
+          { date: '2026-08-29', casualties: 300 },
+          { date: '2026-09-05', casualties: 240 },
+          { date: '2026-09-12', casualties: 275 },
+          { date: '2026-09-19', casualties: 220 },
+          { date: '2026-09-26', casualties: 285 }
+        ],
+        // Add real citations here — label + url — and they'll render as
+        // links at the bottom of the Casualties tab.
+        sources: [
+          { label: 'Ukraine General Staff daily reports', url: 'https://www.ukrinform.net/rubric-ato' },
+          { label: 'Mediazona / BBC Russian — confirmed Russian military deaths', url: 'https://en.zona.media/article/2022/05/20/casualties_eng' },
+          { label: 'Oryx — visually confirmed equipment losses', url: 'https://www.oryxspioenkop.com/' }
+        ]
+      };
+
+      function formatShortDate(isoDate) {
+        const d = new Date(isoDate + 'T00:00:00');
+        if (Number.isNaN(d.getTime())) {
+          return isoDate;
+        }
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+
+      function buildCasualtyChartSVG(data, color) {
+        const width = 264;
+        const height = 150;
+        const padLeft = 38;
+        const padRight = 10;
+        const padTop = 12;
+        const padBottom = 22;
+        const plotW = width - padLeft - padRight;
+        const plotH = height - padTop - padBottom;
+
+        if (!data || data.length === 0) {
+          return '<svg viewBox="0 0 ' + width + ' ' + height + '" class="casualty-chart" role="img" aria-label="No data">' +
+            '<text x="' + (width / 2) + '" y="' + (height / 2) + '" text-anchor="middle" fill="#6d7d8c" font-size="11">No data</text></svg>';
+        }
+
+        const maxVal = Math.max.apply(null, data.map((d) => d.casualties).concat([1]));
+        const stepX = data.length > 1 ? plotW / (data.length - 1) : 0;
+        const points = data.map((d, i) => {
+          const x = padLeft + i * stepX;
+          const y = padTop + plotH - (d.casualties / maxVal) * plotH;
+          return [x, y];
+        });
+
+        const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+        const baseY = (padTop + plotH).toFixed(1);
+        const areaPath = linePath +
+          ' L' + points[points.length - 1][0].toFixed(1) + ' ' + baseY +
+          ' L' + points[0][0].toFixed(1) + ' ' + baseY + ' Z';
+
+        let gridlines = '';
+        for (let i = 0; i <= 2; i++) {
+          const y = (padTop + (plotH / 2) * i).toFixed(1);
+          gridlines += '<line x1="' + padLeft + '" y1="' + y + '" x2="' + (width - padRight) + '" y2="' + y + '" stroke="rgba(255,255,255,0.08)" stroke-width="1" />';
+        }
+
+        const yLabels = [maxVal, Math.round(maxVal / 2), 0].map((v, i) => {
+          const y = (padTop + (plotH / 2) * i + 3).toFixed(1);
+          return '<text x="' + (padLeft - 6) + '" y="' + y + '" text-anchor="end" fill="#6d7d8c" font-size="9">' + v + '</text>';
+        }).join('');
+
+        const tickIdxs = data.length > 1
+          ? [0, Math.floor((data.length - 1) / 2), data.length - 1]
+          : [0];
+        const seenX = new Set();
+        const xLabels = tickIdxs.filter((idx) => {
+          if (seenX.has(idx)) return false;
+          seenX.add(idx);
+          return true;
+        }).map((idx) => {
+          const p = points[idx];
+          return '<text x="' + p[0].toFixed(1) + '" y="' + (height - 5) + '" text-anchor="middle" fill="#6d7d8c" font-size="9">' + escapeHtml(formatShortDate(data[idx].date)) + '</text>';
+        }).join('');
+
+        const dots = points.map((p, i) => {
+          const d = data[i];
+          return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="' + color + '" stroke="#0b0f14" stroke-width="1">' +
+            '<title>' + escapeHtml(formatShortDate(d.date)) + ': ' + d.casualties + '</title></circle>';
+        }).join('');
+
+        return (
+          '<svg viewBox="0 0 ' + width + ' ' + height + '" class="casualty-chart" role="img" aria-label="Daily casualties chart">' +
+          gridlines +
+          '<path d="' + areaPath + '" fill="' + color + '" fill-opacity="0.14" stroke="none" />' +
+          '<path d="' + linePath + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />' +
+          dots +
+          yLabels +
+          xLabels +
+          '</svg>'
+        );
+      }
+
+      let casualtiesRendered = false;
+
+      function renderCasualtiesView() {
+        if (casualtiesRendered) {
+          return;
+        }
+        casualtiesRendered = true;
+
+        const russiaTotal = casualtyData.russia.reduce((sum, d) => sum + d.casualties, 0);
+        const ukraineTotal = casualtyData.ukraine.reduce((sum, d) => sum + d.casualties, 0);
+
+        document.getElementById('russiaCasualtyTotal').innerHTML =
+          'Total over period: <strong>' + russiaTotal.toLocaleString() + '</strong>';
+        document.getElementById('ukraineCasualtyTotal').innerHTML =
+          'Total over period: <strong>' + ukraineTotal.toLocaleString() + '</strong>';
+
+        document.getElementById('russiaCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.russia, '#FF9400');
+        document.getElementById('ukraineCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.ukraine, '#0000ff');
+
+        const sourcesContainer = document.getElementById('casualtySources');
+        const titleHtml = '<div class="casualty-sources-title">Sources</div>';
+        const linksHtml = (casualtyData.sources || []).map((source) =>
+          '<a class="casualty-source-item" href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(source.label) + '</a>'
+        ).join('');
+        sourcesContainer.innerHTML = titleHtml + (linksHtml || '<div class="casualty-source-item" style="color:#6d7d8c;">No sources listed yet.</div>');
       }
 
       const mapStyles = {
