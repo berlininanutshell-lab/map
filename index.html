@@ -2332,6 +2332,7 @@
       // this never touches the polygon's paint properties, so its color
       // stays exactly as set (no hover-highlight color swap).
       const kmlHoverLabel = document.getElementById('kmlHoverLabel');
+      kmlHoverLabel.hidden = true;
 
       function kmlFillLayerIds() {
         return state.layers
@@ -2339,41 +2340,8 @@
           .filter((id) => map.getLayer(id));
       }
 
-      map.on('mousemove', (event) => {
-        const fillLayerIds = kmlFillLayerIds();
-        if (fillLayerIds.length === 0) {
-          kmlHoverLabel.hidden = true;
-          return;
-        }
-
-        const features = map.queryRenderedFeatures(event.point, { layers: fillLayerIds });
-        const hovered = features[0];
-
-        if (!hovered) {
-          kmlHoverLabel.hidden = true;
-          return;
-        }
-
-        // Prefer the KML placemark's own <name>, but most placemarks in
-        // practice don't have one set — fall back to the sidebar layer's
-        // name (e.g. "Russian advances") so hovering a polygon always
-        // shows something instead of silently doing nothing.
-        const placemarkName = hovered.properties && hovered.properties.name
-          ? String(hovered.properties.name).trim()
-          : '';
-        const layerId = hovered.layer.id.replace(/^kml-/, '').replace(/-fill$/, '');
-        const parentLayer = getLayerById(layerId);
-        const label = placemarkName || (parentLayer ? parentLayer.name : '');
-
-        if (!label) {
-          kmlHoverLabel.hidden = true;
-          return;
-        }
-
-        kmlHoverLabel.textContent = label;
-        kmlHoverLabel.style.left = event.originalEvent.clientX + 14 + 'px';
-        kmlHoverLabel.style.top = event.originalEvent.clientY + 14 + 'px';
-        kmlHoverLabel.hidden = false;
+      map.on('mousemove', () => {
+        return;
       });
 
       map.on('mouseout', () => {
