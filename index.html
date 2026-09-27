@@ -1608,7 +1608,8 @@
         return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       }
 
-      function buildCasualtyChartSVG(data, color) {
+      function buildCasualtyChartSVG(data, color, textColor) {
+        textColor = textColor || color;
         const width = 264;
         const height = 150;
         const padLeft = 38;
@@ -1665,7 +1666,7 @@
           const d = data[i];
           return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="' + color +
             '" stroke="#0b0f14" stroke-width="1" tabindex="0" role="button" ' +
-            'data-date="' + escapeHtml(d.date) + '" data-casualties="' + d.casualties + '" data-color="' + escapeHtml(color) + '">' +
+            'data-date="' + escapeHtml(d.date) + '" data-casualties="' + d.casualties + '" data-color="' + escapeHtml(textColor) + '">' +
             '<title>' + escapeHtml(formatShortDate(d.date)) + ': ' + d.casualties + '</title></circle>';
         }).join('');
 
@@ -1703,7 +1704,7 @@
           'Shown in chart: <strong>' + ukraineChartTotal.toLocaleString() + '</strong>';
 
         document.getElementById('russiaCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.russia.daily, '#FF9400');
-        document.getElementById('ukraineCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.ukraine.daily, '#0000ff');
+        document.getElementById('ukraineCasualtyChart').innerHTML = buildCasualtyChartSVG(casualtyData.ukraine.daily, '#0000ff', '#5b9dff');
 
         wireCasualtyChartDots(document.getElementById('russiaCasualtyChart'));
         wireCasualtyChartDots(document.getElementById('ukraineCasualtyChart'));
@@ -2328,9 +2329,10 @@
 
       map.on('load', loadKmlManifestAndData);
 
-      // Hovering a KML polygon shows its name in a small floating label —
-      // this never touches the polygon's paint properties, so its color
-      // stays exactly as set (no hover-highlight color swap).
+      // Hovering a KML polygon used to show its name in a small floating
+      // label. That behavior is disabled below — the label element and
+      // its lookup logic are kept but the mousemove handler now returns
+      // immediately, so hovering a polygon never displays anything.
       const kmlHoverLabel = document.getElementById('kmlHoverLabel');
       kmlHoverLabel.hidden = true;
 
