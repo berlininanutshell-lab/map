@@ -3203,15 +3203,11 @@
               return;
             }
             layerKmlData[layerId] = parsed;
-            // Remember that this layer now has an authoritative
-            // Firestore-backed value, so a later (possibly delayed)
-            // KML-manifest load doesn't stomp on it — see
-            // loadKmlManifestAndData below.
+            
             territoryLoadedFromFirestore.add(layerId);
             changed = true;
-            if (map.isStyleLoaded()) {
-              ensureKmlLayersForLayer(layerId);
-            }
+            
+            ensureKmlLayersForLayer(layerId);
           });
 
           if (changed) {
