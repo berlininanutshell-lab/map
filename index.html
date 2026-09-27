@@ -329,6 +329,25 @@
         background: rgba(255, 255, 255, 0.09);
       }
 
+      /* Right-click flyout on the Line tool button, offering a dashed
+         variant. Positioned in JS (fixed, at the cursor) rather than
+         anchored to the button, since it opens wherever the user
+         right-clicked. */
+      #lineVariantMenu {
+        position: fixed;
+        z-index: 3;
+        width: 170px;
+        padding: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: #111820;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      #lineVariantMenu[hidden] {
+        display: none;
+      }
+
       .clear-drawings {
         display: flex;
         align-items: center;
@@ -1603,6 +1622,9 @@
           <div class="tool-divider"></div>
           <button id="clearDrawingsBtn" class="clear-drawings" type="button" disabled><span class="tool-symbol" aria-hidden="true">×</span>Clear all drawings</button>
         </div>
+        <div id="lineVariantMenu" hidden>
+          <button class="tool-option" type="button" data-tool="lineDashed" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">┄</span>Dashed line</button>
+        </div>
       </header>
       <div id="sidebarTabs" role="tablist">
         <button id="legendTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="legendView">Legend</button>
@@ -2660,6 +2682,20 @@
       const clearDrawingsBtn = document.getElementById('clearDrawingsBtn');
       const mapSummary = document.getElementById('mapSummary');
       const mapStyleSelect = document.getElementById('mapStyleSelect');
+      const lineToolBtn = document.querySelector('.tool-option[data-tool="line"]');
+      const lineVariantMenu = document.getElementById('lineVariantMenu');
+
+      // Hint text shown under the tool list for whichever tool is armed.
+      // Kept at module scope so both the main tool-option click handler
+      // and the line-variant flyout (right-click on the Line button)
+      // can use it.
+      const toolHints = {
+        brush: 'Drag on the map to draw a freehand stroke.',
+        line: 'Left-click to add points, right-click to finish the line.',
+        lineDashed: 'Left-click to add points, right-click to finish the dashed line.',
+        arrow: 'Left-click to add points, right-click to finish the arrow.',
+        pinpoint: 'Click the map to place a pinpoint.'
+      };
 
       // ---- Collapse sidebar (hides the Legend/Casualties panel) ----
       // The map is always full-viewport underneath the sidebar (see
@@ -2728,6 +2764,7 @@
         }
         toolMenu.hidden = true;
         drawToolsBtn.setAttribute('aria-expanded', 'false');
+        closeLineVariantMenu();
         deactivateDrawingTool();
       }
 
@@ -2879,7 +2916,10 @@
         }
       });
 
-      document.querySelectorAll('.tool-option').forEach((button) => {
+      // Scoped to the main tool list (not the line-variant flyout,
+      // which has its own click handler below) so the dashed-line
+      // option doesn't end up wired to both.
+      toolMenu.querySelectorAll('.tool-option').forEach((button) => {
         button.addEventListener('click', () => {
           // The flag tool is only ever meant to be reachable by admins —
           // it's hidden via CSS for everyone else, but this guard covers
@@ -2896,15 +2936,47 @@
             option.setAttribute('aria-pressed', String(option === button));
           });
 
-          const hints = {
-            brush: 'Drag on the map to draw a freehand stroke.',
-            line: 'Click two points on the map to draw a line.',
-            arrow: 'Left-click to add points, right-click to finish the arrow.',
-            pinpoint: 'Click the map to place a pinpoint.',
-            flag: 'Click the map to place a ' + (state.flagType === 'russia' ? 'Russian' : 'Ukrainian') + ' flag. Drag a flag to move it.'
-          };
-          drawHint.textContent = hints[state.drawingTool];
+          drawHint.textContent = state.drawingTool === 'flag'
+            ? 'Click the map to place a ' + (state.flagType === 'russia' ? 'Russian' : 'Ukrainian') + ' flag. Drag a flag to move it.'
+            : toolHints[state.drawingTool];
           map.getCanvasContainer().style.cursor = 'crosshair';
+          closeLineVariantMenu();
+        });
+      });
+
+      // ---- Line tool variant flyout ----
+      // Right-clicking the Line button opens a small menu offering a
+      // dashed variant. Picking it arms the 'lineDashed' tool, which
+      // draws and behaves exactly like 'line' (left-click to add
+      // points, right-click to finish) but renders dashed. The Line
+      // button itself stays visually "pressed" while either variant
+      // is active, since they're really the same tool.
+      function closeLineVariantMenu() {
+        lineVariantMenu.hidden = true;
+      }
+
+      lineToolBtn.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        lineVariantMenu.hidden = false;
+
+        const menuWidth = 170;
+        const menuHeight = 46;
+        const left = Math.min(event.clientX, window.innerWidth - menuWidth - 8);
+        const top = Math.min(event.clientY, window.innerHeight - menuHeight - 8);
+        lineVariantMenu.style.left = Math.max(8, left) + 'px';
+        lineVariantMenu.style.top = Math.max(8, top) + 'px';
+      });
+
+      lineVariantMenu.querySelectorAll('.tool-option').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.drawingTool = button.dataset.tool;
+          document.querySelectorAll('.tool-option').forEach((option) => {
+            const isActive = option === button || (option === lineToolBtn && button.dataset.tool === 'lineDashed');
+            option.setAttribute('aria-pressed', String(isActive));
+          });
+          drawHint.textContent = toolHints[state.drawingTool];
+          map.getCanvasContainer().style.cursor = 'crosshair';
+          closeLineVariantMenu();
         });
       });
 
@@ -2923,9 +2995,15 @@
         ) {
           closeToolMenu();
         }
+        if (!lineVariantMenu.hidden && !lineVariantMenu.contains(event.target) && event.target !== lineToolBtn) {
+          closeLineVariantMenu();
+        }
       });
 
       document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !lineVariantMenu.hidden) {
+          closeLineVariantMenu();
+        }
         if (event.key === 'Escape' && !toolMenu.hidden) {
           closeToolMenu();
         }
@@ -3723,20 +3801,27 @@
           event.originalEvent.preventDefault();
         }
 
-        if (state.drawingTool === 'arrow' && state.draft) {
-          finishArrow();
+        if (isOpenLineTool(state.drawingTool) && state.draft) {
+          finishOpenLineDraft();
           return;
         }
 
         showCoordinates(event.lngLat.lat, event.lngLat.lng, event.originalEvent);
       });
 
-      // Right-click ends an in-progress arrow: drop the trailing point
-      // that was only ever a rubber-band preview (never confirmed with
-      // a left-click), then commit whatever's left as a finished
-      // drawing. The arrow tool stays armed afterwards so another arrow
-      // can be started right away, same as the line tool.
-      function finishArrow() {
+      // Line, dashed line, and arrow are all "open" multi-point tools:
+      // left-click adds a point and keeps going, right-click ends the
+      // drawing. They share this helper.
+      function isOpenLineTool(tool) {
+        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow';
+      }
+
+      // Right-click ends an in-progress line/dashed-line/arrow: drop
+      // the trailing point that was only ever a rubber-band preview
+      // (never confirmed with a left-click), then commit whatever's
+      // left as a finished drawing. The tool stays armed afterwards so
+      // another one can be started right away.
+      function finishOpenLineDraft() {
         if (!state.draft) {
           return;
         }
@@ -3842,13 +3927,7 @@
           return;
         }
 
-        if (state.drawingTool === 'line' && state.draft) {
-          state.draft.geometry.coordinates[1] = [event.lngLat.lng, event.lngLat.lat];
-          updateDrawings();
-          return;
-        }
-
-        if (state.drawingTool === 'arrow' && state.draft) {
+        if (isOpenLineTool(state.drawingTool) && state.draft) {
           const coords = state.draft.geometry.coordinates;
           coords[coords.length - 1] = [event.lngLat.lng, event.lngLat.lat];
           updateDrawings();
@@ -3895,13 +3974,13 @@
           return;
         }
 
-        if (state.drawingTool === 'arrow') {
+        if (isOpenLineTool(state.drawingTool)) {
           if (!state.draft) {
-            state.draft = makeLineFeature([coordinate, coordinate], 'arrow');
+            state.draft = makeLineFeature([coordinate, coordinate], state.drawingTool);
           } else {
             // Lock in the point the cursor was rubber-banding to, then
             // start rubber-banding a new segment from it — this is what
-            // lets left-click keep extending the arrow instead of
+            // lets left-click keep extending the line/arrow instead of
             // finishing it.
             const coords = state.draft.geometry.coordinates;
             coords[coords.length - 1] = coordinate;
@@ -3910,15 +3989,6 @@
           updateDrawings();
           return;
         }
-
-        if (!state.draft) {
-          state.draft = makeLineFeature([coordinate, coordinate], 'line');
-        } else {
-          state.draft.geometry.coordinates[1] = coordinate;
-          state.drawings.push(state.draft);
-          state.draft = null;
-        }
-        updateDrawings();
       });
 
       map.on('style.load', () => {
@@ -3963,7 +4033,12 @@
           id: 'user-drawing-lines',
           type: 'line',
           source: 'user-drawings',
-          filter: ['all', ['==', ['geometry-type'], 'LineString'], ['!=', ['get', 'tool'], 'arrow']],
+          filter: [
+            'all',
+            ['==', ['geometry-type'], 'LineString'],
+            ['!=', ['get', 'tool'], 'arrow'],
+            ['!=', ['get', 'tool'], 'lineDashed']
+          ],
           layout: {
             'line-cap': 'round',
             'line-join': 'round'
@@ -3971,6 +4046,24 @@
           paint: {
             'line-color': ['get', 'color'],
             'line-width': ['case', ['==', ['get', 'tool'], 'brush'], 5, 3]
+          }
+        });
+        // The dashed-line variant gets its own layer so it can use
+        // line-dasharray, which isn't data-driven — a shared layer
+        // can't switch per feature between solid and dashed.
+        map.addLayer({
+          id: 'user-drawing-dashed-lines',
+          type: 'line',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'tool'], 'lineDashed']],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 3,
+            'line-dasharray': [2, 2]
           }
         });
         // Arrow strokes get their own layer so they can be dashed —
