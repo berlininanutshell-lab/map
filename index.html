@@ -872,15 +872,28 @@
       }
 
       .flag-marker {
-        font-size: 26px;
-        line-height: 1;
         cursor: grab;
         filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
         transform-origin: bottom left;
       }
 
+      .flag-marker img {
+        display: block;
+        width: 32px;
+        height: auto;
+        border-radius: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+      }
+
       .flag-marker:active {
         cursor: grabbing;
+      }
+
+      .tool-symbol img {
+        display: block;
+        width: 18px;
+        height: auto;
+        border-radius: 2px;
       }
     </style>
   </head>
@@ -897,8 +910,8 @@
           <button class="tool-option" type="button" data-tool="brush" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">〰</span>Brush</button>
           <button class="tool-option" type="button" data-tool="line" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Line</button>
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
-          <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="ukraine" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">🇺🇦</span>Flag: Ukraine</button>
-          <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">🇷🇺</span>Flag: Russia</button>
+          <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="ukraine" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ua.png" alt="" /></span>Flag: Ukraine</button>
+          <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ru.png" alt="" /></span>Flag: Russia</button>
           <div class="tool-divider"></div>
           <label class="color-option" for="drawColor">Drawing color<input id="drawColor" type="color" value="#FF9400" /></label>
           <div id="drawHint" aria-live="polite">Choose a tool to start drawing.</div>
@@ -2097,12 +2110,12 @@
       // which already checks state.role === 'admin'.
       function placeFlag(lng, lat, flagType) {
         const nation = flagType === 'russia' ? 'russia' : 'ukraine';
-        const emoji = nation === 'russia' ? '🇷🇺' : '🇺🇦';
+        const code = nation === 'russia' ? 'ru' : 'ua';
         const label = nation === 'russia' ? 'Russia' : 'Ukraine';
 
         const el = document.createElement('div');
         el.className = 'flag-marker';
-        el.textContent = emoji;
+        el.innerHTML = '<img src="https://flagcdn.com/w40/' + code + '.png" alt="' + label + ' flag" draggable="false" />';
 
         const marker = new maplibregl.Marker({ element: el, draggable: true, anchor: 'bottom-left' })
           .setLngLat([lng, lat])
