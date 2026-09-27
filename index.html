@@ -392,6 +392,32 @@
         cursor: pointer;
       }
 
+      #colorSwatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        padding: 2px 10px 10px;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: transform 0.08s ease;
+      }
+
+      .color-swatch:hover {
+        transform: scale(1.14);
+      }
+
+      .color-swatch[aria-pressed="true"] {
+        border-color: #edf5ff;
+        box-shadow: 0 0 0 2px #111820, 0 0 0 3px #edf5ff;
+      }
+
       #drawHint {
         min-height: 28px;
         padding: 5px 10px 2px;
@@ -1618,6 +1644,20 @@
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ru.png" alt="" /></span>Flag: Russia</button>
           <div class="tool-divider"></div>
           <label class="color-option" for="drawColor">Drawing color<input id="drawColor" type="color" value="#FF9400" /></label>
+          <div id="colorSwatches" role="group" aria-label="Standard drawing colors">
+            <button class="color-swatch" type="button" data-color="#FF9400" style="background:#FF9400" aria-pressed="true" aria-label="Orange"></button>
+            <button class="color-swatch" type="button" data-color="#FF3B30" style="background:#FF3B30" aria-pressed="false" aria-label="Red"></button>
+            <button class="color-swatch" type="button" data-color="#FFCC00" style="background:#FFCC00" aria-pressed="false" aria-label="Yellow"></button>
+            <button class="color-swatch" type="button" data-color="#34C759" style="background:#34C759" aria-pressed="false" aria-label="Green"></button>
+            <button class="color-swatch" type="button" data-color="#00C7BE" style="background:#00C7BE" aria-pressed="false" aria-label="Teal"></button>
+            <button class="color-swatch" type="button" data-color="#007AFF" style="background:#007AFF" aria-pressed="false" aria-label="Blue"></button>
+            <button class="color-swatch" type="button" data-color="#5856D6" style="background:#5856D6" aria-pressed="false" aria-label="Indigo"></button>
+            <button class="color-swatch" type="button" data-color="#AF52DE" style="background:#AF52DE" aria-pressed="false" aria-label="Purple"></button>
+            <button class="color-swatch" type="button" data-color="#FF2D55" style="background:#FF2D55" aria-pressed="false" aria-label="Pink"></button>
+            <button class="color-swatch" type="button" data-color="#8E8E93" style="background:#8E8E93" aria-pressed="false" aria-label="Gray"></button>
+            <button class="color-swatch" type="button" data-color="#000000" style="background:#000000" aria-pressed="false" aria-label="Black"></button>
+            <button class="color-swatch" type="button" data-color="#FFFFFF" style="background:#FFFFFF" aria-pressed="false" aria-label="White"></button>
+          </div>
           <div id="drawHint" aria-live="polite">Choose a tool to start drawing.</div>
           <div class="tool-divider"></div>
           <button id="clearDrawingsBtn" class="clear-drawings" type="button" disabled><span class="tool-symbol" aria-hidden="true">×</span>Clear all drawings</button>
@@ -2982,6 +3022,30 @@
 
       drawColor.addEventListener('input', () => {
         state.drawingColor = drawColor.value;
+        updateActiveSwatch();
+      });
+
+      // ---- Standard color swatches ----
+      // Quick-pick buttons next to the native color input, so common
+      // colors don't need the OS color picker every time. The native
+      // input stays for anything outside this set; picking a swatch
+      // updates it too, and typing a custom color there clears the
+      // swatch highlight (unless it happens to match one exactly).
+      const colorSwatches = document.getElementById('colorSwatches');
+
+      function updateActiveSwatch() {
+        const current = state.drawingColor.toLowerCase();
+        colorSwatches.querySelectorAll('.color-swatch').forEach((swatch) => {
+          swatch.setAttribute('aria-pressed', String(swatch.dataset.color.toLowerCase() === current));
+        });
+      }
+
+      colorSwatches.querySelectorAll('.color-swatch').forEach((swatch) => {
+        swatch.addEventListener('click', () => {
+          state.drawingColor = swatch.dataset.color;
+          drawColor.value = swatch.dataset.color;
+          updateActiveSwatch();
+        });
       });
 
       const mapContainer = document.getElementById('map');
@@ -2990,6 +3054,7 @@
         if (
           !toolMenu.hidden &&
           !toolMenu.contains(event.target) &&
+          !lineVariantMenu.contains(event.target) &&
           !drawToolsBtn.contains(event.target) &&
           !mapContainer.contains(event.target)
         ) {
