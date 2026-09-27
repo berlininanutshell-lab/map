@@ -1758,6 +1758,69 @@
         height: auto;
         border-radius: 2px;
       }
+
+      #advancesView {
+        padding: 16px 18px 20px;
+        gap: 18px;
+      }
+
+      .advances-note {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(127, 196, 255, 0.08);
+        border: 1px solid rgba(127, 196, 255, 0.25);
+        color: #cfe4f7;
+        font-size: 11.5px;
+        line-height: 1.55;
+      }
+
+      .advances-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 14px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .advances-section-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .advances-section-header h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #edf5ff;
+      }
+
+      .advances-value {
+        margin-top: 4px;
+        color: #edf5ff;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .advances-value span {
+        margin-left: 6px;
+        color: #98a9b9;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .advances-asof {
+        color: #98a9b9;
+        font-size: 11px;
+        letter-spacing: 0.03em;
+      }
+
+      .advances-shapecount {
+        color: #6d7d8c;
+        font-size: 11px;
+      }
     </style>
   </head>
   <body>
@@ -1810,6 +1873,7 @@
       <div id="sidebarTabs" role="tablist">
         <button id="legendTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="legendView">Legend</button>
         <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
+        <button id="advancesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="advancesView">Advances</button>
       </div>
       <div id="sidebarViews">
         <div id="legendView" class="sidebar-view is-active" role="tabpanel">
@@ -1859,6 +1923,27 @@
             <div id="ukraineCasualtyAdmin" class="casualty-admin admin-only"></div>
           </div>
           <div id="casualtySources" class="casualty-sources"></div>
+        </div>
+        <div id="advancesView" class="sidebar-view" role="tabpanel" hidden>
+          <div class="advances-note">Pending territory drawn with the Territory polygon tool, on the Russian advances / Ukrainian advances layers, before it's applied to the main layer. Updates live as admins draw, edit, or apply shapes, and the date below always shows today.</div>
+          <div class="advances-section">
+            <div class="advances-section-header">
+              <span class="casualty-dot" style="background:#FF9400"></span>
+              <h2>Russian Advances</h2>
+            </div>
+            <div class="advances-value" id="russiaAdvancesValue"></div>
+            <div class="advances-asof" id="russiaAdvancesAsOf"></div>
+            <div class="advances-shapecount" id="russiaAdvancesShapeCount"></div>
+          </div>
+          <div class="advances-section">
+            <div class="advances-section-header">
+              <span class="casualty-dot" style="background:#0000ff"></span>
+              <h2>Ukrainian Advances</h2>
+            </div>
+            <div class="advances-value" id="ukraineAdvancesValue"></div>
+            <div class="advances-asof" id="ukraineAdvancesAsOf"></div>
+            <div class="advances-shapecount" id="ukraineAdvancesShapeCount"></div>
+          </div>
         </div>
       </div>
     </aside>
@@ -2366,31 +2451,52 @@
         }
       });
 
-      // ---- Sidebar tabs: Legend / Casualties ----
+      // ---- Sidebar tabs: Legend / Casualties / Advances ----
       const legendTabBtn = document.getElementById('legendTabBtn');
       const casualtiesTabBtn = document.getElementById('casualtiesTabBtn');
+      const advancesTabBtn = document.getElementById('advancesTabBtn');
       const legendView = document.getElementById('legendView');
       const casualtiesView = document.getElementById('casualtiesView');
+      const advancesView = document.getElementById('advancesView');
       const sidebarEyebrow = document.getElementById('sidebarEyebrow');
       let sidebarTab = 'legend';
+
+      const sidebarTabViews = {
+        legend: legendView,
+        casualties: casualtiesView,
+        advances: advancesView
+      };
+      const sidebarTabBtns = {
+        legend: legendTabBtn,
+        casualties: casualtiesTabBtn,
+        advances: advancesTabBtn
+      };
+      const sidebarTabLabels = {
+        legend: 'Legend',
+        casualties: 'Casualties',
+        advances: 'Advances'
+      };
 
       function setSidebarTab(tab) {
         if (tab === sidebarTab) {
           return;
         }
+        const previousTab = sidebarTab;
         sidebarTab = tab;
-        const showCasualties = tab === 'casualties';
 
-        legendTabBtn.setAttribute('aria-selected', String(!showCasualties));
-        casualtiesTabBtn.setAttribute('aria-selected', String(showCasualties));
-        sidebarEyebrow.textContent = showCasualties ? 'Casualties' : 'Legend';
+        Object.keys(sidebarTabBtns).forEach((key) => {
+          sidebarTabBtns[key].setAttribute('aria-selected', String(key === tab));
+        });
+        sidebarEyebrow.textContent = sidebarTabLabels[tab];
 
-        if (showCasualties) {
+        if (tab === 'casualties') {
           renderCasualtiesView();
+        } else if (tab === 'advances') {
+          renderAdvancesView();
         }
 
-        const incoming = showCasualties ? casualtiesView : legendView;
-        const outgoing = showCasualties ? legendView : casualtiesView;
+        const incoming = sidebarTabViews[tab];
+        const outgoing = sidebarTabViews[previousTab];
 
         // Un-hide the incoming panel first, then force a reflow before
         // adding .is-active so the opacity/transform transition actually
@@ -2417,6 +2523,72 @@
 
       legendTabBtn.addEventListener('click', () => setSidebarTab('legend'));
       casualtiesTabBtn.addEventListener('click', () => setSidebarTab('casualties'));
+      advancesTabBtn.addEventListener('click', () => setSidebarTab('advances'));
+
+      // ---- Advances tab: live pending-advance area, dated to today ----
+      // Sums the area (km²) of every shape currently sitting on the
+      // russian-advances / ukrainian-advances layers — i.e. drawn but
+      // not yet applied into the main layer (see the Territory polygon
+      // tool comments further down for how a shape gets there and how
+      // "Apply the advance" folds it into main). Nothing here is typed
+      // in or stored per-day; it's just the live state of those two
+      // layers, recomputed on every render. The "as of" date is always
+      // today's real date — see scheduleAdvancesMidnightRefresh below
+      // for how that keeps itself current without any input from you.
+      function sumLayerAreaKm2(layerId) {
+        const features = layerPolygonFeatures(layerId);
+        let squareMeters = 0;
+        features.forEach((feature) => {
+          try {
+            squareMeters += turf.area(feature);
+          } catch (error) {
+            // Skip a malformed shape rather than let it break the total.
+          }
+        });
+        return { km2: squareMeters / 1e6, count: features.length };
+      }
+
+      function formatAdvancesKm2(km2) {
+        const decimals = km2 < 10 ? 2 : km2 < 100 ? 1 : 0;
+        return km2.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
+      }
+
+      function todayLabel() {
+        return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      }
+
+      function renderAdvancesView() {
+        const asOf = 'As of ' + todayLabel();
+
+        const russia = sumLayerAreaKm2('russian-advances');
+        document.getElementById('russiaAdvancesValue').innerHTML =
+          formatAdvancesKm2(russia.km2) + '<span>km²</span>';
+        document.getElementById('russiaAdvancesAsOf').textContent = asOf;
+        document.getElementById('russiaAdvancesShapeCount').textContent =
+          russia.count + ' pending shape' + (russia.count === 1 ? '' : 's');
+
+        const ukraine = sumLayerAreaKm2('ukrainian-advances');
+        document.getElementById('ukraineAdvancesValue').innerHTML =
+          formatAdvancesKm2(ukraine.km2) + '<span>km²</span>';
+        document.getElementById('ukraineAdvancesAsOf').textContent = asOf;
+        document.getElementById('ukraineAdvancesShapeCount').textContent =
+          ukraine.count + ' pending shape' + (ukraine.count === 1 ? '' : 's');
+      }
+
+      // Keeps the "as of <date>" line honest across midnight without
+      // any manual update: checks once a minute, and re-renders (only
+      // while the Advances tab is actually open) the moment the
+      // calendar day changes.
+      let lastAdvancesDateKey = new Date().toDateString();
+      setInterval(() => {
+        const nowKey = new Date().toDateString();
+        if (nowKey !== lastAdvancesDateKey) {
+          lastAdvancesDateKey = nowKey;
+          if (sidebarTab === 'advances') {
+            renderAdvancesView();
+          }
+        }
+      }, 60000);
 
       // ---- Casualty data ----
       // EXAMPLE DATA ONLY. totalSince2022 is meant to be a war-start-to-
@@ -3215,6 +3387,9 @@
             // applied/deleted/edited by someone else — close it rather
             // than risk acting on a feature id that no longer exists.
             closeTerritoryPopup();
+            if (sidebarTab === 'advances') {
+              renderAdvancesView();
+            }
           }
         }, (error) => {
           console.error('Failed to sync shared territories', error);
@@ -3624,6 +3799,14 @@
         } else {
           map.setLayoutProperty(pointId, 'visibility', visibility);
           map.setPaintProperty(pointId, 'circle-color', color);
+        }
+
+        // Recompute the Advances tab whenever a territory layer's data
+        // changes, so it always reflects what's actually on the map —
+        // not just the moments a Firestore sync or "Apply the advance"
+        // click already trigger a re-render.
+        if (territoryLayerIds.includes(layerId) && sidebarTab === 'advances') {
+          renderAdvancesView();
         }
       }
 
