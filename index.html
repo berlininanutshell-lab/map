@@ -3074,17 +3074,15 @@
         }
       });
 
+      // Flags are placed/managed independently of drawings (each has
+      // its own delete button in its popup), so "Clear all drawings"
+      // only clears drawings — it no longer touches flags.
       clearDrawingsBtn.addEventListener('click', () => {
         state.drawings = [];
         state.draft = null;
         state.isBrushing = false;
         map.dragPan.enable();
         updateDrawings();
-        if (state.role === 'admin') {
-          flagMarkers.forEach((marker) => marker.remove());
-          flagMarkers = [];
-          pushFlagsToFirestore();
-        }
       });
 
       mapStyleSelect.addEventListener('change', () => {
