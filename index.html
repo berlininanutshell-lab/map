@@ -1759,6 +1759,171 @@
         border-radius: 2px;
       }
 
+      .frontline-history-panel {
+        padding: 16px 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .frontline-history-intro,
+      .frontline-admin,
+      .frontline-current-banner {
+        padding: 11px 12px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #aebdcc;
+        font-size: 11.5px;
+        line-height: 1.55;
+      }
+
+      .frontline-admin {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        background: rgba(255, 148, 0, 0.055);
+        border-color: rgba(255, 148, 0, 0.18);
+      }
+
+      .frontline-admin-title {
+        color: #ffb45b;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .frontline-admin-date {
+        color: #edf5ff;
+        font-size: 15px;
+        font-weight: 750;
+      }
+
+      .frontline-admin-status {
+        min-height: 16px;
+        color: #98a9b9;
+        font-size: 11px;
+      }
+
+      .frontline-lock-btn,
+      #frontlineReturnCurrentBtn {
+        border: 1px solid rgba(255, 148, 0, 0.38);
+        background: rgba(255, 148, 0, 0.12);
+        color: #ffb45b;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .frontline-lock-btn:hover:not(:disabled),
+      #frontlineReturnCurrentBtn:hover {
+        background: rgba(255, 148, 0, 0.2);
+      }
+
+      .frontline-lock-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .frontline-current-banner {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        background: rgba(127, 196, 255, 0.06);
+        border-color: rgba(127, 196, 255, 0.2);
+      }
+
+      .frontline-current-banner strong {
+        color: #7fc4ff;
+      }
+
+      .frontline-history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .frontline-history-day {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        padding: 11px 12px;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .frontline-history-day-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .frontline-history-date {
+        color: #edf5ff;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .frontline-history-locked {
+        color: #6d7d8c;
+        font-size: 10px;
+      }
+
+      .frontline-history-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+      }
+
+      .frontline-history-stat {
+        padding: 7px 8px;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .frontline-history-stat-label {
+        color: #6d7d8c;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .frontline-history-stat-value {
+        margin-top: 2px;
+        color: #edf5ff;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .frontline-history-open {
+        border: 1px solid rgba(127, 196, 255, 0.24);
+        background: rgba(127, 196, 255, 0.08);
+        color: #9dd1ff;
+        border-radius: 7px;
+        padding: 7px 9px;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .frontline-history-open:hover {
+        background: rgba(127, 196, 255, 0.15);
+      }
+
+      .frontline-empty {
+        padding: 16px 4px;
+        color: #6d7d8c;
+        font-size: 11px;
+        text-align: center;
+      }
+
       #advancesView {
         padding: 16px 18px 20px;
         gap: 18px;
@@ -1874,6 +2039,7 @@
         <button id="legendTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="legendView">Legend</button>
         <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
         <button id="advancesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="advancesView">Advances</button>
+        <button id="frontlineTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="frontlineView">Frontline</button>
       </div>
       <div id="sidebarViews">
         <div id="legendView" class="sidebar-view is-active" role="tabpanel">
@@ -1924,7 +2090,7 @@
           <div id="casualtySources" class="casualty-sources"></div>
         </div>
         <div id="advancesView" class="sidebar-view" role="tabpanel" hidden>
-          <div class="advances-note">Pending territory drawn with the Territory polygon tool, on the Russian advances / Ukrainian advances layers, before it's applied to the main layer. Updates live as admins draw, edit, or apply shapes, and the date below always shows today.</div>
+          <div class="advances-note">Live pending territory drawn with the Territory polygon tool on the Russian advances / Ukrainian advances layers, before it's applied to the main layer. For locked day-by-day values and historical map positions, use the Frontline tab.</div>
           <div class="advances-section">
             <div class="advances-section-header">
               <span class="casualty-dot" style="background:#FF9400"></span>
@@ -1942,6 +2108,25 @@
             <div class="advances-value" id="ukraineAdvancesValue"></div>
             <div class="advances-asof" id="ukraineAdvancesAsOf"></div>
             <div class="advances-shapecount" id="ukraineAdvancesShapeCount"></div>
+          </div>
+        </div>
+        <div id="frontlineView" class="sidebar-view" role="tabpanel" hidden>
+          <div class="frontline-history-panel">
+            <div class="frontline-history-intro">Daily snapshots of the saved frontline. Select a date to display that exact locked map position and the advances recorded for that day.</div>
+            <div class="frontline-current-banner" id="frontlineCurrentBanner" hidden>
+              <strong>Historical view</strong>
+              <span id="frontlineCurrentBannerDate"></span>
+              <button id="frontlineReturnCurrentBtn" type="button">Return to current frontline</button>
+            </div>
+            <div class="frontline-admin admin-only" id="frontlineAdminPanel">
+              <div class="frontline-admin-title">Admin · daily lock</div>
+              <div class="frontline-admin-date" id="frontlineAdminDate"></div>
+              <div class="frontline-admin-status" id="frontlineAdminStatus"></div>
+              <button id="frontlineLockBtn" class="frontline-lock-btn" type="button">Lock frontline for today</button>
+            </div>
+            <div class="frontline-history-list" id="frontlineHistoryList">
+              <div class="frontline-empty">No daily frontline snapshots yet.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -2089,6 +2274,12 @@
       // not seen by anyone else) if Firestore isn't set up.
       const territoriesDocRef = db ? db.collection('mapState').doc('territories') : null;
 
+      // Daily frontline snapshots live in a subcollection so history can grow
+      // without turning one Firestore document into a giant payload.
+      const frontlineHistoryCollectionRef = db
+        ? db.collection('mapState').doc('frontlineHistory').collection('days')
+        : null;
+
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
       const authCloseBtn = document.getElementById('authCloseBtn');
@@ -2158,7 +2349,13 @@
         if (role !== 'admin' && state.drawingTool === 'flag') {
           deactivateDrawingTool();
         }
+        if (role !== 'admin' && state.frontlineHistoryMode) {
+          returnToCurrentFrontline();
+        }
         renderLayers();
+        if (typeof renderFrontlineView === 'function') {
+          renderFrontlineView();
+        }
       }
 
       // Shows "Signed in as <nickname or email>" plus the role badge.
@@ -2450,34 +2647,42 @@
         }
       });
 
-      // ---- Sidebar tabs: Legend / Casualties / Advances ----
+      // ---- Sidebar tabs: Legend / Casualties / Advances / Frontline ----
       const legendTabBtn = document.getElementById('legendTabBtn');
       const casualtiesTabBtn = document.getElementById('casualtiesTabBtn');
       const advancesTabBtn = document.getElementById('advancesTabBtn');
+      const frontlineTabBtn = document.getElementById('frontlineTabBtn');
       const legendView = document.getElementById('legendView');
       const casualtiesView = document.getElementById('casualtiesView');
       const advancesView = document.getElementById('advancesView');
+      const frontlineView = document.getElementById('frontlineView');
       const sidebarEyebrow = document.getElementById('sidebarEyebrow');
       let sidebarTab = 'legend';
 
       const sidebarTabViews = {
         legend: legendView,
         casualties: casualtiesView,
-        advances: advancesView
+        advances: advancesView,
+        frontline: frontlineView
       };
       const sidebarTabBtns = {
         legend: legendTabBtn,
         casualties: casualtiesTabBtn,
-        advances: advancesTabBtn
+        advances: advancesTabBtn,
+        frontline: frontlineTabBtn
       };
       const sidebarTabLabels = {
         legend: 'Legend',
         casualties: 'Casualties',
-        advances: 'Advances'
+        advances: 'Advances',
+        frontline: 'Frontline'
       };
 
       function setSidebarTab(tab) {
         if (tab === sidebarTab) {
+          if (tab === 'frontline') {
+            renderFrontlineView();
+          }
           return;
         }
         const previousTab = sidebarTab;
@@ -2492,21 +2697,17 @@
           renderCasualtiesView();
         } else if (tab === 'advances') {
           renderAdvancesView();
+        } else if (tab === 'frontline') {
+          renderFrontlineView();
         }
 
         const incoming = sidebarTabViews[tab];
         const outgoing = sidebarTabViews[previousTab];
 
-        // Un-hide the incoming panel first, then force a reflow before
-        // adding .is-active so the opacity/transform transition actually
-        // animates from its starting (faded-out) state instead of
-        // jumping straight to visible.
         incoming.hidden = false;
         void incoming.offsetWidth;
         incoming.classList.add('is-active');
 
-        // Fade the outgoing panel out, then remove it from layout once
-        // the transition finishes so it stops catching clicks/scroll.
         outgoing.classList.remove('is-active');
         outgoing.addEventListener('transitionend', function onFadeOut(event) {
           if (event.target !== outgoing) {
@@ -2514,7 +2715,7 @@
           }
           outgoing.removeEventListener('transitionend', onFadeOut);
           if (outgoing.classList.contains('is-active')) {
-            return; // switched back before the fade-out finished
+            return;
           }
           outgoing.hidden = true;
         });
@@ -2523,17 +2724,11 @@
       legendTabBtn.addEventListener('click', () => setSidebarTab('legend'));
       casualtiesTabBtn.addEventListener('click', () => setSidebarTab('casualties'));
       advancesTabBtn.addEventListener('click', () => setSidebarTab('advances'));
+      frontlineTabBtn.addEventListener('click', () => setSidebarTab('frontline'));
 
       // ---- Advances tab: live pending-advance area, dated to today ----
-      // Sums the area (km²) of every shape currently sitting on the
-      // russian-advances / ukrainian-advances layers — i.e. drawn but
-      // not yet applied into the main layer (see the Territory polygon
-      // tool comments further down for how a shape gets there and how
-      // "Apply the advance" folds it into main). Nothing here is typed
-      // in or stored per-day; it's just the live state of those two
-      // layers, recomputed on every render. The "as of" date is always
-      // today's real date — see scheduleAdvancesMidnightRefresh below
-      // for how that keeps itself current without any input from you.
+      // This remains the live view. The Frontline tab separately stores
+      // the values at the moment an admin locks a day's snapshot.
       function sumLayerAreaKm2(layerId) {
         const features = layerPolygonFeatures(layerId);
         let squareMeters = 0;
@@ -2549,11 +2744,24 @@
 
       function formatAdvancesKm2(km2) {
         const decimals = km2 < 10 ? 2 : km2 < 100 ? 1 : 0;
-        return km2.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
+        return Number(km2 || 0).toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
+      }
+
+      function todayDateKey() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+      }
+
+      function dateKeyLabel(dateKey) {
+        const parsed = new Date(dateKey + 'T12:00:00');
+        return parsed.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
       }
 
       function todayLabel() {
-        return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        return dateKeyLabel(todayDateKey());
       }
 
       function renderAdvancesView() {
@@ -2574,15 +2782,276 @@
           ukraine.count + ' pending shape' + (ukraine.count === 1 ? '' : 's');
       }
 
-      // Keeps the "as of <date>" line honest across midnight without
-      // any manual update: checks once a minute, and re-renders (only
-      // while the Advances tab is actually open) the moment the
-      // calendar day changes.
-      let lastAdvancesDateKey = new Date().toDateString();
+      // ---- Frontline chronology ----
+      // A snapshot is an immutable copy of all three territory layers plus
+      // the live advances-area totals at the exact moment the admin locks it.
+      // Historical views never write back to the live territories document.
+      const frontlineHistoryListEl = document.getElementById('frontlineHistoryList');
+      const frontlineAdminDateEl = document.getElementById('frontlineAdminDate');
+      const frontlineAdminStatusEl = document.getElementById('frontlineAdminStatus');
+      const frontlineLockBtn = document.getElementById('frontlineLockBtn');
+      const frontlineCurrentBanner = document.getElementById('frontlineCurrentBanner');
+      const frontlineCurrentBannerDate = document.getElementById('frontlineCurrentBannerDate');
+      const frontlineReturnCurrentBtn = document.getElementById('frontlineReturnCurrentBtn');
+      const frontlineHistoryEntries = new Map();
+
+      function cloneTerritoryData() {
+        const result = {};
+        territoryLayerIds.forEach((layerId) => {
+          result[layerId] = JSON.parse(JSON.stringify(
+            layerKmlData[layerId] || { type: 'FeatureCollection', features: [] }
+          ));
+        });
+        return result;
+      }
+
+      function isAdmin() {
+        return state.role === 'admin';
+      }
+
+      function setFrontlineHistoryStatus(message) {
+        if (frontlineAdminStatusEl) {
+          frontlineAdminStatusEl.textContent = message || '';
+        }
+      }
+
+      function renderFrontlineView() {
+        const todayKey = todayDateKey();
+        frontlineAdminDateEl.textContent = dateKeyLabel(todayKey);
+
+        const todayEntry = frontlineHistoryEntries.get(todayKey);
+        if (isAdmin()) {
+          if (todayEntry) {
+            frontlineAdminStatusEl.textContent = 'Today is already locked. The saved snapshot cannot be overwritten.';
+            frontlineLockBtn.disabled = true;
+            frontlineLockBtn.textContent = 'Locked for today';
+          } else if (state.frontlineHistoryMode) {
+            frontlineAdminStatusEl.textContent = 'Exit historical view before locking today.';
+            frontlineLockBtn.disabled = true;
+            frontlineLockBtn.textContent = 'Return to current frontline first';
+          } else {
+            frontlineAdminStatusEl.textContent = 'The current map and current Advances areas will be saved exactly as they are.';
+            frontlineLockBtn.disabled = false;
+            frontlineLockBtn.textContent = 'Lock frontline for today';
+          }
+        }
+
+        renderFrontlineHistoryList();
+        frontlineCurrentBanner.hidden = !state.frontlineHistoryMode;
+        if (state.frontlineHistoryMode) {
+          frontlineCurrentBannerDate.textContent = dateKeyLabel(state.frontlineHistoryDate) + ' — read-only historical map';
+        }
+      }
+
+      function renderFrontlineHistoryList() {
+        const entries = Array.from(frontlineHistoryEntries.values()).sort((a, b) => b.date.localeCompare(a.date));
+        frontlineHistoryListEl.innerHTML = '';
+        if (!entries.length) {
+          frontlineHistoryListEl.innerHTML = '<div class="frontline-empty">No daily frontline snapshots yet.</div>';
+          return;
+        }
+
+        entries.forEach((entry) => {
+          const card = document.createElement('div');
+          card.className = 'frontline-history-day';
+
+          const head = document.createElement('div');
+          head.className = 'frontline-history-day-head';
+          const date = document.createElement('div');
+          date.className = 'frontline-history-date';
+          date.textContent = dateKeyLabel(entry.date);
+          const locked = document.createElement('div');
+          locked.className = 'frontline-history-locked';
+          locked.textContent = 'Locked';
+          head.appendChild(date);
+          head.appendChild(locked);
+
+          const stats = document.createElement('div');
+          stats.className = 'frontline-history-stats';
+          stats.appendChild(makeFrontlineStat('Russian advances', entry.russianAdvanceKm2));
+          stats.appendChild(makeFrontlineStat('Ukrainian advances', entry.ukrainianAdvanceKm2));
+
+          const open = document.createElement('button');
+          open.type = 'button';
+          open.className = 'frontline-history-open';
+          open.textContent = state.frontlineHistoryMode && state.frontlineHistoryDate === entry.date ? 'Viewing this date' : 'View this date';
+          open.disabled = state.frontlineHistoryMode && state.frontlineHistoryDate === entry.date;
+          open.addEventListener('click', () => showFrontlineHistory(entry.date));
+
+          card.appendChild(head);
+          card.appendChild(stats);
+          card.appendChild(open);
+          frontlineHistoryListEl.appendChild(card);
+        });
+      }
+
+      function makeFrontlineStat(label, value) {
+        const wrap = document.createElement('div');
+        wrap.className = 'frontline-history-stat';
+        const labelEl = document.createElement('div');
+        labelEl.className = 'frontline-history-stat-label';
+        labelEl.textContent = label;
+        const valueEl = document.createElement('div');
+        valueEl.className = 'frontline-history-stat-value';
+        valueEl.textContent = formatAdvancesKm2(Number(value || 0)) + ' km²';
+        wrap.appendChild(labelEl);
+        wrap.appendChild(valueEl);
+        return wrap;
+      }
+
+      async function lockFrontlineForToday() {
+        if (!isAdmin() || !frontlineHistoryCollectionRef || state.frontlineHistoryMode) {
+          return;
+        }
+
+        const date = todayDateKey();
+        frontlineLockBtn.disabled = true;
+        setFrontlineHistoryStatus('Saving today’s snapshot…');
+
+        try {
+          const docRef = frontlineHistoryCollectionRef.doc(date);
+          const existing = await docRef.get();
+          if (existing.exists) {
+            setFrontlineHistoryStatus('Today was already locked by an admin.');
+            renderFrontlineView();
+            return;
+          }
+
+          const snapshot = cloneTerritoryData();
+          const russian = sumLayerAreaKm2('russian-advances');
+          const ukrainian = sumLayerAreaKm2('ukrainian-advances');
+          const user = auth && auth.currentUser;
+
+          await docRef.set({
+            date,
+            main: JSON.stringify(snapshot.main),
+            russianAdvances: JSON.stringify(snapshot['russian-advances']),
+            ukrainianAdvances: JSON.stringify(snapshot['ukrainian-advances']),
+            russianAdvanceKm2: russian.km2,
+            ukrainianAdvanceKm2: ukrainian.km2,
+            russianAdvanceShapeCount: russian.count,
+            ukrainianAdvanceShapeCount: ukrainian.count,
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lockedBy: user ? (user.email || user.uid) : 'admin'
+          });
+
+          setFrontlineHistoryStatus('Locked successfully for ' + dateKeyLabel(date) + '.');
+          renderFrontlineView();
+        } catch (error) {
+          console.error('Failed to lock frontline snapshot', error);
+          setFrontlineHistoryStatus('Could not save the snapshot. Check Firestore permissions and try again.');
+          renderFrontlineView();
+        }
+      }
+
+      function readSnapshotFeatureCollection(raw) {
+        if (typeof raw !== 'string') {
+          return { type: 'FeatureCollection', features: [] };
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed && Array.isArray(parsed.features)
+            ? parsed
+            : { type: 'FeatureCollection', features: [] };
+        } catch (error) {
+          return { type: 'FeatureCollection', features: [] };
+        }
+      }
+
+      function showFrontlineHistory(date) {
+        const entry = frontlineHistoryEntries.get(date);
+        if (!entry) {
+          return;
+        }
+
+        if (!state.frontlineHistoryMode) {
+          state.frontlineLiveBackup = cloneTerritoryData();
+        }
+        deactivateDrawingTool();
+        closeTerritoryPopup();
+        state.frontlineHistoryMode = true;
+        state.frontlineHistoryDate = date;
+        setFlagInteractivity(false);
+
+        layerKmlData.main = readSnapshotFeatureCollection(entry.main);
+        layerKmlData['russian-advances'] = readSnapshotFeatureCollection(entry.russianAdvances);
+        layerKmlData['ukrainian-advances'] = readSnapshotFeatureCollection(entry.ukrainianAdvances);
+        territoryLayerIds.forEach((layerId) => ensureKmlLayersForLayer(layerId));
+
+        renderFrontlineView();
+      }
+
+      async function returnToCurrentFrontline() {
+        if (!state.frontlineHistoryMode) {
+          return;
+        }
+        state.frontlineHistoryMode = false;
+        state.frontlineHistoryDate = null;
+        setFlagInteractivity(false);
+
+        let restored = false;
+        if (territoriesDocRef) {
+          try {
+            const doc = await territoriesDocRef.get();
+            if (doc.exists) {
+              const remote = doc.data() || {};
+              territoryLayerIds.forEach((layerId) => {
+                const raw = remote[layerId];
+                if (typeof raw === 'string') {
+                  layerKmlData[layerId] = JSON.parse(raw);
+                  territoryLoadedFromFirestore.add(layerId);
+                }
+              });
+              restored = true;
+            }
+          } catch (error) {
+            console.error('Failed to reload current territories', error);
+          }
+        }
+
+        if (!restored && state.frontlineLiveBackup) {
+          territoryLayerIds.forEach((layerId) => {
+            layerKmlData[layerId] = state.frontlineLiveBackup[layerId];
+          });
+        }
+        state.frontlineLiveBackup = null;
+        territoryLayerIds.forEach((layerId) => ensureKmlLayersForLayer(layerId));
+        setFlagInteractivity(state.role === 'admin');
+        renderAdvancesView();
+        renderFrontlineView();
+      }
+
+      if (frontlineLockBtn) {
+        frontlineLockBtn.addEventListener('click', lockFrontlineForToday);
+      }
+      if (frontlineReturnCurrentBtn) {
+        frontlineReturnCurrentBtn.addEventListener('click', returnToCurrentFrontline);
+      }
+
+      if (frontlineHistoryCollectionRef) {
+        frontlineHistoryCollectionRef.onSnapshot((snapshot) => {
+          frontlineHistoryEntries.clear();
+          snapshot.forEach((doc) => {
+            const data = doc.data() || {};
+            frontlineHistoryEntries.set(doc.id, { ...data, date: data.date || doc.id });
+          });
+          renderFrontlineView();
+        }, (error) => {
+          console.error('Failed to sync frontline history', error);
+          if (isAdmin()) {
+            setFrontlineHistoryStatus('History is unavailable. Check Firestore rules for mapState/frontlineHistory/days.');
+          }
+        });
+      }
+
+      // Keeps both today's date and the chronology's admin state current
+      // after midnight without requiring a page reload.
+      let lastFrontlineDateKey = todayDateKey();
       setInterval(() => {
-        const nowKey = new Date().toDateString();
-        if (nowKey !== lastAdvancesDateKey) {
-          lastAdvancesDateKey = nowKey;
+        const nowKey = todayDateKey();
+        if (nowKey !== lastFrontlineDateKey) {
+          lastFrontlineDateKey = nowKey;
+          renderFrontlineView();
           if (sidebarTab === 'advances') {
             renderAdvancesView();
           }
@@ -3033,7 +3502,10 @@
         // Non-null while a territory shape's points are being
         // dragged/added/removed via "Edit shape" — see
         // enterVertexEditMode / finishVertexEditMode below.
-        territoryEdit: null
+        territoryEdit: null,
+        frontlineHistoryMode: false,
+        frontlineHistoryDate: null,
+        frontlineLiveBackup: null
       };
 
       // Flags are plain maplibregl.Markers (not GeoJSON features like the
@@ -3346,6 +3818,9 @@
       // drag isn't yanked out from under the admin doing it.
       if (territoriesDocRef) {
         territoriesDocRef.onSnapshot((doc) => {
+          if (state.frontlineHistoryMode) {
+            return;
+          }
           if (!doc.exists) {
             return;
           }
@@ -3409,7 +3884,7 @@
           // The flag tool is only ever meant to be reachable by admins —
           // it's hidden via CSS for everyone else, but this guard covers
           // it too in case the role changed after the menu was opened.
-          if ((button.dataset.tool === 'flag' || button.dataset.tool === 'polygon') && state.role !== 'admin') {
+          if ((button.dataset.tool === 'flag' || button.dataset.tool === 'polygon') && (state.role !== 'admin' || state.frontlineHistoryMode)) {
             return;
           }
 
@@ -3734,7 +4209,7 @@
           if (territoryLayerIds.includes(layerId) && !wiredTerritoryClickLayers.has(fillId)) {
             wiredTerritoryClickLayers.add(fillId);
             map.on('click', fillId, (event) => {
-              if (state.role !== 'admin' || state.drawingTool || state.territoryEdit) {
+              if (state.role !== 'admin' || state.frontlineHistoryMode || state.drawingTool || state.territoryEdit) {
                 return;
               }
               const rendered = event.features && event.features[0];
@@ -3745,7 +4220,7 @@
               openTerritoryFeaturePopup(layerId, featureId, event.lngLat);
             });
             map.on('mouseenter', fillId, () => {
-              if (state.role === 'admin' && !state.drawingTool && !state.territoryEdit) {
+              if (state.role === 'admin' && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
                 map.getCanvasContainer().style.cursor = 'pointer';
               }
             });
@@ -4875,7 +5350,7 @@
         const deleteBtn = container.querySelector('.marker-popup-delete');
         if (deleteBtn) {
           deleteBtn.addEventListener('click', () => {
-            if (state.role !== 'admin') {
+            if (state.role !== 'admin' || state.frontlineHistoryMode) {
               return;
             }
             marker.remove();
@@ -4905,7 +5380,7 @@
         const nation = flagType === 'russia' ? 'russia' : 'ukraine';
         const code = nation === 'russia' ? 'ru' : 'ua';
         const label = nation === 'russia' ? 'Russia' : 'Ukraine';
-        const canManage = state.role === 'admin';
+        const canManage = state.role === 'admin' && !state.frontlineHistoryMode;
 
         const el = document.createElement('div');
         el.className = 'flag-marker';
@@ -4928,6 +5403,9 @@
 
         if (canManage) {
           marker.on('dragend', () => {
+            if (state.frontlineHistoryMode) {
+              return;
+            }
             refreshFlagPopup(marker);
             pushFlagsToFirestore();
           });
@@ -4936,6 +5414,14 @@
         marker.setPopup(popup);
         flagMarkers.push(marker);
         return marker;
+      }
+
+      function setFlagInteractivity(enabled) {
+        flagMarkers.forEach((marker) => {
+          if (typeof marker.setDraggable === 'function') {
+            marker.setDraggable(enabled && state.role === 'admin');
+          }
+        });
       }
 
       map.on('contextmenu', (event) => {
@@ -5139,7 +5625,7 @@
         }
 
         if (state.drawingTool === 'flag') {
-          if (state.role !== 'admin') {
+          if (state.role !== 'admin' || state.frontlineHistoryMode) {
             return;
           }
           placeFlag(event.lngLat.lng, event.lngLat.lat, state.flagType);
@@ -5148,7 +5634,7 @@
         }
 
         if (isOpenLineTool(state.drawingTool)) {
-          if (state.drawingTool === 'polygon' && state.role !== 'admin') {
+          if (state.drawingTool === 'polygon' && (state.role !== 'admin' || state.frontlineHistoryMode)) {
             return;
           }
           if (!state.draft) {
