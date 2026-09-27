@@ -69,6 +69,7 @@
         left: 320px;
         width: calc(100% - 320px);
         height: 100%;
+        transition: left 0.22s ease, width 0.22s ease;
       }
 
       /* MapLibre defaults the canvas cursor to a "grab" hand; we want a
@@ -183,6 +184,54 @@
         color: #edf5ff;
         display: flex;
         flex-direction: column;
+        transition: transform 0.22s ease;
+      }
+
+      /* Sidebar collapse: slides #sidebar fully off-screen (by its own
+         width, via percentage translate — works whether it's 320px or
+         the mobile 70vw) and lets #map's own transition (see #map
+         above) grow to fill the freed space. The toggle button is a
+         fixed sibling, not a child of #sidebar, so it stays put at the
+         left edge and stays clickable to bring the sidebar back. */
+      body.sidebar-collapsed #sidebar {
+        transform: translateX(-100%);
+      }
+
+      body.sidebar-collapsed #map {
+        left: 0;
+        width: 100%;
+      }
+
+      #sidebarToggleBtn {
+        position: fixed;
+        top: 22px;
+        left: 320px;
+        z-index: 600;
+        width: 20px;
+        height: 56px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-left: none;
+        border-radius: 0 10px 10px 0;
+        background: rgba(15, 21, 28, 0.92);
+        color: #cdd8e3;
+        font-size: 15px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 6px 0 16px rgba(0, 0, 0, 0.25);
+        transition: left 0.22s ease, background 0.15s ease, color 0.15s ease;
+      }
+
+      #sidebarToggleBtn:hover {
+        background: rgba(30, 40, 52, 0.96);
+        color: #ffffff;
+      }
+
+      body.sidebar-collapsed #sidebarToggleBtn {
+        left: 0;
       }
 
       #sidebar-header {
@@ -589,6 +638,19 @@
         #map {
           left: 70vw;
           width: 30vw;
+        }
+
+        #sidebarToggleBtn {
+          left: 70vw;
+        }
+
+        body.sidebar-collapsed #map {
+          left: 0;
+          width: 100%;
+        }
+
+        body.sidebar-collapsed #sidebarToggleBtn {
+          left: 0;
         }
 
         #sidebar-header h1 {
@@ -1531,6 +1593,9 @@
   </head>
   <body>
     <div id="map"></div>
+    <button id="sidebarToggleBtn" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="sidebar">
+      <span aria-hidden="true">‹</span>
+    </button>
     <aside id="sidebar">
       <header id="sidebar-header">
         <div>
@@ -2608,6 +2673,33 @@
       const clearDrawingsBtn = document.getElementById('clearDrawingsBtn');
       const mapSummary = document.getElementById('mapSummary');
       const mapStyleSelect = document.getElementById('mapStyleSelect');
+
+      // ---- Collapse sidebar (hides the Legend/Casualties panel) ----
+      const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+      const sidebarToggleIcon = sidebarToggleBtn.querySelector('span');
+
+      sidebarToggleBtn.addEventListener('click', () => {
+        const collapsed = document.body.classList.toggle('sidebar-collapsed');
+        sidebarToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+        sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Show sidebar' : 'Hide sidebar');
+        sidebarToggleIcon.textContent = collapsed ? '›' : '‹';
+        // A pinned coordinates popup is positioned relative to the map
+        // container, which is about to move/resize — closing it avoids
+        // it briefly floating over the wrong spot mid-transition.
+        closeCoordinatePopup();
+      });
+
+      // #map's CSS transition (see the #map rule) animates its
+      // left/width when the sidebar collapses or reopens, but
+      // MapLibre's canvas doesn't know that happened on its own — it
+      // needs an explicit resize() once the container has actually
+      // settled at its new size, or the map renders into the old
+      // dimensions until the next pan/zoom.
+      document.getElementById('map').addEventListener('transitionend', (event) => {
+        if (event.propertyName === 'left' || event.propertyName === 'width') {
+          map.resize();
+        }
+      });
 
       const coordinatePopup = document.getElementById('coordinatePopup');
       const coordinateText = document.getElementById('coordinateText');
