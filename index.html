@@ -1603,7 +1603,7 @@
         if (Number.isNaN(d.getTime())) {
           return isoDate;
         }
-        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }
 
       function formatFullDate(isoDate) {
@@ -1611,7 +1611,7 @@
         if (Number.isNaN(d.getTime())) {
           return isoDate;
         }
-        return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+        return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       }
 
       function buildCasualtyChartSVG(data, color) {
