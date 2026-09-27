@@ -3872,6 +3872,7 @@
           (areaText ? '<div class="marker-popup-coords">' + escapeHtml(areaText) + '</div>' : '') +
           '<div class="marker-popup-actions">' +
           (isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
+          (isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
           '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' +
           '<button type="button" class="marker-popup-delete">Delete</button>' +
           '</div></div>';
@@ -3897,6 +3898,13 @@
           });
         }
 
+        const smoothBtn = container.querySelector('.territory-popup-smooth');
+        if (smoothBtn) {
+          smoothBtn.addEventListener('click', () => {
+            smoothTerritoryFeature(layerId, featureId, lngLat);
+          });
+        }
+
         container.querySelector('.territory-popup-edit').addEventListener('click', () => {
           closeTerritoryPopup();
           enterVertexEditMode(layerId, featureId);
@@ -3908,6 +3916,35 @@
         });
       }
 
+      // Rounds off a shape's corners the way QGIS's own "Smooth"
+      // geometry tool does: Chaikin's corner-cutting algorithm, which
+      // replaces every edge with two new points closer to its
+      // endpoints, run for one pass per click. Click it again (the
+      // popup stays open and refreshes) for a progressively smoother
+      // — and progressively higher-vertex-count — result, same as
+      // re-running the QGIS tool.
+      function smoothTerritoryFeature(layerId, featureId, lngLat) {
+        const feature = findTerritoryFeature(layerId, featureId);
+        if (!feature) {
+          return;
+        }
+        let smoothed;
+        try {
+          smoothed = turf.polygonSmooth(feature, { iterations: 1 });
+        } catch (error) {
+          console.error('Failed to smooth shape', error);
+          drawHint.textContent = 'Could not smooth that shape.';
+          return;
+        }
+        const smoothedFeature = smoothed && smoothed.features && smoothed.features[0];
+        if (!smoothedFeature || !smoothedFeature.geometry) {
+          return;
+        }
+        feature.geometry = smoothedFeature.geometry;
+        ensureKmlLayersForLayer(layerId);
+        pushTerritoriesToFirestore();
+        openTerritoryFeaturePopup(layerId, featureId, lngLat);
+      }
       // Folds a pending advance shape into main (Russian: added on
       // top; Ukrainian: cut out of it), then removes it from its
       // advances layer. Both changes are pushed to Firestore together
