@@ -66,10 +66,9 @@
         top: 0;
         right: 0;
         bottom: 0;
-        left: 320px;
-        width: calc(100% - 320px);
+        left: 0;
+        width: 100%;
         height: 100%;
-        transition: left 0.22s ease, width 0.22s ease;
       }
 
       /* MapLibre defaults the canvas cursor to a "grab" hand; we want a
@@ -189,17 +188,15 @@
 
       /* Sidebar collapse: slides #sidebar fully off-screen (by its own
          width, via percentage translate — works whether it's 320px or
-         the mobile 70vw) and lets #map's own transition (see #map
-         above) grow to fill the freed space. The toggle button is a
-         fixed sibling, not a child of #sidebar, so it stays put at the
-         left edge and stays clickable to bring the sidebar back. */
+         the mobile 70vw). #map is always full-viewport (see #map
+         above) and sits underneath the sidebar the whole time, so
+         collapsing/reopening the sidebar only ever reveals or covers
+         part of it — the map itself never resizes or re-centers. The
+         toggle button is a fixed sibling, not a child of #sidebar, so
+         it stays put at the left edge and stays clickable to bring
+         the sidebar back. */
       body.sidebar-collapsed #sidebar {
         transform: translateX(-100%);
-      }
-
-      body.sidebar-collapsed #map {
-        left: 0;
-        width: 100%;
       }
 
       #sidebarToggleBtn {
@@ -635,18 +632,8 @@
           width: 70vw;
         }
 
-        #map {
-          left: 70vw;
-          width: 30vw;
-        }
-
         #sidebarToggleBtn {
           left: 70vw;
-        }
-
-        body.sidebar-collapsed #map {
-          left: 0;
-          width: 100%;
         }
 
         body.sidebar-collapsed #sidebarToggleBtn {
@@ -2675,6 +2662,10 @@
       const mapStyleSelect = document.getElementById('mapStyleSelect');
 
       // ---- Collapse sidebar (hides the Legend/Casualties panel) ----
+      // The map is always full-viewport underneath the sidebar (see
+      // #map's CSS), so this only ever slides the sidebar itself away
+      // and back — the map's own size/position/camera never changes,
+      // and nothing needs to be re-resized.
       const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
       const sidebarToggleIcon = sidebarToggleBtn.querySelector('span');
 
@@ -2683,22 +2674,6 @@
         sidebarToggleBtn.setAttribute('aria-expanded', String(!collapsed));
         sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Show sidebar' : 'Hide sidebar');
         sidebarToggleIcon.textContent = collapsed ? '›' : '‹';
-        // A pinned coordinates popup is positioned relative to the map
-        // container, which is about to move/resize — closing it avoids
-        // it briefly floating over the wrong spot mid-transition.
-        closeCoordinatePopup();
-      });
-
-      // #map's CSS transition (see the #map rule) animates its
-      // left/width when the sidebar collapses or reopens, but
-      // MapLibre's canvas doesn't know that happened on its own — it
-      // needs an explicit resize() once the container has actually
-      // settled at its new size, or the map renders into the old
-      // dimensions until the next pan/zoom.
-      document.getElementById('map').addEventListener('transitionend', (event) => {
-        if (event.propertyName === 'left' || event.propertyName === 'width') {
-          map.resize();
-        }
       });
 
       const coordinatePopup = document.getElementById('coordinatePopup');
