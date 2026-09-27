@@ -635,6 +635,90 @@
         background: rgba(255, 115, 102, 0.2);
       }
 
+      .marker-popup-apply {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid rgba(96, 210, 138, 0.4);
+        border-radius: 6px;
+        background: rgba(96, 210, 138, 0.12);
+        color: #8be8ac;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .marker-popup-apply:hover {
+        background: rgba(96, 210, 138, 0.22);
+      }
+
+      /* ---- Territory polygon vertex-edit handles ----
+         Small draggable dots for existing vertices (bigger, solid) and
+         faint "+" dots at edge midpoints that insert a new vertex when
+         clicked. Both are plain DOM markers positioned by MapLibre. */
+      .territory-vertex-handle {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ffd166;
+        border: 2px solid #1a1f26;
+        box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.6);
+        cursor: grab;
+      }
+
+      .territory-vertex-handle:active {
+        cursor: grabbing;
+      }
+
+      .territory-vertex-add {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 209, 102, 0.45);
+        border: 1.5px dashed #ffd166;
+        cursor: copy;
+      }
+
+      .territory-edit-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        z-index: 1100;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #161b22;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        color: #cdd9e5;
+        font-size: 12.5px;
+        max-width: 92vw;
+      }
+
+      .territory-edit-controls button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .territory-edit-controls .territory-edit-done {
+        border-color: rgba(96, 210, 138, 0.4);
+        background: rgba(96, 210, 138, 0.14);
+        color: #8be8ac;
+      }
+
+      .territory-edit-controls button:hover {
+        filter: brightness(1.15);
+      }
+
       #layersList {
         flex: 1;
         overflow-y: auto;
@@ -1909,6 +1993,18 @@
       // refresh, not seen by anyone else) if Firestore isn't set up.
       const flagsDocRef = db ? db.collection('mapState').doc('flags') : null;
 
+      // Shared territory polygons (main / russian-advances /
+      // ukrainian-advances): whenever an admin draws, edits, deletes,
+      // or applies a shape, the full FeatureCollection for the
+      // affected layer(s) is pushed here so every visitor's browser
+      // shows the same territory — not just the admin's own tab. Each
+      // layer is stored as a JSON *string* field (rather than a raw
+      // GeoJSON object) because Firestore doesn't support arrays
+      // nested directly inside arrays, which polygon coordinate rings
+      // always are. Falls back to local-only edits (lost on refresh,
+      // not seen by anyone else) if Firestore isn't set up.
+      const territoriesDocRef = db ? db.collection('mapState').doc('territories') : null;
+
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
       const authCloseBtn = document.getElementById('authCloseBtn');
@@ -2766,7 +2862,11 @@
         nickname: '',
         // Which layer a drawn Territory polygon will be applied to —
         // see the "Territory polygon" tool below.
-        territoryLayerId: 'main'
+        territoryLayerId: 'main',
+        // Non-null while a territory shape's points are being
+        // dragged/added/removed via "Edit shape" — see
+        // enterVertexEditMode / finishVertexEditMode below.
+        territoryEdit: null
       };
 
       // Flags are plain maplibregl.Markers (not GeoJSON features like the
@@ -2889,6 +2989,9 @@
       // normal panning again until the user reopens the menu and picks
       // a tool explicitly.
       function deactivateDrawingTool() {
+        if (state.territoryEdit) {
+          finishVertexEditMode(false);
+        }
         state.drawingTool = null;
         document.querySelectorAll('.tool-option').forEach((option) => {
           option.setAttribute('aria-pressed', 'false');
@@ -3053,6 +3156,59 @@
           });
         }, (error) => {
           console.error('Failed to sync shared flags', error);
+        });
+      }
+
+      // Keeps every visitor's territory polygons (main, Russian
+      // advances, Ukrainian advances) in sync with whatever an admin
+      // last drew, edited, deleted, or applied, in real time —
+      // including on first page load, so a fresh guest sees the
+      // shared territory, not just the static kml/ baseline. Each
+      // layer is stored as a JSON string (see pushTerritoriesToFirestore)
+      // and simply replaces the local copy of that layer wholesale;
+      // while a shape on a given layer is being vertex-edited locally,
+      // updates to that specific layer are skipped so the in-progress
+      // drag isn't yanked out from under the admin doing it.
+      if (territoriesDocRef) {
+        territoriesDocRef.onSnapshot((doc) => {
+          if (!doc.exists) {
+            return;
+          }
+          const remote = doc.data() || {};
+          let changed = false;
+
+          territoryLayerIds.forEach((layerId) => {
+            if (state.territoryEdit && state.territoryEdit.layerId === layerId) {
+              return;
+            }
+            const raw = remote[layerId];
+            if (typeof raw !== 'string') {
+              return;
+            }
+            let parsed;
+            try {
+              parsed = JSON.parse(raw);
+            } catch (error) {
+              return;
+            }
+            if (!parsed || !Array.isArray(parsed.features)) {
+              return;
+            }
+            layerKmlData[layerId] = parsed;
+            changed = true;
+            if (map.isStyleLoaded()) {
+              ensureKmlLayersForLayer(layerId);
+            }
+          });
+
+          if (changed) {
+            // A shape the open popup refers to may have just been
+            // applied/deleted/edited by someone else — close it rather
+            // than risk acting on a feature id that no longer exists.
+            closeTerritoryPopup();
+          }
+        }, (error) => {
+          console.error('Failed to sync shared territories', error);
         });
       }
 
@@ -3353,6 +3509,23 @@
         const visibility = layer.visible ? 'visible' : 'none';
         const color = layer.color;
 
+        // Territory layers (main / the two advances layers) need a
+        // stable per-feature id so a single hand-drawn shape can be
+        // clicked, edited, deleted, or applied later without touching
+        // its neighbours. KML-loaded polygons won't have one yet the
+        // first time this runs, so backfill it here.
+        if (territoryLayerIds.includes(layerId)) {
+          data.features.forEach((feature) => {
+            const isPolygon = feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon');
+            if (isPolygon) {
+              feature.properties = feature.properties || {};
+              if (!feature.properties.id) {
+                feature.properties.id = genId();
+              }
+            }
+          });
+        }
+
         if (map.getSource(sourceId)) {
           map.getSource(sourceId).setData(data);
         } else {
@@ -3369,6 +3542,40 @@
             layout: { visibility },
             paint: { 'fill-color': color, 'fill-opacity': 0.25, 'fill-outline-color': color }
           });
+
+          // Wire up click-to-manage for territory polygons. Guarded by
+          // wiredTerritoryClickLayers (not just "layer didn't exist
+          // yet") because switching map styles wipes and recreates
+          // every custom layer — including this fill layer — while
+          // MapLibre's layer-id-scoped listeners persist across that,
+          // so re-registering here on every style switch would stack
+          // up duplicate handlers. Any admin can click a drawn shape
+          // to delete it, add/move its points, or — for the two
+          // advances layers — apply it into the main layer.
+          if (territoryLayerIds.includes(layerId) && !wiredTerritoryClickLayers.has(fillId)) {
+            wiredTerritoryClickLayers.add(fillId);
+            map.on('click', fillId, (event) => {
+              if (state.role !== 'admin' || state.drawingTool || state.territoryEdit) {
+                return;
+              }
+              const rendered = event.features && event.features[0];
+              const featureId = rendered && rendered.properties && rendered.properties.id;
+              if (!featureId) {
+                return;
+              }
+              openTerritoryFeaturePopup(layerId, featureId, event.lngLat);
+            });
+            map.on('mouseenter', fillId, () => {
+              if (state.role === 'admin' && !state.drawingTool && !state.territoryEdit) {
+                map.getCanvasContainer().style.cursor = 'pointer';
+              }
+            });
+            map.on('mouseleave', fillId, () => {
+              if (!state.drawingTool) {
+                map.getCanvasContainer().style.cursor = '';
+              }
+            });
+          }
         } else {
           map.setLayoutProperty(fillId, 'visibility', visibility);
           map.setPaintProperty(fillId, 'fill-color', color);
@@ -3412,12 +3619,28 @@
       }
 
       // ---- Territory polygon tool ----
-      // Lets an admin redraw the front line by hand: pick a layer, draw
-      // a closed shape, and it's merged into that layer's polygon data
-      // with turf.js boolean ops (rather than just being dropped on top
-      // as its own overlapping shape). Like the rest of layerKmlData,
-      // this only lives in memory for the current page load — it isn't
-      // written back to the kml/ files or Firestore.
+      // Lets an admin redraw the front line by hand: pick a layer and
+      // draw a closed shape.
+      //
+      //  - Drawing on "main" adds the shape straight into main as its
+      //    own new feature (own id), sitting alongside whatever main
+      //    already has.
+      //  - Drawing on "russian-advances" or "ukrainian-advances" does
+      //    NOT touch main yet. The shape is clipped against main (a
+      //    Russian advance can't re-claim ground main already shows as
+      //    taken; a Ukrainian advance only "counts" through ground
+      //    main currently shows as taken) and added to the advances
+      //    layer as its own pending shape, visible to everyone. An
+      //    admin then clicks that shape on the map and chooses "Apply
+      //    the advance" (see openTerritoryFeaturePopup /
+      //    applyAdvanceFeature below) to fold it into main and remove
+      //    it from the advances layer, or "Delete" to discard it, or
+      //    "Edit shape" to add/move points first.
+      //
+      // Every shape keeps its own id (never merged into its
+      // neighbours) specifically so it stays individually selectable,
+      // editable, and deletable. The full state of these three layers
+      // is synced to every visitor through territoriesDocRef.
 
       // All Polygon/MultiPolygon features currently held by a layer
       // (from its loaded KML plus any earlier territory edits).
@@ -3432,8 +3655,10 @@
       }
 
       // Merges a layer's separate polygon features into one
-      // Polygon/MultiPolygon geometry (or null if the layer has none),
-      // so the boolean ops below have a single shape to compare against.
+      // Polygon/MultiPolygon geometry (or null if the layer has none).
+      // Used only as a throwaway shape to clip new draws/edits against
+      // — never written back as storage, so existing features keep
+      // their own identity.
       function unionPolygonFeatures(features) {
         if (!features.length) {
           return null;
@@ -3441,47 +3666,119 @@
         return features.reduce((merged, feature) => (merged ? turf.union(merged, feature) : feature), null);
       }
 
-      // Replaces a layer's polygon features with the given (possibly
-      // null) geometry, splitting a MultiPolygon back into one feature
-      // per part so each renders and can be re-selected like an
-      // ordinary KML placemark. Non-polygon features already on the
-      // layer (KML lines/points) are left untouched.
-      function setLayerPolygonGeometry(layerId, geometry) {
+      function findTerritoryFeature(layerId, featureId) {
+        const data = layerKmlData[layerId];
+        if (!data) {
+          return null;
+        }
+        return data.features.find((feature) => feature.properties && feature.properties.id === featureId) || null;
+      }
+
+      // Serializes the three territory layers for Firestore. Each
+      // layer is JSON.stringify'd into a single string field because
+      // Firestore rejects arrays nested directly inside arrays, which
+      // polygon coordinate rings always are.
+      function pushTerritoriesToFirestore() {
+        if (!territoriesDocRef) {
+          return;
+        }
+        const payload = {};
+        territoryLayerIds.forEach((layerId) => {
+          payload[layerId] = JSON.stringify(layerKmlData[layerId] || { type: 'FeatureCollection', features: [] });
+        });
+        territoriesDocRef.set(payload).catch((error) => {
+          console.error('Failed to save shared territories', error);
+        });
+      }
+
+      // Adds `geometry` (Polygon, MultiPolygon, Feature, or
+      // FeatureCollection) to a layer as one or more brand-new
+      // features, each with its own id — flattening a MultiPolygon so
+      // every disjoint part stays independently selectable. Re-renders
+      // the layer and pushes the change to every visitor.
+      function addTerritoryFeature(layerId, geometry, options) {
+        if (!geometry) {
+          return;
+        }
         if (!layerKmlData[layerId]) {
           layerKmlData[layerId] = { type: 'FeatureCollection', features: [] };
         }
         const data = layerKmlData[layerId];
-        const keptFeatures = data.features.filter(
-          (feature) => !feature.geometry || (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')
-        );
-
-        let newPolygonFeatures = [];
-        if (geometry) {
-          newPolygonFeatures = turf.flatten(geometry).features.map((feature) => ({
+        turf.flatten(geometry).features.forEach((part) => {
+          data.features.push({
             type: 'Feature',
-            properties: { name: '', description: '' },
-            geometry: feature.geometry
-          }));
-        }
-
-        data.features = keptFeatures.concat(newPolygonFeatures);
+            properties: { id: genId(), name: '', description: '' },
+            geometry: part.geometry
+          });
+        });
         ensureKmlLayersForLayer(layerId);
+        if (!options || options.push !== false) {
+          pushTerritoriesToFirestore();
+        }
+      }
+
+      // Removes one specific feature from a layer by id, leaving every
+      // other shape on that layer untouched.
+      function removeTerritoryFeature(layerId, featureId, options) {
+        const data = layerKmlData[layerId];
+        if (!data) {
+          return;
+        }
+        const before = data.features.length;
+        data.features = data.features.filter((feature) => !(feature.properties && feature.properties.id === featureId));
+        if (data.features.length === before) {
+          return;
+        }
+        ensureKmlLayersForLayer(layerId);
+        if (!options || options.push !== false) {
+          pushTerritoriesToFirestore();
+        }
+      }
+
+      // Cuts `geometryToRemove` out of every main polygon it overlaps,
+      // replacing just the affected main feature(s) with the
+      // difference (split back into individual features if cutting a
+      // piece out leaves it in several parts). Used when a Ukrainian
+      // advance is applied. Main features that don't overlap at all
+      // are left completely untouched, including their id.
+      function subtractFromMain(geometryToRemove) {
+        const data = layerKmlData.main || { type: 'FeatureCollection', features: [] };
+        const removalFeature = turf.feature(geometryToRemove);
+        const kept = [];
+
+        data.features.forEach((feature) => {
+          const isPolygon = feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon');
+          if (!isPolygon) {
+            kept.push(feature);
+            return;
+          }
+          let diff;
+          try {
+            diff = turf.difference(feature, removalFeature);
+          } catch (error) {
+            diff = feature;
+          }
+          if (!diff) {
+            // Entire feature was inside the removed area — drop it.
+            return;
+          }
+          turf.flatten(diff).features.forEach((part) => {
+            kept.push({
+              type: 'Feature',
+              properties: { id: genId(), name: '', description: '' },
+              geometry: part.geometry
+            });
+          });
+        });
+
+        layerKmlData.main = { type: 'FeatureCollection', features: kept };
+        ensureKmlLayersForLayer('main');
       }
 
       // Applies a hand-drawn ring (an array of [lng, lat] positions,
       // first === last) to whichever layer was selected in the
-      // territory-layer picker:
-      //  - main: added straight in, merged with whatever main already
-      //    covers.
-      //  - russian-advances: clipped to the part NOT already inside
-      //    main (so a Russian-advance shape can never re-claim ground
-      //    main already shows as taken), then that clipped shape is
-      //    merged into both russian-advances and main.
-      //  - ukrainian-advances: clipped to the part that IS inside main
-      //    (Ukraine can only be shown "advancing" through ground main
-      //    currently shows as taken — draw entirely outside main and
-      //    nothing is added anywhere), then that clipped shape is
-      //    merged into ukrainian-advances and subtracted from main.
+      // territory-layer picker. See the comment above this section for
+      // what happens on each layer.
       function applyTerritoryPolygon(ring, layerId) {
         let drawnPolygon;
         try {
@@ -3492,14 +3789,13 @@
           return;
         }
 
-        const mainGeometry = unionPolygonFeatures(layerPolygonFeatures('main'));
-
         if (layerId === 'main') {
-          const newMain = mainGeometry ? turf.union(mainGeometry, drawnPolygon) : drawnPolygon;
-          setLayerPolygonGeometry('main', newMain);
-          drawHint.textContent = 'Added to the main layer.';
+          addTerritoryFeature('main', drawnPolygon.geometry);
+          drawHint.textContent = 'Added to the main layer. Click it to edit or delete.';
           return;
         }
+
+        const mainGeometry = unionPolygonFeatures(layerPolygonFeatures('main'));
 
         if (layerId === 'russian-advances') {
           const clipped = mainGeometry ? turf.difference(drawnPolygon, mainGeometry) : drawnPolygon;
@@ -3507,11 +3803,8 @@
             drawHint.textContent = 'That area is already inside the main layer — nothing added.';
             return;
           }
-
-          const existingAdvance = unionPolygonFeatures(layerPolygonFeatures('russian-advances'));
-          setLayerPolygonGeometry('russian-advances', existingAdvance ? turf.union(existingAdvance, clipped) : clipped);
-          setLayerPolygonGeometry('main', mainGeometry ? turf.union(mainGeometry, clipped) : clipped);
-          drawHint.textContent = 'Added to Russian advances and merged into the main layer.';
+          addTerritoryFeature('russian-advances', clipped.geometry || clipped);
+          drawHint.textContent = 'Drawn as a pending Russian advance. Click it and choose "Apply the advance" to add it to the main layer.';
           return;
         }
 
@@ -3527,12 +3820,272 @@
             return;
           }
 
-          const existingAdvance = unionPolygonFeatures(layerPolygonFeatures('ukrainian-advances'));
-          setLayerPolygonGeometry('ukrainian-advances', existingAdvance ? turf.union(existingAdvance, clipped) : clipped);
-          setLayerPolygonGeometry('main', turf.difference(mainGeometry, clipped));
-          drawHint.textContent = 'Added to Ukrainian advances and cut out of the main layer.';
+          addTerritoryFeature('ukrainian-advances', clipped.geometry || clipped);
+          drawHint.textContent = 'Drawn as a pending Ukrainian advance. Click it and choose "Apply the advance" to cut it from the main layer.';
           return;
         }
+      }
+
+      // ---- Territory polygon management popup ----
+      // Clicking a drawn shape (admins only — wired in
+      // ensureKmlLayersForLayer) opens this small popup with Apply
+      // (advances layers only), Edit shape, and Delete.
+      let territoryPopup = null;
+
+      function closeTerritoryPopup() {
+        if (territoryPopup) {
+          territoryPopup.remove();
+          territoryPopup = null;
+        }
+      }
+
+      function openTerritoryFeaturePopup(layerId, featureId, lngLat) {
+        if (!findTerritoryFeature(layerId, featureId)) {
+          return;
+        }
+        closeTerritoryPopup();
+
+        const layer = getLayerById(layerId);
+        const isAdvance = layerId === 'russian-advances' || layerId === 'ukrainian-advances';
+
+        const html =
+          '<div class="marker-popup">' +
+          '<div class="marker-popup-title">' + escapeHtml(layer ? layer.name : 'Shape') + '</div>' +
+          '<div class="marker-popup-actions">' +
+          (isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
+          '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' +
+          '<button type="button" class="marker-popup-delete">Delete</button>' +
+          '</div></div>';
+
+        territoryPopup = new maplibregl.Popup({ offset: 8, closeButton: true, closeOnClick: false })
+          .setLngLat(lngLat)
+          .setHTML(html)
+          .addTo(map);
+
+        territoryPopup.on('close', () => {
+          territoryPopup = null;
+        });
+
+        const container = territoryPopup.getElement();
+        if (!container) {
+          return;
+        }
+
+        const applyBtn = container.querySelector('.marker-popup-apply');
+        if (applyBtn) {
+          applyBtn.addEventListener('click', () => {
+            applyAdvanceFeature(layerId, featureId);
+          });
+        }
+
+        container.querySelector('.territory-popup-edit').addEventListener('click', () => {
+          closeTerritoryPopup();
+          enterVertexEditMode(layerId, featureId);
+        });
+
+        container.querySelector('.marker-popup-delete').addEventListener('click', () => {
+          removeTerritoryFeature(layerId, featureId);
+          closeTerritoryPopup();
+        });
+      }
+
+      // Folds a pending advance shape into main (Russian: added on
+      // top; Ukrainian: cut out of it), then removes it from its
+      // advances layer. Both changes are pushed to Firestore together
+      // so every visitor sees the swap atomically-ish.
+      function applyAdvanceFeature(layerId, featureId) {
+        const feature = findTerritoryFeature(layerId, featureId);
+        if (!feature) {
+          closeTerritoryPopup();
+          return;
+        }
+
+        if (layerId === 'russian-advances') {
+          addTerritoryFeature('main', feature.geometry, { push: false });
+        } else if (layerId === 'ukrainian-advances') {
+          subtractFromMain(feature.geometry);
+        } else {
+          closeTerritoryPopup();
+          return;
+        }
+
+        removeTerritoryFeature(layerId, featureId, { push: false });
+        pushTerritoriesToFirestore();
+        closeTerritoryPopup();
+        drawHint.textContent = 'Advance applied to the main layer.';
+      }
+
+      // ---- Territory polygon vertex editing ----
+      // "Edit shape" drops draggable handles on every point of the
+      // shape's outer ring, plus faint "+" handles at each edge's
+      // midpoint that insert a new point when clicked. Right-click a
+      // point to remove it (minimum 3 points). Done commits and syncs
+      // to Firestore; Cancel restores the original geometry.
+      let territoryEditControlsEl = null;
+
+      function polygonOuterRingFromFeature(feature) {
+        if (!feature.geometry) {
+          return null;
+        }
+        if (feature.geometry.type === 'Polygon') {
+          return feature.geometry.coordinates;
+        }
+        if (feature.geometry.type === 'MultiPolygon' && feature.geometry.coordinates.length) {
+          // Editing only ever operates on single-Polygon features (see
+          // addTerritoryFeature, which always flattens), but this is a
+          // safe fallback if one ever slips through.
+          return feature.geometry.coordinates[0];
+        }
+        return null;
+      }
+
+      function rebuildEditGeometry(edit) {
+        const outerClosed = edit.outerRing.concat([edit.outerRing[0]]);
+        return { type: 'Polygon', coordinates: [outerClosed].concat(edit.holes || []) };
+      }
+
+      function refreshEditPreview(edit) {
+        const feature = findTerritoryFeature(edit.layerId, edit.featureId);
+        if (!feature || edit.outerRing.length < 3) {
+          return;
+        }
+        feature.geometry = rebuildEditGeometry(edit);
+        ensureKmlLayersForLayer(edit.layerId);
+      }
+
+      function repositionMidMarkers(edit) {
+        for (let i = 0; i < edit.outerRing.length; i++) {
+          const a = edit.outerRing[i];
+          const b = edit.outerRing[(i + 1) % edit.outerRing.length];
+          const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          if (edit.midMarkers[i]) {
+            edit.midMarkers[i].setLngLat(mid);
+          }
+        }
+      }
+
+      function rebuildEditMarkers(edit) {
+        edit.vertexMarkers.forEach((marker) => marker.remove());
+        edit.midMarkers.forEach((marker) => marker.remove());
+        edit.vertexMarkers = [];
+        edit.midMarkers = [];
+
+        edit.outerRing.forEach((coord, index) => {
+          const el = document.createElement('div');
+          el.className = 'territory-vertex-handle';
+          el.title = 'Drag to move · right-click to remove';
+          const marker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(coord).addTo(map);
+
+          marker.on('drag', () => {
+            const lngLat = marker.getLngLat();
+            edit.outerRing[index] = [lngLat.lng, lngLat.lat];
+            refreshEditPreview(edit);
+            repositionMidMarkers(edit);
+          });
+
+          el.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            if (edit.outerRing.length <= 3) {
+              return;
+            }
+            edit.outerRing.splice(index, 1);
+            refreshEditPreview(edit);
+            rebuildEditMarkers(edit);
+          });
+
+          edit.vertexMarkers.push(marker);
+        });
+
+        for (let i = 0; i < edit.outerRing.length; i++) {
+          const a = edit.outerRing[i];
+          const b = edit.outerRing[(i + 1) % edit.outerRing.length];
+          const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          const el = document.createElement('div');
+          el.className = 'territory-vertex-add';
+          el.title = 'Click to add a point here';
+          const marker = new maplibregl.Marker({ element: el }).setLngLat(mid).addTo(map);
+
+          el.addEventListener('click', (event) => {
+            event.stopPropagation();
+            edit.outerRing.splice(i + 1, 0, mid);
+            refreshEditPreview(edit);
+            rebuildEditMarkers(edit);
+          });
+
+          edit.midMarkers.push(marker);
+        }
+      }
+
+      function showTerritoryEditControls() {
+        territoryEditControlsEl = document.createElement('div');
+        territoryEditControlsEl.className = 'territory-edit-controls';
+        territoryEditControlsEl.innerHTML =
+          '<span>Drag points to move · click + to add a point · right-click a point to remove it</span>' +
+          '<button type="button" class="territory-edit-done">Done</button>' +
+          '<button type="button" class="territory-edit-cancel">Cancel</button>';
+        document.body.appendChild(territoryEditControlsEl);
+
+        territoryEditControlsEl.querySelector('.territory-edit-done').addEventListener('click', () => {
+          finishVertexEditMode(true);
+        });
+        territoryEditControlsEl.querySelector('.territory-edit-cancel').addEventListener('click', () => {
+          finishVertexEditMode(false);
+        });
+      }
+
+      function enterVertexEditMode(layerId, featureId) {
+        const feature = findTerritoryFeature(layerId, featureId);
+        const rings = feature && polygonOuterRingFromFeature(feature);
+        if (!rings) {
+          return;
+        }
+
+        deactivateDrawingTool();
+        closeTerritoryPopup();
+
+        state.territoryEdit = {
+          layerId,
+          featureId,
+          outerRing: rings[0].slice(0, -1).map((coord) => [coord[0], coord[1]]),
+          holes: rings.slice(1).map((ring) => ring.map((coord) => [coord[0], coord[1]])),
+          originalGeometry: JSON.parse(JSON.stringify(feature.geometry)),
+          vertexMarkers: [],
+          midMarkers: []
+        };
+
+        rebuildEditMarkers(state.territoryEdit);
+        showTerritoryEditControls();
+      }
+
+      function finishVertexEditMode(commit) {
+        const edit = state.territoryEdit;
+        if (!edit) {
+          return;
+        }
+
+        edit.vertexMarkers.forEach((marker) => marker.remove());
+        edit.midMarkers.forEach((marker) => marker.remove());
+        if (territoryEditControlsEl) {
+          territoryEditControlsEl.remove();
+          territoryEditControlsEl = null;
+        }
+
+        const feature = findTerritoryFeature(edit.layerId, edit.featureId);
+        state.territoryEdit = null;
+
+        if (!feature) {
+          return;
+        }
+
+        if (!commit) {
+          feature.geometry = edit.originalGeometry;
+          ensureKmlLayersForLayer(edit.layerId);
+          return;
+        }
+
+        feature.geometry = edit.outerRing.length >= 3 ? rebuildEditGeometry(edit) : edit.originalGeometry;
+        ensureKmlLayersForLayer(edit.layerId);
+        pushTerritoriesToFirestore();
       }
 
       // Reads kml/manifest.json — an object like
@@ -3633,6 +4186,19 @@
         div.textContent = text == null ? '' : text;
         return div.innerHTML;
       }
+
+      // Short, unique-enough id for a hand-drawn territory polygon, so
+      // it can be individually selected, edited, deleted, or applied
+      // later without disturbing any other shape on the same layer.
+      function genId() {
+        return 'poly-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      }
+
+      // Fill-layer ids ('kml-main-fill', etc.) already wired with a
+      // click-to-manage handler — see ensureKmlLayersForLayer — so a
+      // map style switch (which recreates the layer) doesn't stack up
+      // duplicate handlers.
+      const wiredTerritoryClickLayers = new Set();
 
       function buildMarkerPopupHTML(lat, lng, cityName, countryName) {
         const coordsText = lat.toFixed(11) + ', ' + lng.toFixed(11);
