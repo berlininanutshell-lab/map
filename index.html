@@ -2791,6 +2791,7 @@
               const current = existing.getLngLat();
               if (current.lng !== entry.lng || current.lat !== entry.lat) {
                 existing.setLngLat([entry.lng, entry.lat]);
+                refreshFlagPopup(existing);
               }
             } else {
               placeFlag(entry.lng, entry.lat, entry.nation, entry.id);
@@ -3540,6 +3541,78 @@
         });
       }
 
+      // Builds the flag popup's HTML, including its current
+      // coordinates — pulled out into its own function since the
+      // popup needs regenerating (via refreshFlagPopup) whenever the
+      // flag moves, not just once at creation.
+      function flagPopupHtml(label, lat, lng) {
+        const coordsText = lat.toFixed(11) + ', ' + lng.toFixed(11);
+        return (
+          '<div class="marker-popup">' +
+          '<div class="marker-popup-title">' + label + ' flag</div>' +
+          '<div class="marker-popup-coords">' + escapeHtml(coordsText) + '</div>' +
+          '<div class="marker-popup-actions">' +
+          '<button type="button" class="marker-popup-copy" data-coords="' + escapeHtml(coordsText) + '">Copy coordinates</button>' +
+          '<button type="button" class="marker-popup-delete admin-only">Delete flag</button>' +
+          '</div>' +
+          '</div>'
+        );
+      }
+
+      // Wires up the copy/delete buttons inside a flag popup. Called
+      // both when the popup first opens and again after refreshFlagPopup()
+      // regenerates its HTML (setHTML doesn't refire 'open', so any
+      // listeners bound to the old DOM would otherwise be lost).
+      function wireFlagPopupButtons(popup, marker) {
+        const container = popup.getElement();
+        if (!container) {
+          return;
+        }
+
+        const copyBtn = container.querySelector('.marker-popup-copy');
+        if (copyBtn) {
+          copyBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(copyBtn.dataset.coords);
+              copyBtn.textContent = 'Copied';
+              setTimeout(() => {
+                copyBtn.textContent = 'Copy coordinates';
+              }, 1500);
+            } catch (error) {
+              copyBtn.textContent = 'Copy unavailable';
+            }
+          });
+        }
+
+        const deleteBtn = container.querySelector('.marker-popup-delete');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => {
+            if (state.role !== 'admin') {
+              return;
+            }
+            marker.remove();
+            flagMarkers = flagMarkers.filter((m) => m !== marker);
+            pushFlagsToFirestore();
+          });
+        }
+      }
+
+      // Regenerates a flag's popup content with its current
+      // coordinates. Called after a drag (local admin move) and after
+      // a remote position update (some other admin moved it), so the
+      // coordinates shown never go stale.
+      function refreshFlagPopup(marker) {
+        const popup = marker.getPopup();
+        if (!popup) {
+          return;
+        }
+        const lngLat = marker.getLngLat();
+        popup.setHTML(flagPopupHtml(marker.flagLabel, lngLat.lat, lngLat.lng));
+        if (popup.isOpen()) {
+          wireFlagPopupButtons(popup, marker);
+        }
+      }
+
       function placeFlag(lng, lat, flagType, flagId) {
         const nation = flagType === 'russia' ? 'russia' : 'ukraine';
         const code = nation === 'russia' ? 'ru' : 'ua';
@@ -3556,34 +3629,18 @@
 
         marker.flagId = flagId || ('flag-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
         marker.flagNation = nation;
+        marker.flagLabel = label;
 
         const popup = new maplibregl.Popup({ offset: 18, closeButton: true, closeOnClick: false })
-          .setHTML(
-            '<div class="marker-popup">' +
-            '<div class="marker-popup-title">' + label + ' flag</div>' +
-            '<div class="marker-popup-actions">' +
-            '<button type="button" class="marker-popup-delete admin-only">Delete flag</button>' +
-            '</div>' +
-            '</div>'
-          );
+          .setHTML(flagPopupHtml(label, lat, lng));
 
         popup.on('open', () => {
-          const container = popup.getElement();
-          const deleteBtn = container && container.querySelector('.marker-popup-delete');
-          if (deleteBtn) {
-            deleteBtn.addEventListener('click', () => {
-              if (state.role !== 'admin') {
-                return;
-              }
-              marker.remove();
-              flagMarkers = flagMarkers.filter((m) => m !== marker);
-              pushFlagsToFirestore();
-            });
-          }
+          wireFlagPopupButtons(popup, marker);
         });
 
         if (canManage) {
           marker.on('dragend', () => {
+            refreshFlagPopup(marker);
             pushFlagsToFirestore();
           });
         }
