@@ -29,6 +29,14 @@
         height: 100%;
       }
 
+      /* MapLibre defaults the canvas cursor to a "grab" hand; we want a
+         normal pointer at rest (the drawing tools still set their own
+         crosshair cursor via JS while active). */
+      .maplibregl-canvas-container.maplibregl-interactive,
+      .maplibregl-canvas-container.maplibregl-interactive:active {
+        cursor: default !important;
+      }
+
       #coordinatePopup {
         position: fixed;
         z-index: 1000;
@@ -558,6 +566,165 @@
         display: none;
         z-index: 9999;
       }
+
+      #kmlHoverLabel {
+        position: fixed;
+        z-index: 1500;
+        padding: 4px 9px;
+        border-radius: 6px;
+        background: rgba(17, 24, 32, 0.92);
+        color: #edf5ff;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+      }
+
+      #kmlHoverLabel[hidden] {
+        display: none;
+      }
+
+      #accountBar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        color: #ccd6e1;
+        font-size: 12px;
+      }
+
+      #accountBar strong {
+        color: #edf5ff;
+      }
+
+      #logoutBtn {
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(255, 255, 255, 0.04);
+        color: #edf5ff;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      #logoutBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      #authOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 9, 13, 0.88);
+        backdrop-filter: blur(2px);
+      }
+
+      #authOverlay[hidden] {
+        display: none;
+      }
+
+      #authCard {
+        width: 320px;
+        max-width: calc(100vw - 32px);
+        padding: 26px 24px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+
+      #authCard h2 {
+        margin: 0 0 16px;
+        font-size: 21px;
+      }
+
+      #authForm {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .auth-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        color: #98a9b9;
+      }
+
+      .auth-field input {
+        height: 38px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 14px;
+      }
+
+      .auth-error {
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(255, 115, 102, 0.12);
+        border: 1px solid rgba(255, 115, 102, 0.35);
+        color: #ff9b91;
+        font-size: 12px;
+      }
+
+      .auth-error[hidden] {
+        display: none;
+      }
+
+      #authSubmitBtn {
+        height: 40px;
+        margin-top: 4px;
+        border: 0;
+        border-radius: 8px;
+        background: #ff9400;
+        color: #16110a;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #authSubmitBtn:hover {
+        background: #ffab33;
+      }
+
+      #authToggleModeBtn {
+        width: 100%;
+        margin-top: 12px;
+        padding: 8px 0 0;
+        border: 0;
+        background: transparent;
+        color: #7fc4ff;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        text-align: center;
+      }
+
+      #authToggleModeBtn:hover {
+        text-decoration: underline;
+      }
+
+      .auth-note {
+        margin: 14px 0 0;
+        color: #6d7d8c;
+        font-size: 11px;
+        line-height: 1.4;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
@@ -580,6 +747,10 @@
           <button id="clearDrawingsBtn" class="clear-drawings" type="button" disabled><span class="tool-symbol" aria-hidden="true">×</span>Clear all drawings</button>
         </div>
       </header>
+      <div id="accountBar">
+        <span>Signed in as <strong id="accountLabel"></strong></span>
+        <button id="logoutBtn" type="button">Log out</button>
+      </div>
       <div id="searchBox">
         <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
         <div id="searchResults" hidden></div>
@@ -607,9 +778,163 @@
       <button id="addPinpointBtn" type="button">Add pinpoint here</button>
     </div>
     <div id="error"></div>
+    <div id="kmlHoverLabel" hidden></div>
 
+    <div id="authOverlay">
+      <div id="authCard">
+        <div class="eyebrow">Access</div>
+        <h2 id="authTitle">Log in</h2>
+        <form id="authForm">
+          <label class="auth-field">
+            Email
+            <input id="authUsername" type="email" autocomplete="email" required />
+          </label>
+          <label class="auth-field">
+            Password
+            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required />
+          </label>
+          <div id="authError" class="auth-error" hidden></div>
+          <button type="submit" id="authSubmitBtn">Log in</button>
+        </form>
+        <button type="button" id="authToggleModeBtn">Need an account? Register</button>
+        <p class="auth-note">Real accounts via Firebase Authentication. Passwords must be at least 6 characters.</p>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
     <script>
+      // ---- Register / log in (Firebase Authentication) ----
+      // Real accounts, held by Firebase — not this browser.
+      const firebaseConfig = {
+        apiKey: 'AIzaSyBfb7AK_uGlVoLhgIOWlzjFswNCs0MO5_I',
+        authDomain: 'register-82697.firebaseapp.com',
+        projectId: 'register-82697',
+        storageBucket: 'register-82697.firebasestorage.app',
+        messagingSenderId: '517884260174',
+        appId: '1:517884260174:web:b254ab7f4915d10853b81f'
+      };
+      let auth = null;
+      if (typeof firebase !== 'undefined') {
+        try {
+          firebase.initializeApp(firebaseConfig);
+          auth = firebase.auth();
+        } catch (error) {
+          console.error('Firebase init failed', error);
+        }
+      }
+
+      const authOverlay = document.getElementById('authOverlay');
+      const authCard = document.getElementById('authCard');
+      const authTitle = document.getElementById('authTitle');
+      const authForm = document.getElementById('authForm');
+      const authUsername = document.getElementById('authUsername');
+      const authPassword = document.getElementById('authPassword');
+      const authError = document.getElementById('authError');
+      const authSubmitBtn = document.getElementById('authSubmitBtn');
+      const authToggleModeBtn = document.getElementById('authToggleModeBtn');
+      const accountLabel = document.getElementById('accountLabel');
+      const logoutBtn = document.getElementById('logoutBtn');
+
+      let authMode = 'login';
+
+      function setAuthMode(mode) {
+        authMode = mode;
+        authError.hidden = true;
+        authForm.reset();
+        if (mode === 'register') {
+          authTitle.textContent = 'Register';
+          authSubmitBtn.textContent = 'Create account';
+          authToggleModeBtn.textContent = 'Already have an account? Log in';
+        } else {
+          authTitle.textContent = 'Log in';
+          authSubmitBtn.textContent = 'Log in';
+          authToggleModeBtn.textContent = 'Need an account? Register';
+        }
+        authUsername.focus();
+      }
+
+      function showAuthError(message) {
+        authError.textContent = message;
+        authError.hidden = false;
+      }
+
+      function showAuthOverlay() {
+        authOverlay.hidden = false;
+        setAuthMode('login');
+      }
+
+      function hideAuthOverlay() {
+        authOverlay.hidden = true;
+      }
+
+      // Firebase's own errors are already reasonably readable
+      // (e.g. "The email address is already in use by another
+      // account."), so most just get passed straight through.
+      function describeAuthError(error) {
+        if (error.code === 'auth/invalid-email') {
+          return 'Enter a valid email address.';
+        }
+        if (error.code === 'auth/weak-password') {
+          return 'Password must be at least 6 characters.';
+        }
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          return 'Incorrect email or password.';
+        }
+        return error.message;
+      }
+
+      if (auth) {
+        authToggleModeBtn.addEventListener('click', () => {
+          setAuthMode(authMode === 'login' ? 'register' : 'login');
+        });
+
+        authForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const email = authUsername.value.trim();
+          const password = authPassword.value;
+
+          if (!email || !password) {
+            showAuthError('Enter an email and password.');
+            return;
+          }
+
+          authSubmitBtn.disabled = true;
+          try {
+            if (authMode === 'register') {
+              await auth.createUserWithEmailAndPassword(email, password);
+            } else {
+              await auth.signInWithEmailAndPassword(email, password);
+            }
+            // onAuthStateChanged (below) handles hiding the overlay.
+          } catch (error) {
+            showAuthError(describeAuthError(error));
+          } finally {
+            authSubmitBtn.disabled = false;
+          }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+          auth.signOut();
+        });
+
+        auth.onAuthStateChanged((user) => {
+          if (user) {
+            accountLabel.textContent = user.email;
+            hideAuthOverlay();
+          } else {
+            showAuthOverlay();
+          }
+        });
+      } else {
+        // Firebase didn't load (SDK blocked, offline, or the config
+        // above is still the placeholder) — don't let the map itself
+        // get stuck behind a login gate that can't work.
+        console.warn('Firebase Authentication unavailable — skipping the login gate.');
+        hideAuthOverlay();
+      }
+
       const mapStyles = {
         dark: {
           name: 'Dark Matter',
@@ -700,7 +1025,7 @@
           option.setAttribute('aria-pressed', 'false');
         });
         drawHint.textContent = 'Choose a tool to start drawing.';
-        map.getContainer().style.cursor = 'default';
+        map.getCanvasContainer().style.cursor = '';
 
         // Discard any in-progress drawing (e.g. a line waiting for its
         // second click, or an active brush stroke) so nothing is left
@@ -783,7 +1108,7 @@
             pinpoint: 'Click the map to place a pinpoint.'
           };
           drawHint.textContent = hints[state.drawingTool];
-          map.getContainer().style.cursor = 'default';
+          map.getCanvasContainer().style.cursor = 'crosshair';
         });
       });
 
@@ -1074,6 +1399,42 @@
       }
 
       map.on('load', loadKmlManifestAndData);
+
+      // Hovering a KML polygon shows its name in a small floating label —
+      // this never touches the polygon's paint properties, so its color
+      // stays exactly as set (no hover-highlight color swap).
+      const kmlHoverLabel = document.getElementById('kmlHoverLabel');
+
+      function kmlFillLayerIds() {
+        return state.layers
+          .map((layer) => 'kml-' + layer.id + '-fill')
+          .filter((id) => map.getLayer(id));
+      }
+
+      map.on('mousemove', (event) => {
+        const fillLayerIds = kmlFillLayerIds();
+        if (fillLayerIds.length === 0) {
+          kmlHoverLabel.hidden = true;
+          return;
+        }
+
+        const features = map.queryRenderedFeatures(event.point, { layers: fillLayerIds });
+        const named = features.find((feature) => feature.properties && feature.properties.name);
+
+        if (!named) {
+          kmlHoverLabel.hidden = true;
+          return;
+        }
+
+        kmlHoverLabel.textContent = named.properties.name;
+        kmlHoverLabel.style.left = event.originalEvent.clientX + 14 + 'px';
+        kmlHoverLabel.style.top = event.originalEvent.clientY + 14 + 'px';
+        kmlHoverLabel.hidden = false;
+      });
+
+      map.on('mouseout', () => {
+        kmlHoverLabel.hidden = true;
+      });
 
       // ---- Search: jump the map to a typed place name or raw coordinates ----
       function parseCoordinateInput(text) {
