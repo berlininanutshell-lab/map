@@ -4998,11 +4998,9 @@
           if (territoryLayerIds.includes(layerId) && !wiredTerritoryClickLayers.has(fillId)) {
             wiredTerritoryClickLayers.add(fillId);
             map.on('click', fillId, (event) => {
-              // Only advance polygons are clickable. Control areas and other
-              // territory polygons remain visual-only.
-              if (layerId !== 'russian-advances' && layerId !== 'ukrainian-advances') {
-                return;
-              }
+              // Every territory polygon is clickable. The popup decides
+              // which actions apply to this layer (for example, only pending
+              // advances get the "Apply the advance" action).
               if (state.frontlineHistoryMode || state.drawingTool || state.territoryEdit) {
                 return;
               }
@@ -5014,7 +5012,7 @@
               openTerritoryFeaturePopup(layerId, featureId, event.lngLat);
             });
             map.on('mouseenter', fillId, () => {
-              if ((layerId === 'russian-advances' || layerId === 'ukrainian-advances') && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
+              if (territoryLayerIds.includes(layerId) && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
                 map.getCanvasContainer().style.cursor = 'pointer';
               }
             });
