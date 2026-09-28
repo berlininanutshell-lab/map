@@ -982,6 +982,12 @@
         gap: 8px;
       }
 
+      .layer-thickness-input {
+        width: 72px;
+        accent-color: #edf5ff;
+        cursor: pointer;
+      }
+
       .toggle-btn {
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(255, 255, 255, 0.04);
@@ -3796,10 +3802,11 @@
 
       const state = {
         layers: [
-          { id: 'main', name: 'Russian Control', visible: true, color: '#ff0000' },
-          { id: 'ukrainian-control', name: 'Ukrainian Control', visible: true, color: '#00008b' },
-          { id: 'russian-advances', name: 'Russian advances', visible: true, color: '#FF9400' },
-          { id: 'ukrainian-advances', name: 'Ukrainian advances', visible: true, color: '#0000ff' }
+          { id: 'main', name: 'Russian Control', visible: true, color: '#ff0000', renderMode: 'fill', thickness: 3 },
+          { id: 'ukrainian-control', name: 'Ukrainian Control', visible: true, color: '#00008b', renderMode: 'fill', thickness: 3 },
+          { id: 'russian-advances', name: 'Russian advances', visible: true, color: '#FF9400', renderMode: 'fill', thickness: 3 },
+          { id: 'ukrainian-advances', name: 'Ukrainian advances', visible: true, color: '#0000ff', renderMode: 'fill', thickness: 3 },
+          { id: 'cities-outline', name: 'Cities Outline', visible: true, color: '#ffffff', renderMode: 'outline', thickness: 2 }
         ],
         currentStyle: 'Dark Matter',
         currentStyleValue: 'dark',
@@ -3853,6 +3860,10 @@
       // layers; the control layers are modified only when an advance is applied.
       const territoryLayerIds = ['main', 'ukrainian-control', 'russian-advances', 'ukrainian-advances'];
       const territoryAdvanceLayerIds = ['russian-advances', 'ukrainian-advances'];
+      // All polygon/KML layers that are shared through the same compact
+      // Firestore document. Territory logic remains restricted to the four
+      // ids above; extra managed layers such as Cities Outline are visual-only.
+      const sharedLayerIds = territoryLayerIds.concat(['cities-outline']);
 
       // Set of territory layer ids for which we've already received an
       // authoritative update from Firestore (territoriesDocRef) at
@@ -4270,127 +4281,15 @@
         deactivateDrawingTool();
       }
 
+      // Layer UI/rendering lives in the separate layers.js module.
+      // Keep this bridge so the existing map code can call renderLayers()
+      // without being rewritten or coupled to the module's implementation.
       function renderLayers() {
-        const visibleCount = state.layers.filter((layer) => layer.visible).length;
-        mapSummary.textContent = state.currentStyle + ' • ' + visibleCount + ' visible layer' + (visibleCount === 1 ? '' : 's');
-
-        renderTerritoryLayerPicker();
-
-        layersList.innerHTML = '';
-
-        state.layers.forEach((layer) => {
-          const item = document.createElement('div');
-          item.className = 'layer-item' + (layer.visible ? '' : ' hidden');
-
-          const dot = document.createElement('span');
-          dot.className = 'layer-dot';
-          dot.style.background = layer.color;
-
-          const name = document.createElement('div');
-          name.className = 'layer-name';
-          name.textContent = layer.name;
-
-          const actions = document.createElement('div');
-          actions.className = 'layer-actions';
-
-          // Admin-only: recolor this layer's polygons/lines/points
-          // directly on the map.
-          const colorInput = document.createElement('input');
-          colorInput.type = 'color';
-          colorInput.className = 'layer-color-input admin-only';
-          colorInput.value = layer.color;
-          colorInput.setAttribute('aria-label', 'Change ' + layer.name + ' color');
-          colorInput.addEventListener('input', () => {
-            layer.color = colorInput.value;
-            dot.style.background = colorInput.value;
-            ensureKmlLayersForLayer(layer.id);
-
-            // Push the change to Firestore so every other visitor's
-            // browser picks it up too (see the onSnapshot listener
-            // below) — not just this admin's own tab.
-            if (layerColorsDocRef) {
-              layerColorsDocRef
-                .set({ colors: { [layer.id]: colorInput.value } }, { merge: true })
-                .catch((error) => {
-                  console.error('Failed to save shared layer color', error);
-                });
-            }
-          });
-
-          // Admin-only: download every polygon in this territory
-          // layer as a .kmz file.
-          let kmzBtn = null;
-          let importBtn = null;
-          if (territoryLayerIds.includes(layer.id)) {
-            kmzBtn = document.createElement('button');
-            kmzBtn.type = 'button';
-            kmzBtn.className = 'toggle-btn admin-only';
-            kmzBtn.textContent = 'KMZ';
-            kmzBtn.title = 'Download ' + layer.name + ' polygons as KMZ';
-            kmzBtn.addEventListener('click', () => downloadTerritoryKmz(layer.id));
-
-            importBtn = document.createElement('button');
-            importBtn.type = 'button';
-            importBtn.className = 'toggle-btn admin-only';
-            importBtn.textContent = 'Import';
-            importBtn.title = 'Import polygons from a KML/KMZ file into ' + layer.name;
-            importBtn.addEventListener('click', () => startTerritoryImport(layer.id));
-          }
-
-          const toggle = document.createElement('button');
-          toggle.type = 'button';
-          toggle.className = 'toggle-btn';
-          toggle.textContent = layer.visible ? 'On' : 'Off';
-          toggle.addEventListener('click', () => {
-            layer.visible = !layer.visible;
-            renderLayers();
-            ensureKmlLayersForLayer(layer.id);
-          });
-
-          actions.appendChild(colorInput);
-          if (kmzBtn) {
-            actions.appendChild(kmzBtn);
-          }
-          if (importBtn) {
-            actions.appendChild(importBtn);
-          }
-          actions.appendChild(toggle);
-
-          item.appendChild(dot);
-          item.appendChild(name);
-          item.appendChild(actions);
-          layersList.appendChild(item);
-        });
+        if (typeof window.__layersModuleRender === 'function') {
+          return window.__layersModuleRender();
+        }
       }
 
-      // Keeps every visitor's layer colors in sync with whatever the
-      // admin last set, in real time — including on first page load, so
-      // a fresh guest sees the admin's colors, not the hardcoded
-      // defaults in state.layers above.
-      if (layerColorsDocRef) {
-        layerColorsDocRef.onSnapshot((doc) => {
-          if (!doc.exists) {
-            return;
-          }
-          const colors = doc.data().colors || {};
-          let changed = false;
-          state.layers.forEach((layer) => {
-            const sharedColor = colors[layer.id];
-            if (sharedColor && sharedColor !== layer.color) {
-              layer.color = sharedColor;
-              changed = true;
-              if (map.isStyleLoaded()) {
-                ensureKmlLayersForLayer(layer.id);
-              }
-            }
-          });
-          if (changed) {
-            renderLayers();
-          }
-        }, (error) => {
-          console.error('Failed to sync shared layer colors', error);
-        });
-      }
 
       // Keeps every visitor's flags in sync with whatever an admin last
       // placed/moved/deleted, in real time — including on first page
@@ -4468,7 +4367,7 @@
           const seq = ++territorySnapshotSeq;
           const remote = doc.data() || {};
           const decoded = {};
-          for (const layerId of territoryLayerIds) {
+          for (const layerId of sharedLayerIds) {
             const raw = remote[layerId];
             if (typeof raw !== 'string') {
               continue;
@@ -4487,7 +4386,7 @@
           }
           let changed = false;
 
-          territoryLayerIds.forEach((layerId) => {
+          sharedLayerIds.forEach((layerId) => {
             if (state.territoryEdit && state.territoryEdit.layerId === layerId) {
               return;
             }
@@ -4837,6 +4736,8 @@
         const data = layerKmlData[layerId] || { type: 'FeatureCollection', features: [] };
         const visibility = layer.visible ? 'visible' : 'none';
         const color = layer.color;
+        const isOutlineOnly = layer.renderMode === 'outline';
+        const outlineThickness = Math.max(1, Math.min(12, Number(layer.thickness) || 2));
 
         // Territory layers (main / the two advances layers) need a
         // stable per-feature id so a single hand-drawn shape can be
@@ -4862,7 +4763,7 @@
         }
 
         const fillId = sourceId + '-fill';
-        if (!map.getLayer(fillId)) {
+        if (!isOutlineOnly && !map.getLayer(fillId)) {
           map.addLayer({
             id: fillId,
             type: 'fill',
@@ -4905,25 +4806,31 @@
               }
             });
           }
-        } else {
+        } else if (!isOutlineOnly) {
           map.setLayoutProperty(fillId, 'visibility', visibility);
           map.setPaintProperty(fillId, 'fill-color', color);
           map.setPaintProperty(fillId, 'fill-outline-color', color);
+        } else if (map.getLayer(fillId)) {
+          map.setLayoutProperty(fillId, 'visibility', 'none');
         }
 
         const lineId = sourceId + '-line';
+        const lineFilter = isOutlineOnly
+          ? ['in', ['geometry-type'], 'Polygon', 'MultiPolygon']
+          : ['==', ['geometry-type'], 'LineString'];
         if (!map.getLayer(lineId)) {
           map.addLayer({
             id: lineId,
             type: 'line',
             source: sourceId,
-            filter: ['==', ['geometry-type'], 'LineString'],
+            filter: lineFilter,
             layout: { visibility, 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': color, 'line-width': 3 }
+            paint: { 'line-color': color, 'line-width': isOutlineOnly ? outlineThickness : 3 }
           });
         } else {
           map.setLayoutProperty(lineId, 'visibility', visibility);
           map.setPaintProperty(lineId, 'line-color', color);
+          map.setPaintProperty(lineId, 'line-width', isOutlineOnly ? outlineThickness : 3);
         }
 
         const pointId = sourceId + '-point';
@@ -5028,7 +4935,7 @@
         // and pushes are queued so an older save can never land after a
         // newer one.
         const layerMap = {};
-        territoryLayerIds.forEach((layerId) => {
+        sharedLayerIds.forEach((layerId) => {
           layerMap[layerId] = JSON.parse(JSON.stringify(layerKmlData[layerId] || { type: 'FeatureCollection', features: [] }));
         });
         territoryPushesInFlight++;
@@ -6047,7 +5954,7 @@
         }
 
         for (const [layerId, fileNames] of Object.entries(manifest)) {
-          if (territoryLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
+          if (sharedLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
             // Firestore already gave us (or will give us) this layer's
             // authoritative data — don't stomp on it with the static
             // KML baseline.
@@ -6070,7 +5977,7 @@
           // the KML files above were still being fetched (they're
           // awaited one at a time) — re-check before writing, so a
           // late-arriving sync still wins over this stale KML read.
-          if (territoryLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
+          if (sharedLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
             continue;
           }
 
@@ -7044,6 +6951,7 @@
         e.style.display = 'block';
       });
     </script>
+    <script src="layers.js"></script>
     <script src="contact.js"></script>
   </body>
 </html>
