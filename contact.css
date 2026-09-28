@@ -1,0 +1,490 @@
+/* contact.css — styles for the "Contact" tab (live chat with the author).
+   Uses the same palette as the rest of the sidebar. */
+
+/* Five tabs no longer fit in one row on a narrow sidebar, so let them wrap. */
+#sidebarTabs {
+  flex-wrap: wrap;
+}
+
+.sidebar-tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.sidebar-tab .cc-tab-badge {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  vertical-align: 1px;
+}
+
+.sidebar-tab .cc-tab-badge[hidden] {
+  display: none;
+}
+
+#contactView {
+  overflow: hidden;
+}
+
+.cc-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ---- Header (author card) ---- */
+.cc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cc-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 148, 0, 0.16);
+  border: 1px solid rgba(255, 148, 0, 0.45);
+  color: #ff9400;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.cc-head-text {
+  min-width: 0;
+}
+
+.cc-head-title {
+  color: #edf5ff;
+  font-size: 15px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-head-sub {
+  margin-top: 2px;
+  color: #98a9b9;
+  font-size: 11.5px;
+}
+
+/* ---- Messages ---- */
+.cc-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 18px;
+}
+
+.cc-empty {
+  margin: auto;
+  max-width: 240px;
+  color: #6d7d8c;
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.cc-day {
+  align-self: center;
+  margin: 8px 0 2px;
+  color: #6d7d8c;
+  font-size: 11px;
+}
+
+.cc-msg {
+  max-width: 84%;
+  padding: 8px 11px 6px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cc-msg.mine {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  background: rgba(255, 148, 0, 0.16);
+  border: 1px solid rgba(255, 148, 0, 0.32);
+  color: #fff3e0;
+}
+
+.cc-msg.theirs {
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #edf5ff;
+}
+
+.cc-msg-who {
+  margin-bottom: 2px;
+  color: #7fc4ff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cc-msg-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cc-msg-time {
+  margin-top: 3px;
+  color: #98a9b9;
+  font-size: 10px;
+  text-align: right;
+}
+
+/* ---- Composer ---- */
+.cc-composer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 18px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cc-input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: #151515;
+  color: #edf5ff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: none;
+}
+
+.cc-input:focus-visible {
+  outline: 2px solid rgba(255, 148, 0, 0.55);
+  outline-offset: 1px;
+}
+
+.cc-input:disabled {
+  opacity: 0.5;
+}
+
+.cc-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cc-count {
+  color: #6d7d8c;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-send {
+  min-width: 84px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #ff9400;
+  color: #16110a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cc-send:hover:not(:disabled) {
+  background: #ffab33;
+}
+
+.cc-send:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cc-status {
+  min-height: 0;
+  color: #98a9b9;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.cc-status:empty {
+  display: none;
+}
+
+.cc-status.error {
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(255, 115, 102, 0.12);
+  border: 1px solid rgba(255, 115, 102, 0.35);
+  color: #ff9b91;
+}
+
+/* Honeypot field: invisible to people, tempting to bots. */
+.cc-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Guest / verify-email states ---- */
+.cc-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: auto;
+  max-width: 270px;
+  padding: 24px 18px;
+  color: #ccd6e1;
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.cc-center p {
+  margin: 0;
+}
+
+.cc-btn {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #edf5ff;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cc-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cc-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cc-btn.primary {
+  border-color: transparent;
+  background: #ff9400;
+  color: #16110a;
+  font-weight: 700;
+}
+
+.cc-btn.primary:hover:not(:disabled) {
+  background: #ffab33;
+}
+
+.cc-btn.danger {
+  border-color: rgba(255, 115, 102, 0.35);
+  background: rgba(255, 115, 102, 0.1);
+  color: #ff9b91;
+}
+
+.cc-btn.danger:hover:not(:disabled) {
+  background: rgba(255, 115, 102, 0.2);
+}
+
+/* ---- Admin inbox ---- */
+.cc-admin {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.cc-admin [hidden] {
+  display: none !important;
+}
+
+.cc-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.cc-search {
+  margin: 12px 18px 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #151515;
+  color: #edf5ff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.cc-search::placeholder {
+  color: #7c8a97;
+}
+
+.cc-chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 12px 16px;
+}
+
+.cc-chat-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #edf5ff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cc-chat-item:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.11);
+}
+
+.cc-chat-item.unread {
+  border-color: rgba(255, 148, 0, 0.4);
+}
+
+.cc-chat-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cc-chat-top,
+.cc-chat-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cc-chat-name {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-chat-time {
+  flex-shrink: 0;
+  color: #6d7d8c;
+  font-size: 10.5px;
+}
+
+.cc-chat-bottom {
+  margin-top: 3px;
+}
+
+.cc-chat-snippet {
+  overflow: hidden;
+  color: #98a9b9;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-pill {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ff9400;
+  color: #16110a;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.cc-pill.blocked {
+  background: rgba(255, 115, 102, 0.16);
+  border: 1px solid rgba(255, 115, 102, 0.4);
+  color: #ff9b91;
+  font-weight: 700;
+}
+
+.cc-thread-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cc-back {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #edf5ff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cc-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cc-thread-who {
+  flex: 1;
+  min-width: 0;
+}
+
+.cc-thread-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cc-thread-actions .cc-btn {
+  padding: 6px 9px;
+  font-size: 11.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-chat-item,
+  .cc-send,
+  .cc-btn {
+    transition: none;
+  }
+}
