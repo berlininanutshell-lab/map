@@ -4816,7 +4816,7 @@
 
         const lineId = sourceId + '-line';
         const lineFilter = isOutlineOnly
-          ? ['in', ['geometry-type'], 'Polygon', 'MultiPolygon']
+          ? ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false]
           : ['==', ['geometry-type'], 'LineString'];
         if (!map.getLayer(lineId)) {
           map.addLayer({
