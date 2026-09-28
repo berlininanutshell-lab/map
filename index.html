@@ -2121,6 +2121,7 @@
         font-size: 11px;
       }
     </style>
+    <link rel="stylesheet" href="contact.css" />
   </head>
   <body>
     <div id="map"></div>
@@ -2179,6 +2180,7 @@
         <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
         <button id="advancesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="advancesView">Advances</button>
         <button id="frontlineTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="frontlineView">Frontline</button>
+        <button id="contactTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="contactView">Contact<span id="contactTabBadge" class="cc-tab-badge" hidden></span></button>
       </div>
       <div id="sidebarViews">
         <div id="legendView" class="sidebar-view is-active" role="tabpanel">
@@ -2268,6 +2270,7 @@
             </div>
           </div>
         </div>
+        <div id="contactView" class="sidebar-view" role="tabpanel" hidden></div>
       </div>
       <div class="author-credit">
       <span>Map by <strong>Что по фронту?</strong> <span class="author-alt">What's Up on the Front</span></span>
@@ -2828,10 +2831,12 @@
       const casualtiesTabBtn = document.getElementById('casualtiesTabBtn');
       const advancesTabBtn = document.getElementById('advancesTabBtn');
       const frontlineTabBtn = document.getElementById('frontlineTabBtn');
+      const contactTabBtn = document.getElementById('contactTabBtn');
       const legendView = document.getElementById('legendView');
       const casualtiesView = document.getElementById('casualtiesView');
       const advancesView = document.getElementById('advancesView');
       const frontlineView = document.getElementById('frontlineView');
+      const contactView = document.getElementById('contactView');
       const sidebarEyebrow = document.getElementById('sidebarEyebrow');
       let sidebarTab = 'legend';
 
@@ -2839,19 +2844,22 @@
         legend: legendView,
         casualties: casualtiesView,
         advances: advancesView,
-        frontline: frontlineView
+        frontline: frontlineView,
+        contact: contactView
       };
       const sidebarTabBtns = {
         legend: legendTabBtn,
         casualties: casualtiesTabBtn,
         advances: advancesTabBtn,
-        frontline: frontlineTabBtn
+        frontline: frontlineTabBtn,
+        contact: contactTabBtn
       };
       const sidebarTabLabels = {
         legend: 'Legend',
         casualties: 'Casualties',
         advances: 'Advances',
-        frontline: 'Frontline'
+        frontline: 'Frontline',
+        contact: 'Contact'
       };
 
       function setSidebarTab(tab) {
@@ -2875,6 +2883,8 @@
           renderAdvancesView();
         } else if (tab === 'frontline') {
           renderFrontlineView();
+        } else if (tab === 'contact' && typeof window.contactOnTabShown === 'function') {
+          window.contactOnTabShown();
         }
 
         const incoming = sidebarTabViews[tab];
@@ -2901,6 +2911,7 @@
       casualtiesTabBtn.addEventListener('click', () => setSidebarTab('casualties'));
       advancesTabBtn.addEventListener('click', () => setSidebarTab('advances'));
       frontlineTabBtn.addEventListener('click', () => setSidebarTab('frontline'));
+      contactTabBtn.addEventListener('click', () => setSidebarTab('contact'));
 
       // ---- Advances tab: live pending-advance area, dated to today ----
       // This remains the live view. The Frontline tab separately stores
@@ -6610,5 +6621,6 @@
         e.style.display = 'block';
       });
     </script>
+    <script src="contact.js"></script>
   </body>
 </html>
