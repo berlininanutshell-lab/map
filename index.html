@@ -2795,11 +2795,6 @@
           const data = doc.exists ? doc.data() : {};
           state.nickname = (data && data.nickname) || '';
           renderAccountStatus();
-          if (viewerPresenceConnectionRef && auth.currentUser) {
-            viewerPresenceConnectionRef.update({
-              displayName: getPresenceDisplayName(auth.currentUser)
-            }).catch(() => {});
-          }
         }).catch((error) => {
           console.error('Failed to load profile', error);
         });
