@@ -4785,7 +4785,12 @@
           if (territoryLayerIds.includes(layerId) && !wiredTerritoryClickLayers.has(fillId)) {
             wiredTerritoryClickLayers.add(fillId);
             map.on('click', fillId, (event) => {
-              if (state.role !== 'admin' || state.frontlineHistoryMode || state.drawingTool || state.territoryEdit) {
+              // Only advance polygons are clickable. Control areas and other
+              // territory polygons remain visual-only.
+              if (layerId !== 'russian-advances' && layerId !== 'ukrainian-advances') {
+                return;
+              }
+              if (state.frontlineHistoryMode || state.drawingTool || state.territoryEdit) {
                 return;
               }
               const rendered = event.features && event.features[0];
@@ -4796,7 +4801,7 @@
               openTerritoryFeaturePopup(layerId, featureId, event.lngLat);
             });
             map.on('mouseenter', fillId, () => {
-              if (state.role === 'admin' && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
+              if ((layerId === 'russian-advances' || layerId === 'ukrainian-advances') && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
                 map.getCanvasContainer().style.cursor = 'pointer';
               }
             });
@@ -5452,11 +5457,11 @@
           (areaText ? '<div class="marker-popup-coords">' + escapeHtml(areaText) + '</div>' : '') +
           sourceBlock +
           '<div class="marker-popup-actions">' +
-          (isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
-          (isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
-          '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' +
+          (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
+          (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
+          (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' : '') +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-kmz">Download KMZ</button>' : '') +
-          '<button type="button" class="marker-popup-delete">Delete</button>' +
+          (isAdmin() ? '<button type="button" class="marker-popup-delete">Delete</button>' : '') +
           '</div></div>';
 
         territoryPopup = new maplibregl.Popup({ offset: 8, closeButton: true, closeOnClick: false })
@@ -5502,15 +5507,21 @@
           });
         }
 
-        container.querySelector('.territory-popup-edit').addEventListener('click', () => {
-          closeTerritoryPopup();
-          enterVertexEditMode(layerId, featureId);
-        });
+        const editBtn = container.querySelector('.territory-popup-edit');
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            closeTerritoryPopup();
+            enterVertexEditMode(layerId, featureId);
+          });
+        }
 
-        container.querySelector('.marker-popup-delete').addEventListener('click', () => {
-          removeTerritoryFeature(layerId, featureId);
-          closeTerritoryPopup();
-        });
+        const deleteBtn = container.querySelector('.marker-popup-delete');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => {
+            removeTerritoryFeature(layerId, featureId);
+            closeTerritoryPopup();
+          });
+        }
       }
 
       // ---- New territory polygon smoothing workflow ----
