@@ -2301,7 +2301,7 @@
       const firebaseConfig = {
         apiKey: 'AIzaSyBfb7AK_uGlVoLhgIOWlzjFswNCs0MO5_I',
         authDomain: 'register-82697.firebaseapp.com',
-        databaseURL: 'https://register-82697-default-rtdb.firebaseio.com',
+        databaseURL: 'https://register-82697-default-rtdb.europe-west1.firebasedatabase.app',
         projectId: 'register-82697',
         storageBucket: 'register-82697.firebasestorage.app',
         messagingSenderId: '517884260174',
@@ -3971,6 +3971,7 @@
           // Admin-only: download every polygon in this territory
           // layer as a .kmz file.
           let kmzBtn = null;
+          let importBtn = null;
           if (territoryLayerIds.includes(layer.id)) {
             kmzBtn = document.createElement('button');
             kmzBtn.type = 'button';
@@ -3978,6 +3979,13 @@
             kmzBtn.textContent = 'KMZ';
             kmzBtn.title = 'Download ' + layer.name + ' polygons as KMZ';
             kmzBtn.addEventListener('click', () => downloadTerritoryKmz(layer.id));
+
+            importBtn = document.createElement('button');
+            importBtn.type = 'button';
+            importBtn.className = 'toggle-btn admin-only';
+            importBtn.textContent = 'Import';
+            importBtn.title = 'Import polygons from a KML/KMZ file into ' + layer.name;
+            importBtn.addEventListener('click', () => startTerritoryImport(layer.id));
           }
 
           const toggle = document.createElement('button');
@@ -3993,6 +4001,9 @@
           actions.appendChild(colorInput);
           if (kmzBtn) {
             actions.appendChild(kmzBtn);
+          }
+          if (importBtn) {
+            actions.appendChild(importBtn);
           }
           actions.appendChild(toggle);
 
@@ -4771,6 +4782,27 @@
         }
       }
 
+      // Small toast for layer-list actions (KMZ / import), since the
+      // drawing hint line is hidden while the tool menu is closed.
+      let adminNoticeTimer = null;
+      function adminNotice(message) {
+        let el = document.getElementById('adminNotice');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'adminNotice';
+          el.setAttribute('role', 'status');
+          el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:2000;' +
+            'max-width:min(90vw,520px);padding:10px 14px;border-radius:8px;background:rgba(10,10,10,0.96);' +
+            'border:1px solid rgba(255,255,255,0.15);color:#edf5ff;font-size:13px;line-height:1.4;' +
+            'box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none;';
+          document.body.appendChild(el);
+        }
+        el.textContent = message;
+        el.style.display = 'block';
+        clearTimeout(adminNoticeTimer);
+        adminNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 5000);
+      }
+
       // ---- KMZ export (admin only) ----
       // Builds a KML document from a layer's polygons and zips it into
       // a .kmz (doc.kml inside a zip) that opens in Google Earth, QGIS,
@@ -4843,7 +4875,7 @@
           return;
         }
         if (typeof JSZip === 'undefined') {
-          drawHint.textContent = 'KMZ export is unavailable (the zip library failed to load).';
+          adminNotice('KMZ export is unavailable (the zip library failed to load).');
           return;
         }
 
@@ -4856,7 +4888,7 @@
         }
         features = features.filter((f) => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'));
         if (!features.length) {
-          drawHint.textContent = 'No polygons in ' + layer.name + ' to download.';
+          adminNotice('No polygons in ' + layer.name + ' to download.');
           return;
         }
 
@@ -4876,12 +4908,122 @@
           link.click();
           link.remove();
           setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-          drawHint.textContent = 'Downloaded ' + features.length + ' polygon' + (features.length === 1 ? '' : 's') + ' from ' + layer.name + '.';
+          adminNotice('Downloaded ' + features.length + ' polygon' + (features.length === 1 ? '' : 's') + ' from ' + layer.name + '.');
         } catch (error) {
           console.error('KMZ export failed', error);
-          drawHint.textContent = 'Could not create the KMZ file.';
+          adminNotice('Could not create the KMZ file.');
         }
       }
+
+      // ---- KML / KMZ import (admin only) ----
+      // Reads a .kml or .kmz file, keeps its polygons, and adds them to
+      // the chosen territory layer as new shapes (existing shapes are
+      // kept). Points and lines in the file are skipped. Polygons are
+      // added exactly as drawn in the file — they are not clipped
+      // against the other layers.
+      const territoryImportInput = document.createElement('input');
+      territoryImportInput.type = 'file';
+      territoryImportInput.accept = '.kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz';
+      territoryImportInput.hidden = true;
+      document.body.appendChild(territoryImportInput);
+      let territoryImportLayerId = null;
+
+      function startTerritoryImport(layerId) {
+        if (!isAdmin()) {
+          return;
+        }
+        if (state.frontlineHistoryMode) {
+          adminNotice('Return to the current frontline before importing.');
+          return;
+        }
+        territoryImportLayerId = layerId;
+        territoryImportInput.value = '';
+        territoryImportInput.click();
+      }
+
+      function closeImportedRing(ring) {
+        const first = ring[0];
+        const last = ring[ring.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+          return ring.concat([[first[0], first[1]]]);
+        }
+        return ring;
+      }
+
+      async function readKmlTextFromFile(file) {
+        const isKmz = /\.kmz$/i.test(file.name);
+        if (!isKmz) {
+          return await file.text();
+        }
+        if (typeof JSZip === 'undefined') {
+          throw new Error('The zip library failed to load, so KMZ files cannot be read.');
+        }
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        const kmlEntries = Object.values(zip.files).filter((entry) => !entry.dir && /\.kml$/i.test(entry.name));
+        if (!kmlEntries.length) {
+          throw new Error('That KMZ has no KML file inside.');
+        }
+        const preferred = kmlEntries.find((entry) => /(^|\/)doc\.kml$/i.test(entry.name)) || kmlEntries[0];
+        return await preferred.async('string');
+      }
+
+      territoryImportInput.addEventListener('change', async () => {
+        const file = territoryImportInput.files && territoryImportInput.files[0];
+        const layerId = territoryImportLayerId;
+        territoryImportLayerId = null;
+        if (!file || !layerId || !isAdmin() || state.frontlineHistoryMode) {
+          return;
+        }
+        const layer = getLayerById(layerId);
+
+        try {
+          const kmlText = await readKmlTextFromFile(file);
+          const parsed = parseKmlToGeoJSON(kmlText);
+          const polygons = [];
+          let skipped = 0;
+
+          parsed.features.forEach((feature) => {
+            if (feature.geometry.type !== 'Polygon') {
+              skipped++;
+              return;
+            }
+            const rings = feature.geometry.coordinates.map(closeImportedRing);
+            if (rings.every((ring) => ring.length >= 4)) {
+              polygons.push({ properties: feature.properties, geometry: { type: 'Polygon', coordinates: rings } });
+            } else {
+              skipped++;
+            }
+          });
+
+          if (!polygons.length) {
+            adminNotice('No polygons found in ' + file.name + '.');
+            return;
+          }
+
+          if (!layerKmlData[layerId]) {
+            layerKmlData[layerId] = { type: 'FeatureCollection', features: [] };
+          }
+          polygons.forEach((polygon) => {
+            layerKmlData[layerId].features.push({
+              type: 'Feature',
+              properties: {
+                id: genId(),
+                name: (polygon.properties && polygon.properties.name) || '',
+                description: (polygon.properties && polygon.properties.description) || ''
+              },
+              geometry: polygon.geometry
+            });
+          });
+
+          ensureKmlLayersForLayer(layerId);
+          pushTerritoriesToFirestore();
+          drawHint.textContent = 'Imported ' + polygons.length + ' polygon' + (polygons.length === 1 ? '' : 's') +
+            ' into ' + layer.name + (skipped ? ' (' + skipped + ' non-polygon item' + (skipped === 1 ? '' : 's') + ' skipped).' : '.');
+        } catch (error) {
+          console.error('KML import failed', error);
+          adminNotice('Could not import ' + file.name + ': ' + (error.message || 'unknown error'));
+        }
+      });
 
       // ---- Territory polygon management popup ----
       // Clicking a drawn shape (admins only — wired in
