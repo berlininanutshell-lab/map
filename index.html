@@ -189,8 +189,90 @@
         font-weight: 600;
         letter-spacing: 0.02em;
         line-height: 1;
-        pointer-events: none;
+        cursor: pointer;
+        user-select: none;
         backdrop-filter: blur(8px);
+      }
+
+      #viewerListOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 58px 0 0 18px;
+        background: transparent;
+      }
+
+      #viewerListOverlay[hidden] {
+        display: none;
+      }
+
+      #viewerListCard {
+        width: min(320px, calc(100vw - 36px));
+        max-height: min(420px, calc(100vh - 90px));
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 12px;
+        background: rgba(14,14,16,.97);
+        box-shadow: 0 18px 45px rgba(0,0,0,.45);
+        color: #edf5ff;
+        backdrop-filter: blur(14px);
+      }
+
+      #viewerListHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+      }
+
+      #viewerListHeader strong { font-size: 13px; }
+
+      #viewerListClose {
+        border: 0;
+        background: transparent;
+        color: #98a9b9;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        padding: 2px 4px;
+      }
+
+      #viewerList {
+        padding: 8px;
+        overflow-y: auto;
+        max-height: 350px;
+      }
+
+      .viewer-list-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 8px;
+        border-radius: 8px;
+      }
+
+      .viewer-list-row:hover { background: rgba(255,255,255,.05); }
+
+      .viewer-list-dot {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 7px;
+        border-radius: 50%;
+        background: #39d353;
+        box-shadow: 0 0 0 3px rgba(57,211,83,.10);
+      }
+
+      .viewer-list-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
       }
 
       .admin-viewer-dot {
@@ -2248,6 +2330,15 @@
   </head>
   <body>
     <div id="map"></div>
+    <div id="viewerListOverlay" hidden aria-hidden="true">
+      <div id="viewerListCard" role="dialog" aria-modal="false" aria-labelledby="viewerListTitle">
+        <div id="viewerListHeader">
+          <strong id="viewerListTitle">Current viewers</strong>
+          <button id="viewerListClose" type="button" aria-label="Close viewer list">×</button>
+        </div>
+        <div id="viewerList" aria-live="polite"></div>
+      </div>
+    </div>
     <button id="sidebarToggleBtn" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="sidebar">
       <span aria-hidden="true">‹</span>
     </button>
@@ -2690,6 +2781,11 @@
           const data = doc.exists ? doc.data() : {};
           state.nickname = (data && data.nickname) || '';
           renderAccountStatus();
+          if (viewerPresenceConnectionRef && auth.currentUser) {
+            viewerPresenceConnectionRef.update({
+              displayName: getPresenceDisplayName(auth.currentUser)
+            }).catch(() => {});
+          }
         }).catch((error) => {
           console.error('Failed to load profile', error);
         });
@@ -4040,7 +4136,12 @@
       // gets its own anonymous Firebase Auth identity and connection node.
       const adminViewerCount = document.getElementById('adminViewerCount');
       const adminViewerCountText = document.getElementById('adminViewerCountText');
+      const viewerListOverlay = document.getElementById('viewerListOverlay');
+      const viewerList = document.getElementById('viewerList');
+      const viewerListTitle = document.getElementById('viewerListTitle');
+      const viewerListClose = document.getElementById('viewerListClose');
       let viewerPresenceStarted = false;
+      let latestViewerSnapshot = null;
       let viewerPresenceUnsubscribe = null;
       let viewerPresenceConnectionRef = null;
       let viewerPresenceUserUid = null;
@@ -4067,6 +4168,68 @@
         return `${count} ${count === 1 ? 'viewer' : 'viewers'}`;
       }
 
+      function getPresenceDisplayName(user) {
+        if (!user) return 'Guest';
+        if (user.isAnonymous) return 'Guest';
+        return state.nickname || user.email || 'Signed-in user';
+      }
+
+      function renderViewerList(snapshot) {
+        if (!viewerList) return;
+        viewerList.innerHTML = '';
+        const viewers = [];
+        snapshot.forEach((viewerSnapshot) => {
+          let newest = null;
+          viewerSnapshot.forEach((connectionSnapshot) => {
+            const data = connectionSnapshot.val() || {};
+            newest = {
+              name: data.displayName || 'Guest',
+              connectedAt: Number(data.connectedAt) || 0
+            };
+          });
+          if (newest) viewers.push(newest);
+        });
+        viewers.sort((a, b) => a.name.localeCompare(b.name));
+        viewerListTitle.textContent = formatViewerCount(viewers.length);
+        if (!viewers.length) {
+          const empty = document.createElement('div');
+          empty.className = 'viewer-list-row';
+          empty.textContent = 'No active viewers';
+          viewerList.appendChild(empty);
+          return;
+        }
+        viewers.forEach((viewer) => {
+          const row = document.createElement('div');
+          row.className = 'viewer-list-row';
+          const dot = document.createElement('span');
+          dot.className = 'viewer-list-dot';
+          dot.setAttribute('aria-hidden', 'true');
+          const name = document.createElement('span');
+          name.className = 'viewer-list-name';
+          name.textContent = viewer.name;
+          row.append(dot, name);
+          viewerList.appendChild(row);
+        });
+      }
+
+      function openViewerList() {
+        if (currentRole() !== 'admin') return;
+        viewerListOverlay.hidden = false;
+        viewerListOverlay.setAttribute('aria-hidden', 'false');
+        if (latestViewerSnapshot) renderViewerList(latestViewerSnapshot);
+      }
+
+      function closeViewerList() {
+        viewerListOverlay.hidden = true;
+        viewerListOverlay.setAttribute('aria-hidden', 'true');
+      }
+
+      adminViewerCount.addEventListener('click', openViewerList);
+      viewerListClose.addEventListener('click', closeViewerList);
+      viewerListOverlay.addEventListener('click', (event) => {
+        if (event.target === viewerListOverlay) closeViewerList();
+      });
+
       function updateAdminViewerVisibility() {
         const isAdmin = currentRole() === 'admin';
         adminViewerCount.setAttribute('aria-hidden', String(!isAdmin));
@@ -4089,6 +4252,7 @@
 
         connectionRef.set({
           state: 'online',
+          displayName: getPresenceDisplayName(user),
           connectedAt: firebase.database.ServerValue.TIMESTAMP
         }).catch((error) => {
           console.warn('Could not register viewer presence:', error);
@@ -4100,10 +4264,12 @@
           // All tabs in the same browser profile share localStorage and
           // therefore the same viewer ID, so they count as one viewer.
           let count = 0;
+          latestViewerSnapshot = snapshot;
           snapshot.forEach((viewerSnapshot) => {
             if (viewerSnapshot.hasChildren()) count += 1;
           });
           adminViewerCountText.textContent = formatViewerCount(count);
+          if (!viewerListOverlay.hidden) renderViewerList(snapshot);
         }, (error) => {
           console.warn('Could not read viewer presence:', error);
           adminViewerCountText.textContent = 'Viewers unavailable';
