@@ -2166,7 +2166,7 @@
           <div id="casualtySources" class="casualty-sources"></div>
         </div>
         <div id="advancesView" class="sidebar-view" role="tabpanel" hidden>
-          <div class="advances-note">Live pending territory drawn with the Territory polygon tool on the Russian advances / Ukrainian advances layers, before it's applied to the main layer. For locked day-by-day values and historical map positions, use the Frontline tab.</div>
+          <div class="advances-note">Live pending territory drawn with the Territory polygon tool on the Russian advances / Ukrainian advances layers, before it's applied to Russian Control / Ukrainian Control. For locked day-by-day values and historical map positions, use the Frontline tab.</div>
           <div class="advances-section">
             <div class="advances-section-header">
               <span class="casualty-dot" style="background:#FF9400"></span>
@@ -2294,6 +2294,7 @@
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
       // ---- Register / log in (Firebase Authentication) ----
       // Real accounts, held by Firebase — not this browser.
@@ -3023,6 +3024,7 @@
           await docRef.set({
             date,
             main: JSON.stringify(snapshot.main),
+            ukrainianControl: JSON.stringify(snapshot['ukrainian-control']),
             russianAdvances: JSON.stringify(snapshot['russian-advances']),
             ukrainianAdvances: JSON.stringify(snapshot['ukrainian-advances']),
             russianAdvanceKm2: russian.km2,
@@ -3072,6 +3074,7 @@
         setFlagInteractivity(false);
 
         layerKmlData.main = readSnapshotFeatureCollection(entry.main);
+        layerKmlData['ukrainian-control'] = readSnapshotFeatureCollection(entry.ukrainianControl);
         layerKmlData['russian-advances'] = readSnapshotFeatureCollection(entry.russianAdvances);
         layerKmlData['ukrainian-advances'] = readSnapshotFeatureCollection(entry.ukrainianAdvances);
         territoryLayerIds.forEach((layerId) => ensureKmlLayersForLayer(layerId));
@@ -3580,7 +3583,8 @@
 
       const state = {
         layers: [
-          { id: 'main', name: 'Main Layer', visible: true, color: '#ff0000' },
+          { id: 'main', name: 'Russian Control', visible: true, color: '#ff0000' },
+          { id: 'ukrainian-control', name: 'Ukrainian Control', visible: true, color: '#00008b' },
           { id: 'russian-advances', name: 'Russian advances', visible: true, color: '#FF9400' },
           { id: 'ukrainian-advances', name: 'Ukrainian advances', visible: true, color: '#0000ff' }
         ],
@@ -3629,7 +3633,7 @@
       // target. Built here (rather than from state.layers directly) so
       // the picker only ever offers layers the boolean-op logic below
       // actually supports.
-      const territoryLayerIds = ['main', 'russian-advances', 'ukrainian-advances'];
+      const territoryLayerIds = ['main', 'ukrainian-control', 'russian-advances', 'ukrainian-advances'];
 
       // Set of territory layer ids for which we've already received an
       // authoritative update from Firestore (territoriesDocRef) at
@@ -3964,6 +3968,18 @@
             }
           });
 
+          // Admin-only: download every polygon in this territory
+          // layer as a .kmz file.
+          let kmzBtn = null;
+          if (territoryLayerIds.includes(layer.id)) {
+            kmzBtn = document.createElement('button');
+            kmzBtn.type = 'button';
+            kmzBtn.className = 'toggle-btn admin-only';
+            kmzBtn.textContent = 'KMZ';
+            kmzBtn.title = 'Download ' + layer.name + ' polygons as KMZ';
+            kmzBtn.addEventListener('click', () => downloadTerritoryKmz(layer.id));
+          }
+
           const toggle = document.createElement('button');
           toggle.type = 'button';
           toggle.className = 'toggle-btn';
@@ -3975,6 +3991,9 @@
           });
 
           actions.appendChild(colorInput);
+          if (kmzBtn) {
+            actions.appendChild(kmzBtn);
+          }
           actions.appendChild(toggle);
 
           item.appendChild(dot);
@@ -4655,7 +4674,14 @@
       // advance is applied. Main features that don't overlap at all
       // are left completely untouched, including their id.
       function subtractFromMain(geometryToRemove) {
-        const data = layerKmlData.main || { type: 'FeatureCollection', features: [] };
+        subtractFromLayer('main', geometryToRemove);
+      }
+
+      // Same as subtractFromMain, but for any territory layer (used to
+      // keep Russian Control and Ukrainian Control from overlapping
+      // when an advance is applied).
+      function subtractFromLayer(layerId, geometryToRemove) {
+        const data = layerKmlData[layerId] || { type: 'FeatureCollection', features: [] };
         const removalFeature = turf.feature(geometryToRemove);
         const kept = [];
 
@@ -4684,8 +4710,8 @@
           });
         });
 
-        layerKmlData.main = { type: 'FeatureCollection', features: kept };
-        ensureKmlLayersForLayer('main');
+        layerKmlData[layerId] = { type: 'FeatureCollection', features: kept };
+        ensureKmlLayersForLayer(layerId);
       }
 
       // Applies a hand-drawn ring (an array of [lng, lat] positions,
@@ -4704,7 +4730,13 @@
 
         if (layerId === 'main') {
           addTerritoryFeature('main', drawnPolygon.geometry);
-          drawHint.textContent = 'Added to the main layer. Click it to edit or delete.';
+          drawHint.textContent = 'Added to Russian Control. Click it to edit or delete.';
+          return;
+        }
+
+        if (layerId === 'ukrainian-control') {
+          addTerritoryFeature('ukrainian-control', drawnPolygon.geometry);
+          drawHint.textContent = 'Added to Ukrainian Control. Click it to edit or delete.';
           return;
         }
 
@@ -4713,29 +4745,141 @@
         if (layerId === 'russian-advances') {
           const clipped = mainGeometry ? turf.difference(drawnPolygon, mainGeometry) : drawnPolygon;
           if (!clipped) {
-            drawHint.textContent = 'That area is already inside the main layer — nothing added.';
+            drawHint.textContent = 'That area is already inside Russian Control — nothing added.';
             return;
           }
           addTerritoryFeature('russian-advances', clipped.geometry || clipped);
-          drawHint.textContent = 'Drawn as a pending Russian advance. Click it and choose "Apply the advance" to add it to the main layer.';
+          drawHint.textContent = 'Drawn as a pending Russian advance. Click it and choose "Apply the advance" to add it to Russian Control.';
           return;
         }
 
         if (layerId === 'ukrainian-advances') {
           if (!mainGeometry) {
-            drawHint.textContent = 'Nothing to draw — the main layer has no territory yet.';
+            drawHint.textContent = 'Nothing to draw — Russian Control has no territory yet.';
             return;
           }
 
           const clipped = turf.intersect(drawnPolygon, mainGeometry);
           if (!clipped) {
-            drawHint.textContent = 'That area is outside the main layer — nothing drawn.';
+            drawHint.textContent = 'That area is outside Russian Control — nothing drawn.';
             return;
           }
 
           addTerritoryFeature('ukrainian-advances', clipped.geometry || clipped);
-          drawHint.textContent = 'Drawn as a pending Ukrainian advance. Click it and choose "Apply the advance" to cut it from the main layer.';
+          drawHint.textContent = 'Drawn as a pending Ukrainian advance. Click it and choose "Apply the advance" to move it from Russian Control to Ukrainian Control.';
           return;
+        }
+      }
+
+      // ---- KMZ export (admin only) ----
+      // Builds a KML document from a layer's polygons and zips it into
+      // a .kmz (doc.kml inside a zip) that opens in Google Earth, QGIS,
+      // etc. Guarded by isAdmin() as well as hidden via CSS.
+      function kmlEscape(text) {
+        return String(text == null ? '' : text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      // KML colors are aaBBGGRR, not #RRGGBB.
+      function hexToKmlColor(hex, alphaHex) {
+        const clean = String(hex || '#ff0000').replace('#', '');
+        const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+        const r = full.slice(0, 2);
+        const g = full.slice(2, 4);
+        const b = full.slice(4, 6);
+        return (alphaHex + b + g + r).toLowerCase();
+      }
+
+      function kmlRing(ring) {
+        return ring.map((pos) => pos[0] + ',' + pos[1] + ',0').join(' ');
+      }
+
+      function kmlPolygon(rings) {
+        let out = '<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>' +
+          kmlRing(rings[0]) + '</coordinates></LinearRing></outerBoundaryIs>';
+        for (let i = 1; i < rings.length; i++) {
+          out += '<innerBoundaryIs><LinearRing><coordinates>' + kmlRing(rings[i]) +
+            '</coordinates></LinearRing></innerBoundaryIs>';
+        }
+        return out + '</Polygon>';
+      }
+
+      function kmlGeometry(geometry) {
+        if (geometry.type === 'Polygon') {
+          return kmlPolygon(geometry.coordinates);
+        }
+        if (geometry.type === 'MultiPolygon') {
+          return '<MultiGeometry>' + geometry.coordinates.map(kmlPolygon).join('') + '</MultiGeometry>';
+        }
+        return '';
+      }
+
+      function buildLayerKml(layer, features) {
+        const line = hexToKmlColor(layer.color, 'ff');
+        const fill = hexToKmlColor(layer.color, '40');
+        let kml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+          '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>' +
+          '<name>' + kmlEscape(layer.name) + '</name>' +
+          '<Style id="s"><LineStyle><color>' + line + '</color><width>2</width></LineStyle>' +
+          '<PolyStyle><color>' + fill + '</color></PolyStyle></Style>';
+        features.forEach((feature, index) => {
+          const props = feature.properties || {};
+          kml += '<Placemark><name>' + kmlEscape(props.name || (layer.name + ' ' + (index + 1))) + '</name>' +
+            (props.description ? '<description>' + kmlEscape(props.description) + '</description>' : '') +
+            '<styleUrl>#s</styleUrl>' + kmlGeometry(feature.geometry) + '</Placemark>';
+        });
+        return kml + '</Document></kml>';
+      }
+
+      async function downloadTerritoryKmz(layerId, featureId) {
+        if (!isAdmin()) {
+          return;
+        }
+        const layer = getLayerById(layerId);
+        if (!layer) {
+          return;
+        }
+        if (typeof JSZip === 'undefined') {
+          drawHint.textContent = 'KMZ export is unavailable (the zip library failed to load).';
+          return;
+        }
+
+        let features;
+        if (featureId) {
+          const one = findTerritoryFeature(layerId, featureId);
+          features = one ? [one] : [];
+        } else {
+          features = layerPolygonFeatures(layerId);
+        }
+        features = features.filter((f) => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'));
+        if (!features.length) {
+          drawHint.textContent = 'No polygons in ' + layer.name + ' to download.';
+          return;
+        }
+
+        try {
+          const zip = new JSZip();
+          zip.file('doc.kml', buildLayerKml(layer, features));
+          const blob = await zip.generateAsync({
+            type: 'blob',
+            mimeType: 'application/vnd.google-earth.kmz',
+            compression: 'DEFLATE'
+          });
+          const slug = layer.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = slug + (featureId ? '-shape' : '') + '-' + todayDateKey() + '.kmz';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+          drawHint.textContent = 'Downloaded ' + features.length + ' polygon' + (features.length === 1 ? '' : 's') + ' from ' + layer.name + '.';
+        } catch (error) {
+          console.error('KMZ export failed', error);
+          drawHint.textContent = 'Could not create the KMZ file.';
         }
       }
 
@@ -4787,6 +4931,7 @@
           (isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
           (isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
           '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' +
+          (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-kmz">Download KMZ</button>' : '') +
           '<button type="button" class="marker-popup-delete">Delete</button>' +
           '</div></div>';
 
@@ -4815,6 +4960,13 @@
         if (smoothBtn) {
           smoothBtn.addEventListener('click', () => {
             smoothTerritoryFeature(layerId, featureId, lngLat);
+          });
+        }
+
+        const kmzBtn = container.querySelector('.territory-popup-kmz');
+        if (kmzBtn) {
+          kmzBtn.addEventListener('click', () => {
+            downloadTerritoryKmz(layerId, featureId);
           });
         }
 
@@ -4870,9 +5022,13 @@
         }
 
         if (layerId === 'russian-advances') {
+          // Russian Control gains the ground; Ukrainian Control loses it.
           addTerritoryFeature('main', feature.geometry, { push: false });
+          subtractFromLayer('ukrainian-control', feature.geometry);
         } else if (layerId === 'ukrainian-advances') {
+          // Russian Control loses the ground; Ukrainian Control gains it.
           subtractFromMain(feature.geometry);
+          addTerritoryFeature('ukrainian-control', feature.geometry, { push: false });
         } else {
           closeTerritoryPopup();
           return;
@@ -4881,7 +5037,7 @@
         removeTerritoryFeature(layerId, featureId, { push: false });
         pushTerritoriesToFirestore();
         closeTerritoryPopup();
-        drawHint.textContent = 'Advance applied to the main layer.';
+        drawHint.textContent = layerId === 'russian-advances' ? 'Advance applied to Russian Control.' : 'Advance applied to Ukrainian Control.';
       }
 
       // ---- Territory polygon vertex editing ----
