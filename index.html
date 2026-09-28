@@ -3942,9 +3942,13 @@
 
         viewerPresenceUnsubscribe = presenceRootRef.on('value', (snapshot) => {
           if (currentRole() !== 'admin') return;
+          // Count unique Firebase users, not individual browser-tab connections.
+          // A single user can have several tabs open, each with its own
+          // connection node under presence/{uid}; those tabs still count as
+          // one viewer.
           let count = 0;
           snapshot.forEach((userSnapshot) => {
-            if (userSnapshot.hasChildren()) count += userSnapshot.numChildren();
+            if (userSnapshot.hasChildren()) count += 1;
           });
           adminViewerCountText.textContent = formatViewerCount(count);
         }, (error) => {
