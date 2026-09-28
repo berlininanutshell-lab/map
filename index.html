@@ -1478,6 +1478,69 @@
         color: #ff9400;
       }
 
+      /* ---- Author credit + social links ---- */
+      .author-credit {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 12px;
+        color: #98a9b9;
+      }
+
+      .author-credit strong {
+        color: #edf5ff;
+        font-weight: 600;
+      }
+
+      .author-credit > span:first-child {
+        min-width: 0;
+        line-height: 1.35;
+      }
+
+      .author-alt {
+        display: block;
+        font-size: 11px;
+        opacity: 0.75;
+      }
+
+      .author-links {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .author-links a {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #f5f8ff;
+        font-size: 12px;
+        text-decoration: none;
+        transition: background 0.15s ease;
+      }
+
+      .author-links a:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .author-links svg {
+        width: 13px;
+        height: 13px;
+        fill: currentColor;
+      }
+
+      #welcomeCard .author-credit {
+        margin-top: 14px;
+        padding: 12px 0 0;
+      }
+
       #sidebarViews {
         position: relative;
         flex: 1;
@@ -2206,6 +2269,13 @@
           </div>
         </div>
       </div>
+      <div class="author-credit">
+      <span>Map by <strong>Что по фронту?</strong> <span class="author-alt">What's Up on the Front</span></span>
+      <span class="author-links">
+        <a href="https://t.me/whatsuponthefront" target="_blank" rel="noopener noreferrer" aria-label="Telegram channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 15.17l-.4 5.6c.57 0 .82-.25 1.12-.54l2.69-2.57 5.57 4.08c1.02.57 1.75.27 2.03-.94l3.67-17.2c.33-1.5-.54-2.09-1.54-1.72L1.35 9.6c-1.47.57-1.45 1.4-.25 1.77l5.5 1.72L19.4 5.1c.6-.4 1.15-.18.7.22z"/></svg>Telegram</a>
+        <a href="https://x.com/whatsuponfront" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter) profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</a>
+      </span>
+    </div>
     </aside>
     <div id="coordinatePopup" role="status" aria-live="polite">
       <div id="coordinateHeader">
@@ -2284,6 +2354,13 @@
         <h2>Russo-Ukrainian War Map</h2>
         <p>This map tracks the front line, territorial control, and reported casualties of the war. Browse freely as a guest, or log in to draw on the map and place markers.</p>
         <p>Casualty figures are claims reported by each side about its opponent, not confirmed numbers — see the Casualties tab for details.</p>
+        <div class="author-credit">
+      <span>Map by <strong>Что по фронту?</strong> <span class="author-alt">What's Up on the Front</span></span>
+      <span class="author-links">
+        <a href="https://t.me/whatsuponthefront" target="_blank" rel="noopener noreferrer" aria-label="Telegram channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 15.17l-.4 5.6c.57 0 .82-.25 1.12-.54l2.69-2.57 5.57 4.08c1.02.57 1.75.27 2.03-.94l3.67-17.2c.33-1.5-.54-2.09-1.54-1.72L1.35 9.6c-1.47.57-1.45 1.4-.25 1.77l5.5 1.72L19.4 5.1c.6-.4 1.15-.18.7.22z"/></svg>Telegram</a>
+        <a href="https://x.com/whatsuponfront" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter) profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</a>
+      </span>
+    </div>
         <button type="button" id="welcomeDismissBtn">Got it</button>
       </div>
     </div>
