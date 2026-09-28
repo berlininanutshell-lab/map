@@ -4601,7 +4601,8 @@
           !toolMenu.contains(event.target) &&
           !lineVariantMenu.contains(event.target) &&
           !drawToolsBtn.contains(event.target) &&
-          !mapContainer.contains(event.target)
+          !mapContainer.contains(event.target) &&
+          !(territorySmoothingControlsEl && territorySmoothingControlsEl.contains(event.target))
         ) {
           closeToolMenu();
         }
@@ -4613,6 +4614,14 @@
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !lineVariantMenu.hidden) {
           closeLineVariantMenu();
+        }
+        // While smoothing a just-finished advance, Escape belongs to the
+        // smoothing workflow rather than the Draw menu. This prevents the
+        // menu's normal deactivation path from deleting the in-progress
+        // advance preview.
+        if (event.key === 'Escape' && state.territorySmoothing) {
+          cancelTerritorySmoothing();
+          return;
         }
         if (event.key === 'Escape' && !toolMenu.hidden) {
           closeToolMenu();
