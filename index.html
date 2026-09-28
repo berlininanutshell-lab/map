@@ -267,12 +267,26 @@
         box-shadow: 0 0 0 3px rgba(57,211,83,.10);
       }
 
+      .viewer-list-info {
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+
       .viewer-list-name {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         font-size: 12px;
+      }
+
+      .viewer-list-duration {
+        color: #7f8d9a;
+        font-size: 10px;
+        white-space: nowrap;
       }
 
       .admin-viewer-dot {
@@ -4168,10 +4182,33 @@
         return `${count} ${count === 1 ? 'viewer' : 'viewers'}`;
       }
 
-      function getPresenceDisplayName(user) {
-        if (!user) return 'Guest';
-        if (user.isAnonymous) return 'Guest';
-        return state.nickname || user.email || 'Signed-in user';
+      function formatViewerId(viewerKey) {
+        // Keep the full stable browser ID in Realtime Database, but show only
+        // a short readable identifier in the admin viewer list.
+        const raw = String(viewerKey || '').replace(/^viewer-/, '');
+        const shortId = raw.split('-')[0].slice(0, 8);
+        return shortId ? `ID: ${shortId}` : 'ID: unknown';
+      }
+
+      function formatOnlineDuration(connectedAt) {
+        const elapsedMs = Math.max(0, Date.now() - Number(connectedAt || 0));
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+        if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+        return `${minutes}m ${seconds}s`;
+      }
+
+      function updateViewerOnlineDurations() {
+        if (!viewerList) return;
+        viewerList.querySelectorAll('[data-connected-at]').forEach((durationEl) => {
+          const connectedAt = Number(durationEl.dataset.connectedAt) || 0;
+          durationEl.textContent = `Online for ${formatOnlineDuration(connectedAt)}`;
+        });
       }
 
       function renderViewerList(snapshot) {
@@ -4182,14 +4219,17 @@
           let newest = null;
           viewerSnapshot.forEach((connectionSnapshot) => {
             const data = connectionSnapshot.val() || {};
-            newest = {
-              name: data.displayName || 'Guest',
-              connectedAt: Number(data.connectedAt) || 0
-            };
+            const connectedAt = Number(data.connectedAt) || 0;
+            if (!newest || connectedAt > newest.connectedAt) {
+              newest = {
+                id: formatViewerId(viewerSnapshot.key),
+                connectedAt
+              };
+            }
           });
           if (newest) viewers.push(newest);
         });
-        viewers.sort((a, b) => a.name.localeCompare(b.name));
+        viewers.sort((a, b) => a.id.localeCompare(b.id));
         viewerListTitle.textContent = formatViewerCount(viewers.length);
         if (!viewers.length) {
           const empty = document.createElement('div');
@@ -4204,13 +4244,26 @@
           const dot = document.createElement('span');
           dot.className = 'viewer-list-dot';
           dot.setAttribute('aria-hidden', 'true');
+
+          const info = document.createElement('div');
+          info.className = 'viewer-list-info';
+
           const name = document.createElement('span');
           name.className = 'viewer-list-name';
-          name.textContent = viewer.name;
-          row.append(dot, name);
+          name.textContent = viewer.id;
+
+          const duration = document.createElement('span');
+          duration.className = 'viewer-list-duration';
+          duration.dataset.connectedAt = String(viewer.connectedAt);
+          duration.textContent = `Online for ${formatOnlineDuration(viewer.connectedAt)}`;
+
+          info.append(name, duration);
+          row.append(dot, info);
           viewerList.appendChild(row);
         });
       }
+
+      const viewerDurationTimer = setInterval(updateViewerOnlineDurations, 1000);
 
       function openViewerList() {
         if (currentRole() !== 'admin') return;
@@ -4252,7 +4305,6 @@
 
         connectionRef.set({
           state: 'online',
-          displayName: getPresenceDisplayName(user),
           connectedAt: firebase.database.ServerValue.TIMESTAMP
         }).catch((error) => {
           console.warn('Could not register viewer presence:', error);
