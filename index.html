@@ -699,6 +699,49 @@
         background: rgba(255, 255, 255, 0.12);
       }
 
+      .territory-popup-source {
+        margin: 2px 0 10px;
+        padding: 8px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .territory-popup-source-label {
+        display: block;
+        font-size: 11px;
+        color: #98a9b9;
+        margin-bottom: 4px;
+      }
+
+      .territory-popup-source a {
+        color: #76b9ff;
+        font-size: 12px;
+        word-break: break-all;
+        text-decoration: none;
+      }
+
+      .territory-popup-source a:hover {
+        text-decoration: underline;
+      }
+
+      .territory-popup-source-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.2);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        outline: none;
+      }
+
+      .territory-popup-source-input:focus {
+        border-color: rgba(118, 185, 255, 0.65);
+      }
+
       .marker-popup-actions {
         display: flex;
         flex-direction: column;
@@ -5034,7 +5077,7 @@
         turf.flatten(geometry).features.forEach((part) => {
           data.features.push({
             type: 'Feature',
-            properties: { id: genId(), name: '', description: '' },
+            properties: { id: genId(), name: '', description: '', source: '' },
             geometry: part.geometry
           });
         });
@@ -5099,7 +5142,7 @@
           turf.flatten(diff).features.forEach((part) => {
             kept.push({
               type: 'Feature',
-              properties: { id: genId(), name: '', description: '' },
+              properties: { id: genId(), name: '', description: '', source: '' },
               geometry: part.geometry
             });
           });
@@ -5393,7 +5436,8 @@
               properties: {
                 id: genId(),
                 name: (polygon.properties && polygon.properties.name) || '',
-                description: (polygon.properties && polygon.properties.description) || ''
+                description: (polygon.properties && polygon.properties.description) || '',
+                source: (polygon.properties && (polygon.properties.source || polygon.properties.url || polygon.properties.link)) || ''
               },
               geometry: polygon.geometry
             });
@@ -5438,6 +5482,39 @@
         return km2.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: 0 }) + ' km²';
       }
 
+      function normalizeTerritorySource(value) {
+        const raw = String(value || '').trim();
+        if (!raw) {
+          return '';
+        }
+        try {
+          const url = new URL(raw);
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return null;
+          }
+          return url.href;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function saveTerritorySource(layerId, featureId, source, lngLat) {
+        const feature = findTerritoryFeature(layerId, featureId);
+        if (!feature) {
+          return;
+        }
+        const normalized = normalizeTerritorySource(source);
+        if (normalized === null) {
+          adminNotice('Source must be a valid http:// or https:// URL.');
+          return;
+        }
+        feature.properties = feature.properties || {};
+        feature.properties.source = normalized;
+        ensureKmlLayersForLayer(layerId);
+        pushTerritoriesToFirestore();
+        openTerritoryFeaturePopup(layerId, featureId, lngLat);
+      }
+
       function openTerritoryFeaturePopup(layerId, featureId, lngLat) {
         const feature = findTerritoryFeature(layerId, featureId);
         if (!feature) {
@@ -5448,13 +5525,28 @@
         const layer = getLayerById(layerId);
         const isAdvance = layerId === 'russian-advances' || layerId === 'ukrainian-advances';
         const areaText = isAdvance ? formatAreaKm2(feature) : null;
+        const source = normalizeTerritorySource(feature.properties && feature.properties.source);
+        const sourceBlock = isAdvance ? (
+          '<div class="territory-popup-source">' +
+          '<span class="territory-popup-source-label">Source</span>' +
+          (source
+            ? '<a href="' + escapeHtml(source) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(source) + '</a>'
+            : '<span class="marker-popup-subtitle">No source added.</span>') +
+          (isAdmin()
+            ? '<input class="territory-popup-source-input" type="url" placeholder="https://example.com/source" value="' + escapeHtml(source || '') + '" />' +
+              '<button type="button" class="marker-popup-copy territory-popup-source-save">Save source</button>'
+            : '') +
+          '</div>'
+        ) : '';
 
         const html =
           '<div class="marker-popup">' +
           '<div class="marker-popup-title">' + escapeHtml(layer ? layer.name : 'Shape') + '</div>' +
           (areaText ? '<div class="marker-popup-coords">' + escapeHtml(areaText) + '</div>' : '') +
+          sourceBlock +
           '<div class="marker-popup-actions">' +
           (isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
+          (isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
           '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-kmz">Download KMZ</button>' : '') +
           '<button type="button" class="marker-popup-delete">Delete</button>' +
@@ -5474,10 +5566,25 @@
           return;
         }
 
+        const sourceSaveBtn = container.querySelector('.territory-popup-source-save');
+        if (sourceSaveBtn) {
+          sourceSaveBtn.addEventListener('click', () => {
+            const input = container.querySelector('.territory-popup-source-input');
+            saveTerritorySource(layerId, featureId, input ? input.value : '', lngLat);
+          });
+        }
+
         const applyBtn = container.querySelector('.marker-popup-apply');
         if (applyBtn) {
           applyBtn.addEventListener('click', () => {
             applyAdvanceFeature(layerId, featureId);
+          });
+        }
+
+        const smoothBtn = container.querySelector('.territory-popup-smooth');
+        if (smoothBtn) {
+          smoothBtn.addEventListener('click', () => {
+            smoothTerritoryFeature(layerId, featureId, lngLat);
           });
         }
 
@@ -5675,7 +5782,7 @@
         );
         const mergedFeatures = turf.flatten(merged).features.map((part) => ({
           type: 'Feature',
-          properties: { id: genId(), name: '', description: '' },
+          properties: { id: genId(), name: '', description: '', source: '' },
           geometry: part.geometry
         }));
 
