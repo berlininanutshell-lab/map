@@ -805,6 +805,64 @@
         filter: brightness(1.15);
       }
 
+      /* Smoothing controls shown after RMB finishes a new territory polygon. */
+      .territory-smoothing-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        z-index: 1100;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #161b22;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        color: #cdd9e5;
+        font-size: 12.5px;
+        max-width: 92vw;
+      }
+
+      .territory-smoothing-controls .territory-smoothing-title {
+        color: #edf5ff;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .territory-smoothing-controls input[type="range"] {
+        width: 120px;
+      }
+
+      .territory-smoothing-controls .territory-smoothing-value {
+        min-width: 48px;
+        color: #94a5b4;
+        white-space: nowrap;
+      }
+
+      .territory-smoothing-controls button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .territory-smoothing-controls .territory-smoothing-done {
+        border-color: rgba(96, 210, 138, 0.4);
+        background: rgba(96, 210, 138, 0.14);
+        color: #8be8ac;
+      }
+
+      .territory-smoothing-controls button:hover {
+        filter: brightness(1.15);
+      }
+
       #layersList {
         flex: 1;
         overflow-y: auto;
@@ -2163,7 +2221,7 @@
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
           <button class="tool-option admin-only" type="button" data-tool="polygon" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⬠</span>Territory polygon</button>
           <div id="territoryLayerPicker" class="territory-layer-picker admin-only" hidden>
-            <div class="territory-layer-picker-title">Apply to layer</div>
+            <div class="territory-layer-picker-title">Advance type</div>
           </div>
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="ukraine" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ua.png" alt="" /></span>Flag: Ukraine</button>
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ru.png" alt="" /></span>Flag: Russia</button>
@@ -3718,6 +3776,9 @@
         // dragged/added/removed via "Edit shape" — see
         // enterVertexEditMode / finishVertexEditMode below.
         territoryEdit: null,
+        // Non-null while a newly drawn territory polygon is waiting for
+        // the smoothing amount to be chosen before it becomes an advance.
+        territorySmoothing: null,
         frontlineHistoryMode: false,
         frontlineHistoryDate: null,
         frontlineLiveBackup: null
@@ -3744,11 +3805,11 @@
       const polygonToolBtn = document.querySelector('.tool-option[data-tool="polygon"]');
       const territoryLayerPicker = document.getElementById('territoryLayerPicker');
 
-      // The three layer ids the Territory polygon tool knows how to
-      // target. Built here (rather than from state.layers directly) so
-      // the picker only ever offers layers the boolean-op logic below
-      // actually supports.
+      // All four territory layers are persisted/synced. The polygon picker
+      // itself is intentionally restricted to the two pending advance
+      // layers; the control layers are modified only when an advance is applied.
       const territoryLayerIds = ['main', 'ukrainian-control', 'russian-advances', 'ukrainian-advances'];
+      const territoryAdvanceLayerIds = ['russian-advances', 'ukrainian-advances'];
 
       // Set of territory layer ids for which we've already received an
       // authoritative update from Firestore (territoriesDocRef) at
@@ -3864,14 +3925,14 @@
         return result;
       }
 
-      // Rebuilds the "Apply to layer" buttons from the current layer
+      // Rebuilds the "Advance type" buttons from the current layer
       // names/colors. Called once at startup and again every time
       // renderLayers() runs, so a color change (admin recolor, or the
       // shared-color Firestore sync) is reflected here too.
       function renderTerritoryLayerPicker() {
         territoryLayerPicker.querySelectorAll('.territory-layer-option').forEach((btn) => btn.remove());
 
-        territoryLayerIds.forEach((layerId) => {
+        territoryAdvanceLayerIds.forEach((layerId) => {
           const layer = getLayerById(layerId);
           if (!layer) {
             return;
@@ -3911,7 +3972,7 @@
         lineDashed: 'Left-click to add points, right-click to finish the dashed line.',
         arrow: 'Left-click to add points, right-click to finish the arrow.',
         pinpoint: 'Click the map to place a pinpoint.',
-        polygon: 'Left-click to add points, right-click to finish the shape.'
+        polygon: 'Left-click to add points, right-click to finish and smooth the advance.'
       };
 
       // ---- Collapse sidebar (hides the Legend/Casualties panel) ----
@@ -4151,6 +4212,7 @@
         // half-drawn once the tool is disarmed.
         state.isBrushing = false;
         state.draft = null;
+        cancelTerritorySmoothing();
         map.dragPan.enable();
         updateDrawings();
       }
@@ -5384,7 +5446,6 @@
           (areaText ? '<div class="marker-popup-coords">' + escapeHtml(areaText) + '</div>' : '') +
           '<div class="marker-popup-actions">' +
           (isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
-          (isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
           '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-kmz">Download KMZ</button>' : '') +
           '<button type="button" class="marker-popup-delete">Delete</button>' +
@@ -5411,13 +5472,6 @@
           });
         }
 
-        const smoothBtn = container.querySelector('.territory-popup-smooth');
-        if (smoothBtn) {
-          smoothBtn.addEventListener('click', () => {
-            smoothTerritoryFeature(layerId, featureId, lngLat);
-          });
-        }
-
         const kmzBtn = container.querySelector('.territory-popup-kmz');
         if (kmzBtn) {
           kmzBtn.addEventListener('click', () => {
@@ -5436,35 +5490,143 @@
         });
       }
 
-      // Rounds off a shape's corners the way QGIS's own "Smooth"
-      // geometry tool does: Chaikin's corner-cutting algorithm, which
-      // replaces every edge with two new points closer to its
-      // endpoints, run for one pass per click. Click it again (the
-      // popup stays open and refreshes) for a progressively smoother
-      // — and progressively higher-vertex-count — result, same as
-      // re-running the QGIS tool.
-      function smoothTerritoryFeature(layerId, featureId, lngLat) {
-        const feature = findTerritoryFeature(layerId, featureId);
-        if (!feature) {
-          return;
+      // ---- New territory polygon smoothing workflow ----
+      // A newly drawn polygon is not committed immediately. RMB finishes
+      // the raw shape, then this small control lets the admin choose how
+      // many smoothing passes to apply. The preview updates live; Done
+      // finally creates the selected Russian or Ukrainian pending advance.
+      let territorySmoothingControlsEl = null;
+
+      function clearTerritorySmoothingPreview() {
+        const source = map.getSource('territory-smoothing-preview');
+        if (source) {
+          source.setData({ type: 'FeatureCollection', features: [] });
         }
-        let smoothed;
-        try {
-          smoothed = turf.polygonSmooth(feature, { iterations: 1 });
-        } catch (error) {
-          console.error('Failed to smooth shape', error);
-          drawHint.textContent = 'Could not smooth that shape.';
-          return;
-        }
-        const smoothedFeature = smoothed && smoothed.features && smoothed.features[0];
-        if (!smoothedFeature || !smoothedFeature.geometry) {
-          return;
-        }
-        feature.geometry = smoothedFeature.geometry;
-        ensureKmlLayersForLayer(layerId);
-        pushTerritoriesToFirestore();
-        openTerritoryFeaturePopup(layerId, featureId, lngLat);
       }
+
+      function destroyTerritorySmoothingControls() {
+        if (territorySmoothingControlsEl) {
+          territorySmoothingControlsEl.remove();
+          territorySmoothingControlsEl = null;
+        }
+      }
+
+      function cancelTerritorySmoothing() {
+        state.territorySmoothing = null;
+        clearTerritorySmoothingPreview();
+        destroyTerritorySmoothingControls();
+        if (state.drawingTool === 'polygon') {
+          map.dragPan.enable();
+        }
+      }
+
+      function smoothTerritoryRing(ring, iterations) {
+        const passes = Math.max(0, Math.min(6, Number(iterations) || 0));
+        if (passes === 0) {
+          return ring.map((coord) => [coord[0], coord[1]]);
+        }
+
+        let feature = turf.polygon([ring]);
+        for (let i = 0; i < passes; i++) {
+          const result = turf.polygonSmooth(feature, { iterations: 1 });
+          const next = result && result.features && result.features[0];
+          if (!next || !next.geometry || next.geometry.type !== 'Polygon') {
+            throw new Error('Smoothing did not return a polygon');
+          }
+          feature = next;
+        }
+        return feature.geometry.coordinates[0];
+      }
+
+      function updateTerritorySmoothingPreview() {
+        const smoothing = state.territorySmoothing;
+        if (!smoothing) {
+          clearTerritorySmoothingPreview();
+          return null;
+        }
+
+        let ring;
+        try {
+          ring = smoothTerritoryRing(smoothing.rawRing, smoothing.iterations);
+        } catch (error) {
+          console.error('Failed to preview smoothed polygon', error);
+          drawHint.textContent = 'Could not smooth that polygon. Try fewer iterations.';
+          return null;
+        }
+
+        smoothing.previewRing = ring;
+        const source = map.getSource('territory-smoothing-preview');
+        if (source) {
+          source.setData({
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              properties: { color: state.drawingColor },
+              geometry: { type: 'Polygon', coordinates: [ring] }
+            }]
+          });
+        }
+        return ring;
+      }
+
+      function finishTerritorySmoothing() {
+        const smoothing = state.territorySmoothing;
+        if (!smoothing) {
+          return;
+        }
+        const ring = updateTerritorySmoothingPreview() || smoothing.previewRing || smoothing.rawRing;
+        if (!ring || ring.length < 4) {
+          drawHint.textContent = 'That polygon could not be completed.';
+          return;
+        }
+
+        const layerId = smoothing.layerId;
+        cancelTerritorySmoothing();
+        applyTerritoryPolygon(ring, layerId);
+      }
+
+      function beginTerritorySmoothing(ring, layerId) {
+        state.territorySmoothing = {
+          rawRing: ring.map((coord) => [coord[0], coord[1]]),
+          previewRing: ring.map((coord) => [coord[0], coord[1]]),
+          iterations: 1,
+          layerId
+        };
+
+        state.draft = null;
+        map.dragPan.disable();
+        clearTerritorySmoothingPreview();
+
+        territorySmoothingControlsEl = document.createElement('div');
+        territorySmoothingControlsEl.className = 'territory-smoothing-controls';
+        territorySmoothingControlsEl.innerHTML =
+          '<span class="territory-smoothing-title">Smooth advance</span>' +
+          '<label>Iterations <input class="territory-smoothing-range" type="range" min="0" max="6" step="1" value="1" /></label>' +
+          '<span class="territory-smoothing-value">1×</span>' +
+          '<button type="button" class="territory-smoothing-done">Done</button>' +
+          '<button type="button" class="territory-smoothing-cancel">Cancel</button>';
+        document.body.appendChild(territorySmoothingControlsEl);
+
+        const range = territorySmoothingControlsEl.querySelector('.territory-smoothing-range');
+        const value = territorySmoothingControlsEl.querySelector('.territory-smoothing-value');
+
+        range.addEventListener('input', () => {
+          state.territorySmoothing.iterations = Number(range.value) || 0;
+          value.textContent = state.territorySmoothing.iterations + '×';
+          updateTerritorySmoothingPreview();
+        });
+
+        territorySmoothingControlsEl.querySelector('.territory-smoothing-done').addEventListener('click', finishTerritorySmoothing);
+        territorySmoothingControlsEl.querySelector('.territory-smoothing-cancel').addEventListener('click', () => {
+          cancelTerritorySmoothing();
+          drawHint.textContent = 'Polygon cancelled. Draw another advance.';
+        });
+
+        updateTerritorySmoothingPreview();
+        drawHint.textContent = 'Choose the smoothing amount, then click Done to create the ' +
+          (layerId === 'russian-advances' ? 'Russian' : 'Ukrainian') + ' advance.';
+      }
+
       // Dissolves all polygon features in a territory layer into the
       // smallest possible set of geometry pieces. If neighbouring
       // polygons touch/overlap, Turf unions them into one continuous
@@ -6345,6 +6507,10 @@
           event.originalEvent.preventDefault();
         }
 
+        if (state.territorySmoothing) {
+          return;
+        }
+
         if (state.drawingTool === 'polygon' && state.draft) {
           finishPolygonDraft();
           return;
@@ -6405,7 +6571,7 @@
         }
 
         const ring = coords.concat([coords[0]]);
-        applyTerritoryPolygon(ring, state.territoryLayerId);
+        beginTerritorySmoothing(ring, state.territoryLayerId);
       }
 
       copyCoordinatesBtn.addEventListener('click', async () => {
@@ -6523,6 +6689,9 @@
       });
 
       map.on('click', (event) => {
+        if (state.territorySmoothing) {
+          return;
+        }
         if (!state.drawingTool || state.drawingTool === 'brush' || state.isBrushing) {
           return;
         }
@@ -6605,6 +6774,33 @@
         map.addSource('user-drawings', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
+        });
+        map.addSource('territory-smoothing-preview', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        map.addLayer({
+          id: 'territory-smoothing-preview-fill',
+          type: 'fill',
+          source: 'territory-smoothing-preview',
+          paint: {
+            'fill-color': ['coalesce', ['get', 'color'], '#FF9400'],
+            'fill-opacity': 0.18
+          }
+        });
+        map.addLayer({
+          id: 'territory-smoothing-preview-outline',
+          type: 'line',
+          source: 'territory-smoothing-preview',
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': ['coalesce', ['get', 'color'], '#FF9400'],
+            'line-width': 2.5,
+            'line-opacity': 0.9
+          }
         });
         map.addLayer({
           id: 'user-drawing-lines',
