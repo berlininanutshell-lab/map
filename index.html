@@ -3017,16 +3017,17 @@
           }
 
           const snapshot = cloneTerritoryData();
+          const packedSnapshot = await packLayers(snapshot);
           const russian = sumLayerAreaKm2('russian-advances');
           const ukrainian = sumLayerAreaKm2('ukrainian-advances');
           const user = auth && auth.currentUser;
 
           await docRef.set({
             date,
-            main: JSON.stringify(snapshot.main),
-            ukrainianControl: JSON.stringify(snapshot['ukrainian-control']),
-            russianAdvances: JSON.stringify(snapshot['russian-advances']),
-            ukrainianAdvances: JSON.stringify(snapshot['ukrainian-advances']),
+            main: packedSnapshot.packed.main,
+            ukrainianControl: packedSnapshot.packed['ukrainian-control'],
+            russianAdvances: packedSnapshot.packed['russian-advances'],
+            ukrainianAdvances: packedSnapshot.packed['ukrainian-advances'],
             russianAdvanceKm2: russian.km2,
             ukrainianAdvanceKm2: ukrainian.km2,
             russianAdvanceShapeCount: russian.count,
@@ -3044,12 +3045,12 @@
         }
       }
 
-      function readSnapshotFeatureCollection(raw) {
+      async function readSnapshotFeatureCollection(raw) {
         if (typeof raw !== 'string') {
           return { type: 'FeatureCollection', features: [] };
         }
         try {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(await unpackLayerString(raw));
           return parsed && Array.isArray(parsed.features)
             ? parsed
             : { type: 'FeatureCollection', features: [] };
@@ -3058,11 +3059,17 @@
         }
       }
 
-      function showFrontlineHistory(date) {
+      async function showFrontlineHistory(date) {
         const entry = frontlineHistoryEntries.get(date);
         if (!entry) {
           return;
         }
+        const loaded = {
+          main: await readSnapshotFeatureCollection(entry.main),
+          'ukrainian-control': await readSnapshotFeatureCollection(entry.ukrainianControl),
+          'russian-advances': await readSnapshotFeatureCollection(entry.russianAdvances),
+          'ukrainian-advances': await readSnapshotFeatureCollection(entry.ukrainianAdvances)
+        };
 
         if (!state.frontlineHistoryMode) {
           state.frontlineLiveBackup = cloneTerritoryData();
@@ -3073,10 +3080,10 @@
         state.frontlineHistoryDate = date;
         setFlagInteractivity(false);
 
-        layerKmlData.main = readSnapshotFeatureCollection(entry.main);
-        layerKmlData['ukrainian-control'] = readSnapshotFeatureCollection(entry.ukrainianControl);
-        layerKmlData['russian-advances'] = readSnapshotFeatureCollection(entry.russianAdvances);
-        layerKmlData['ukrainian-advances'] = readSnapshotFeatureCollection(entry.ukrainianAdvances);
+        layerKmlData.main = loaded.main;
+        layerKmlData['ukrainian-control'] = loaded['ukrainian-control'];
+        layerKmlData['russian-advances'] = loaded['russian-advances'];
+        layerKmlData['ukrainian-advances'] = loaded['ukrainian-advances'];
         territoryLayerIds.forEach((layerId) => ensureKmlLayersForLayer(layerId));
 
         renderFrontlineView();
@@ -3096,13 +3103,13 @@
             const doc = await territoriesDocRef.get();
             if (doc.exists) {
               const remote = doc.data() || {};
-              territoryLayerIds.forEach((layerId) => {
+              for (const layerId of territoryLayerIds) {
                 const raw = remote[layerId];
                 if (typeof raw === 'string') {
-                  layerKmlData[layerId] = JSON.parse(raw);
+                  layerKmlData[layerId] = JSON.parse(await unpackLayerString(raw));
                   territoryLoadedFromFirestore.add(layerId);
                 }
-              });
+              }
               restored = true;
             }
           } catch (error) {
@@ -3642,6 +3649,112 @@
       // static KML baseline — see the comment there for why this
       // exists.
       const territoryLoadedFromFirestore = new Set();
+      // True after a save of the shared territories failed (permissions,
+      // document too large, offline...). While set, incoming server data
+      // is not allowed to wipe the shapes the admin just drew locally.
+      let territorySyncBlocked = false;
+      let territoryPushesInFlight = 0;
+      let territoryPushChain = Promise.resolve();
+      let territorySnapshotSeq = 0;
+
+      // ---- Compact storage for territory layers ----
+      // Firestore rejects any single field over ~1 MiB and any document over
+      // 1 MiB. Layers are therefore rounded (to ~1 m at 5 decimals, or ~10 cm
+      // at 6) and gzip+base64 packed ('gz1:' prefix) before saving. Older
+      // uncompressed JSON strings are still read as before.
+      function roundTerritoryData(data, decimals) {
+        const f = Math.pow(10, decimals);
+        const rc = (c) => [Math.round(c[0] * f) / f, Math.round(c[1] * f) / f];
+        const ringOf = (ring, min) => {
+          const out = [];
+          ring.forEach((c) => {
+            const r = rc(c);
+            const last = out[out.length - 1];
+            if (!last || last[0] !== r[0] || last[1] !== r[1]) {
+              out.push(r);
+            }
+          });
+          return out.length >= min ? out : null;
+        };
+        const polyOf = (rings) => {
+          const outer = ringOf(rings[0], 4);
+          if (!outer) {
+            return null;
+          }
+          const holes = rings.slice(1).map((ring) => ringOf(ring, 4)).filter(Boolean);
+          return [outer].concat(holes);
+        };
+        const features = [];
+        ((data && data.features) || []).forEach((feature) => {
+          const g = feature && feature.geometry;
+          if (!g) {
+            features.push(feature);
+            return;
+          }
+          let geometry = g;
+          if (g.type === 'Polygon') {
+            const c = polyOf(g.coordinates);
+            geometry = c ? { type: 'Polygon', coordinates: c } : null;
+          } else if (g.type === 'MultiPolygon') {
+            const c = g.coordinates.map(polyOf).filter(Boolean);
+            geometry = c.length ? { type: 'MultiPolygon', coordinates: c } : null;
+          } else if (g.type === 'LineString') {
+            const c = ringOf(g.coordinates, 2);
+            geometry = c ? { type: 'LineString', coordinates: c } : null;
+          } else if (g.type === 'Point') {
+            geometry = { type: 'Point', coordinates: rc(g.coordinates) };
+          }
+          if (geometry) {
+            features.push({ type: 'Feature', properties: feature.properties || {}, geometry });
+          }
+        });
+        return { type: 'FeatureCollection', features };
+      }
+
+      async function packLayerString(json) {
+        if (typeof CompressionStream === 'undefined') {
+          return json;
+        }
+        const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+        const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        }
+        return 'gz1:' + btoa(binary);
+      }
+
+      async function unpackLayerString(raw) {
+        if (typeof raw !== 'string' || raw.indexOf('gz1:') !== 0) {
+          return raw;
+        }
+        const binary = atob(raw.slice(4));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).text();
+      }
+
+      // Packs several layers so that their combined size stays safely under
+      // the 1 MiB document limit, lowering precision only if needed.
+      async function packLayers(layerMap) {
+        let result = null;
+        for (const decimals of [6, 5, 4]) {
+          const packed = {};
+          let total = 0;
+          for (const [layerId, data] of Object.entries(layerMap)) {
+            packed[layerId] = await packLayerString(JSON.stringify(roundTerritoryData(data, decimals)));
+            total += packed[layerId].length;
+          }
+          result = { packed, total, decimals };
+          if (total <= 900000) {
+            break;
+          }
+        }
+        return result;
+      }
 
       // Rebuilds the "Apply to layer" buttons from the current layer
       // names/colors. Called once at startup and again every time
@@ -4098,38 +4211,59 @@
       // updates to that specific layer are skipped so the in-progress
       // drag isn't yanked out from under the admin doing it.
       if (territoriesDocRef) {
-        territoriesDocRef.onSnapshot((doc) => {
+        territoriesDocRef.onSnapshot(async (doc) => {
           if (state.frontlineHistoryMode) {
             return;
           }
           if (!doc.exists) {
             return;
           }
+          // A failed save makes Firestore roll back to the last server
+          // copy, which would silently erase the just-drawn shapes.
+          // Keep the local shapes until a save succeeds again.
+          if (territorySyncBlocked && !doc.metadata.hasPendingWrites) {
+            return;
+          }
+          // A save is still being packed: a server copy arriving now is
+          // stale and would overwrite the shape that was just drawn.
+          if (territoryPushesInFlight > 0 && !doc.metadata.hasPendingWrites) {
+            return;
+          }
+          const seq = ++territorySnapshotSeq;
           const remote = doc.data() || {};
+          const decoded = {};
+          for (const layerId of territoryLayerIds) {
+            const raw = remote[layerId];
+            if (typeof raw !== 'string') {
+              continue;
+            }
+            try {
+              const parsed = JSON.parse(await unpackLayerString(raw));
+              if (parsed && Array.isArray(parsed.features)) {
+                decoded[layerId] = parsed;
+              }
+            } catch (error) {
+              console.error('Could not read stored layer', layerId, error);
+            }
+          }
+          if (seq !== territorySnapshotSeq || state.frontlineHistoryMode) {
+            return;
+          }
           let changed = false;
 
           territoryLayerIds.forEach((layerId) => {
             if (state.territoryEdit && state.territoryEdit.layerId === layerId) {
               return;
             }
-            const raw = remote[layerId];
-            if (typeof raw !== 'string') {
-              return;
-            }
-            let parsed;
-            try {
-              parsed = JSON.parse(raw);
-            } catch (error) {
-              return;
-            }
-            if (!parsed || !Array.isArray(parsed.features)) {
+            const parsed = decoded[layerId];
+            if (!parsed) {
               return;
             }
             layerKmlData[layerId] = parsed;
-            
+
             territoryLoadedFromFirestore.add(layerId);
             changed = true;
-            
+
             ensureKmlLayersForLayer(layerId);
           });
 
@@ -4625,12 +4759,45 @@
         if (!territoriesDocRef) {
           return;
         }
-        const payload = {};
+        // Safety: a historical snapshot must never be written over the
+        // live territories.
+        if (state.frontlineHistoryMode) {
+          return;
+        }
+        // Copy the current state right now; packing happens asynchronously
+        // and pushes are queued so an older save can never land after a
+        // newer one.
+        const layerMap = {};
         territoryLayerIds.forEach((layerId) => {
-          payload[layerId] = JSON.stringify(layerKmlData[layerId] || { type: 'FeatureCollection', features: [] });
+          layerMap[layerId] = JSON.parse(JSON.stringify(layerKmlData[layerId] || { type: 'FeatureCollection', features: [] }));
         });
-        territoriesDocRef.set(payload).catch((error) => {
-          console.error('Failed to save shared territories', error);
+        territoryPushesInFlight++;
+        territoryPushChain = territoryPushChain.then(async () => {
+          let total = 0;
+          try {
+            const result = await packLayers(layerMap);
+            total = result.total;
+            if (total > 1000000) {
+              const err = new Error('Territories are too large to store (' + total + ' bytes packed).');
+              err.code = 'too-large';
+              throw err;
+            }
+            await territoriesDocRef.set(result.packed);
+            territorySyncBlocked = false;
+          } catch (error) {
+            console.error('Failed to save shared territories', error);
+            territorySyncBlocked = true;
+            const code = (error && error.code) || 'unknown-error';
+            let hint = '';
+            if (code === 'permission-denied') {
+              hint = ' Check the Firestore rules for mapState/territories.';
+            } else if (code === 'too-large' || code === 'invalid-argument') {
+              hint = ' The map data is too large even after compression.';
+            }
+            adminNotice('Could not save to the shared map (' + code + '). Your drawing is only kept on this screen.' + hint);
+          } finally {
+            territoryPushesInFlight--;
+          }
         });
       }
 
