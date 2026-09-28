@@ -496,6 +496,22 @@
         cursor: default;
       }
 
+
+      .draw-thickness-option {
+        gap: 8px;
+      }
+
+      .draw-thickness-option > span {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.75;
+      }
+
+      .draw-thickness-option input[type="range"] {
+        width: 100%;
+        accent-color: #ff9400;
+      }
+
       .color-option {
         display: flex;
         align-items: center;
@@ -2153,6 +2169,7 @@
           <button class="tool-option admin-only" type="button" data-tool="flag" data-flag-nation="russia" aria-pressed="false"><span class="tool-symbol" aria-hidden="true"><img src="https://flagcdn.com/w20/ru.png" alt="" /></span>Flag: Russia</button>
           <div class="tool-divider"></div>
           <label class="color-option" for="drawColor">Drawing color<input id="drawColor" type="color" value="#FF9400" /></label>
+          <label class="color-option draw-thickness-option" for="drawThickness">Thickness <span id="drawThicknessValue">3 px</span><input id="drawThickness" type="range" min="1" max="12" step="1" value="3" /></label>
           <div id="colorSwatches" role="group" aria-label="Standard drawing colors">
             <button class="color-swatch" type="button" data-color="#FF9400" style="background:#FF9400" aria-pressed="true" aria-label="Orange"></button>
             <button class="color-swatch" type="button" data-color="#FF3B30" style="background:#FF3B30" aria-pressed="false" aria-label="Red"></button>
@@ -3686,6 +3703,7 @@
         currentStyle: 'Dark Matter',
         currentStyleValue: 'dark',
         drawingColor: '#FF9400',
+        drawingThickness: 3,
         drawingTool: null,
         drawings: [],
         draft: null,
@@ -3715,6 +3733,8 @@
       const drawToolsBtn = document.getElementById('drawToolsBtn');
       const toolMenu = document.getElementById('toolMenu');
       const drawColor = document.getElementById('drawColor');
+      const drawThickness = document.getElementById('drawThickness');
+      const drawThicknessValue = document.getElementById('drawThicknessValue');
       const drawHint = document.getElementById('drawHint');
       const clearDrawingsBtn = document.getElementById('clearDrawingsBtn');
       const mapSummary = document.getElementById('mapSummary');
@@ -4415,6 +4435,7 @@
           }
 
           state.drawingTool = button.dataset.tool;
+          updateThicknessControl();
           if (button.dataset.tool === 'flag') {
             state.flagType = button.dataset.flagNation === 'russia' ? 'russia' : 'ukraine';
           }
@@ -4457,6 +4478,7 @@
       lineVariantMenu.querySelectorAll('.tool-option').forEach((button) => {
         button.addEventListener('click', () => {
           state.drawingTool = button.dataset.tool;
+          updateThicknessControl();
           document.querySelectorAll('.tool-option').forEach((option) => {
             const isActive = option === button || (option === lineToolBtn && button.dataset.tool === 'lineDashed');
             option.setAttribute('aria-pressed', String(isActive));
@@ -4472,6 +4494,19 @@
         state.drawingColor = drawColor.value;
         updateActiveSwatch();
       });
+
+      function updateThicknessControl() {
+        const enabled = ['line', 'lineDashed', 'brush', 'arrow'].includes(state.drawingTool);
+        drawThickness.disabled = !enabled;
+        drawThickness.parentElement.hidden = !enabled;
+      }
+
+      drawThickness.addEventListener('input', () => {
+        state.drawingThickness = Number(drawThickness.value) || 3;
+        drawThicknessValue.textContent = state.drawingThickness + ' px';
+      });
+
+      updateThicknessControl();
 
       // ---- Standard color swatches ----
       // Quick-pick buttons next to the native color input, so common
@@ -5430,10 +5465,61 @@
         pushTerritoriesToFirestore();
         openTerritoryFeaturePopup(layerId, featureId, lngLat);
       }
-      // Folds a pending advance shape into main (Russian: added on
-      // top; Ukrainian: cut out of it), then removes it from its
-      // advances layer. Both changes are pushed to Firestore together
-      // so every visitor sees the swap atomically-ish.
+      // Dissolves all polygon features in a territory layer into the
+      // smallest possible set of geometry pieces. If neighbouring
+      // polygons touch/overlap, Turf unions them into one continuous
+      // polygon, so the shared edge is no longer rendered as an outline.
+      // Disconnected areas remain separate parts, because they cannot
+      // physically be represented as one Polygon without changing the
+      // territory itself.
+      function mergeTerritoryLayerPolygons(layerId) {
+        const data = layerKmlData[layerId] || { type: 'FeatureCollection', features: [] };
+        const polygons = data.features.filter((feature) =>
+          feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
+        );
+        if (polygons.length <= 1) {
+          return;
+        }
+
+        let merged = null;
+        for (const polygon of polygons) {
+          try {
+            merged = merged ? turf.union(merged, polygon) : polygon;
+          } catch (error) {
+            console.error('Failed to merge territory polygons', error);
+            return;
+          }
+        }
+
+        if (!merged || !merged.geometry) {
+          return;
+        }
+
+        // Keep non-polygon features untouched, but replace all polygon
+        // features with the dissolved result. Flattening preserves the
+        // existing rendering model, which stores each disconnected part
+        // as its own selectable Polygon feature.
+        const nonPolygons = data.features.filter((feature) =>
+          !feature.geometry || (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')
+        );
+        const mergedFeatures = turf.flatten(merged).features.map((part) => ({
+          type: 'Feature',
+          properties: { id: genId(), name: '', description: '' },
+          geometry: part.geometry
+        }));
+
+        layerKmlData[layerId] = {
+          type: 'FeatureCollection',
+          features: nonPolygons.concat(mergedFeatures)
+        };
+        ensureKmlLayersForLayer(layerId);
+      }
+
+      // Folds a pending advance shape into the appropriate control layer,
+      // dissolving the result afterwards. This is important when an
+      // advance was smoothed before applying: without the dissolve, the
+      // old control polygon and the newly applied polygon remain as two
+      // separate features and their shared boundary gets drawn visibly.
       function applyAdvanceFeature(layerId, featureId) {
         const feature = findTerritoryFeature(layerId, featureId);
         if (!feature) {
@@ -5444,11 +5530,13 @@
         if (layerId === 'russian-advances') {
           // Russian Control gains the ground; Ukrainian Control loses it.
           addTerritoryFeature('main', feature.geometry, { push: false });
+          mergeTerritoryLayerPolygons('main');
           subtractFromLayer('ukrainian-control', feature.geometry);
         } else if (layerId === 'ukrainian-advances') {
           // Russian Control loses the ground; Ukrainian Control gains it.
           subtractFromMain(feature.geometry);
           addTerritoryFeature('ukrainian-control', feature.geometry, { push: false });
+          mergeTerritoryLayerPolygons('ukrainian-control');
         } else {
           closeTerritoryPopup();
           return;
@@ -6032,7 +6120,7 @@
             feature.properties.tool === 'arrow' &&
             feature.geometry.type === 'LineString'
           ) {
-            const head = computeArrowHeadFeature(feature.geometry.coordinates, feature.properties.color);
+            const head = computeArrowHeadFeature(feature.geometry.coordinates, feature.properties.color, feature.properties.thickness || 3);
             if (head) {
               arrowHeadFeatures.push(head);
             }
@@ -6048,7 +6136,7 @@
       function makeLineFeature(coordinates, tool) {
         return {
           type: 'Feature',
-          properties: { color: state.drawingColor, tool },
+          properties: { color: state.drawingColor, tool, thickness: state.drawingThickness },
           geometry: { type: 'LineString', coordinates }
         };
       }
@@ -6058,7 +6146,7 @@
       // in screen pixels (via project/unproject) so the chevron stays
       // a sensible, constant size on screen regardless of how zoomed
       // in or out the map is at the moment the arrow is drawn.
-      function computeArrowHeadFeature(coordinates, color) {
+      function computeArrowHeadFeature(coordinates, color, thickness) {
         const count = coordinates.length;
         if (count < 2) {
           return null;
@@ -6081,7 +6169,7 @@
 
         const ux = dx / len;
         const uy = dy / len;
-        const headLength = 12;
+        const headLength = Math.max(10, 8 + (thickness || 3) * 1.5);
         const headAngle = (28 * Math.PI) / 180;
 
         const rotate = (x, y, angle) => [
@@ -6097,7 +6185,7 @@
 
         return {
           type: 'Feature',
-          properties: { color, tool: 'arrow', arrowHead: true },
+          properties: { color, tool: 'arrow', arrowHead: true, thickness: thickness || 3 },
           geometry: {
             type: 'LineString',
             coordinates: [[wing1.lng, wing1.lat], tip, [wing2.lng, wing2.lat]]
@@ -6534,7 +6622,7 @@
           },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': ['case', ['==', ['get', 'tool'], 'brush'], 5, 3]
+            'line-width': ['coalesce', ['get', 'thickness'], 3]
           }
         });
         // The dashed-line variant gets its own layer so it can use
@@ -6551,7 +6639,7 @@
           },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': 3,
+            'line-width': ['coalesce', ['get', 'thickness'], 3],
             'line-dasharray': [2, 2]
           }
         });
@@ -6574,7 +6662,7 @@
           },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': 3,
+            'line-width': ['coalesce', ['get', 'thickness'], 3],
             'line-dasharray': [2, 2]
           }
         });
@@ -6590,7 +6678,7 @@
           },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': 3
+            'line-width': ['coalesce', ['get', 'thickness'], 3]
           }
         });
         map.addLayer({
