@@ -3909,6 +3909,24 @@
       let viewerPresenceUnsubscribe = null;
       let viewerPresenceConnectionRef = null;
       let viewerPresenceUserUid = null;
+      let viewerPresenceId = null;
+
+      // One stable ID per browser profile. localStorage is shared by tabs,
+      // so opening the site in several tabs still represents one viewer.
+      function getViewerPresenceId() {
+        const key = 'frontlineViewerPresenceId';
+        try {
+          let id = localStorage.getItem(key);
+          if (!id) {
+            id = 'viewer-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+            localStorage.setItem(key, id);
+          }
+          return id;
+        } catch (error) {
+          // Fallback for browsers that block localStorage.
+          return 'viewer-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+        }
+      }
 
       function formatViewerCount(count) {
         return `${count} ${count === 1 ? 'viewer' : 'viewers'}`;
@@ -3923,9 +3941,10 @@
         if (!rtdb || !user || viewerPresenceStarted) return;
         viewerPresenceStarted = true;
         viewerPresenceUserUid = user.uid;
+        viewerPresenceId = getViewerPresenceId();
 
         const connectionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const connectionRef = rtdb.ref(`presence/${user.uid}/${connectionId}`);
+        const connectionRef = rtdb.ref(`presence/${viewerPresenceId}/${connectionId}`);
         viewerPresenceConnectionRef = connectionRef;
         const presenceRootRef = rtdb.ref('presence');
 
@@ -3942,13 +3961,12 @@
 
         viewerPresenceUnsubscribe = presenceRootRef.on('value', (snapshot) => {
           if (currentRole() !== 'admin') return;
-          // Count unique Firebase users, not individual browser-tab connections.
-          // A single user can have several tabs open, each with its own
-          // connection node under presence/{uid}; those tabs still count as
-          // one viewer.
+          // Count unique browser IDs, not individual tabs/connections.
+          // All tabs in the same browser profile share localStorage and
+          // therefore the same viewer ID, so they count as one viewer.
           let count = 0;
-          snapshot.forEach((userSnapshot) => {
-            if (userSnapshot.hasChildren()) count += 1;
+          snapshot.forEach((viewerSnapshot) => {
+            if (viewerSnapshot.hasChildren()) count += 1;
           });
           adminViewerCountText.textContent = formatViewerCount(count);
         }, (error) => {
@@ -3963,6 +3981,7 @@
         }
         viewerPresenceConnectionRef = null;
         viewerPresenceUserUid = null;
+        viewerPresenceId = null;
         viewerPresenceStarted = false;
         if (typeof viewerPresenceUnsubscribe === 'function') {
           viewerPresenceUnsubscribe();
