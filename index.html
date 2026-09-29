@@ -5675,26 +5675,83 @@
       // reverse geocoding (Russian names), then fills the post template.
       const ADVANCE_MAP_URL = 'https://berlininanutshell-lab.github.io/map/';
 
+      // Nearest settlement to the shape: OpenStreetMap places via Overpass
+      // (prefers a settlement inside the shape, otherwise the closest one
+      // to its outline), with a MapTiler reverse-geocode as a fallback.
       async function findNearestSettlementName(feature) {
         const center = turf.centroid(feature).geometry.coordinates;
-        const base = 'https://api.maptiler.com/geocoding/' + center[0] + ',' + center[1] + '.json' +
-          '?key=okpdMcXQXKD9GKjumNOC&language=ru&limit=5';
-        const settlementTypes = ['municipality', 'locality', 'place', 'joint_municipality', 'neighbourhood'];
+        const [lng, lat] = center;
 
-        const pick = (features) => {
-          const hit = (features || []).find((f) =>
-            (f.place_type || []).some((t) => settlementTypes.includes(t))
-          );
-          return hit ? (hit.text_ru || hit.text || hit.place_name || '') : '';
+        const outline = (() => {
+          try {
+            const poly = feature.geometry.type === 'MultiPolygon'
+              ? turf.polygon(feature.geometry.coordinates[0])
+              : feature;
+            return turf.polygonToLine(poly);
+          } catch (error) {
+            return null;
+          }
+        })();
+
+        const distanceTo = (point) => {
+          try {
+            if (turf.booleanPointInPolygon(point, feature)) {
+              return 0;
+            }
+            return outline ? turf.pointToLineDistance(point, outline, { units: 'kilometers' })
+                           : turf.distance(point, turf.point(center), { units: 'kilometers' });
+          } catch (error) {
+            return turf.distance(point, turf.point(center), { units: 'kilometers' });
+          }
         };
 
+        const overpassHosts = [
+          'https://overpass-api.de/api/interpreter',
+          'https://overpass.kumi.systems/api/interpreter'
+        ];
+        const radii = [8000, 20000];
+
+        for (const radius of radii) {
+          const query = '[out:json][timeout:15];' +
+            'node(around:' + radius + ',' + lat + ',' + lng + ')' +
+            '[place~"^(city|town|village|hamlet|suburb|neighbourhood|isolated_dwelling)$"][name];' +
+            'out body;';
+          for (const host of overpassHosts) {
+            try {
+              const response = await fetch(host + '?data=' + encodeURIComponent(query));
+              if (!response.ok) {
+                continue;
+              }
+              const data = await response.json();
+              const rank = { city: 0, town: 0, village: 0, hamlet: 1, suburb: 2, neighbourhood: 2, isolated_dwelling: 3 };
+              const nodes = (data.elements || [])
+                .map((el) => ({
+                  name: (el.tags && (el.tags['name:ru'] || el.tags.name)) || '',
+                  place: el.tags && el.tags.place,
+                  dist: distanceTo(turf.point([el.lon, el.lat]))
+                }))
+                .filter((n) => n.name)
+                .sort((a, b) => (a.dist - b.dist) || ((rank[a.place] || 0) - (rank[b.place] || 0)));
+              if (nodes.length) {
+                return nodes[0].name;
+              }
+              break; // host answered but nothing in this radius — widen it
+            } catch (error) {
+              console.error('Overpass failed on ' + host, error);
+            }
+          }
+        }
+
+        // Fallback: MapTiler reverse geocoding, settlement-level types only.
         try {
-          const response = await fetch(base);
+          const url = 'https://api.maptiler.com/geocoding/' + lng + ',' + lat + '.json' +
+            '?key=okpdMcXQXKD9GKjumNOC&language=ru&types=locality,municipality,joint_municipality,place&limit=1';
+          const response = await fetch(url);
           if (response.ok) {
             const data = await response.json();
-            const name = pick(data.features);
-            if (name) {
-              return name;
+            const hit = (data.features || [])[0];
+            if (hit) {
+              return hit.text_ru || hit.text || '';
             }
           }
         } catch (error) {
