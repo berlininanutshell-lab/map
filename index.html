@@ -795,6 +795,38 @@
         background: rgba(255, 255, 255, 0.12);
       }
 
+      .territory-popup-post {
+        margin: 2px 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .territory-popup-post-row {
+        display: flex;
+        gap: 6px;
+      }
+
+      .territory-popup-post-row .marker-popup-copy {
+        flex: 1;
+        padding: 6px 4px;
+        font-size: 12px;
+      }
+
+      .territory-popup-post-text {
+        width: 100%;
+        min-height: 110px;
+        padding: 7px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        line-height: 1.45;
+        resize: vertical;
+      }
+
       .territory-popup-source {
         margin: 2px 0 10px;
         padding: 8px 9px;
@@ -5638,6 +5670,55 @@
         openTerritoryFeaturePopup(layerId, featureId, lngLat);
       }
 
+      // ---- Generated post text for advances ----
+      // Finds the nearest settlement to the shape's centre via MapTiler
+      // reverse geocoding (Russian names), then fills the post template.
+      const ADVANCE_MAP_URL = 'https://berlininanutshell-lab.github.io/map/';
+
+      async function findNearestSettlementName(feature) {
+        const center = turf.centroid(feature).geometry.coordinates;
+        const base = 'https://api.maptiler.com/geocoding/' + center[0] + ',' + center[1] + '.json' +
+          '?key=okpdMcXQXKD9GKjumNOC&language=ru&limit=5';
+        const settlementTypes = ['municipality', 'locality', 'place', 'joint_municipality', 'neighbourhood'];
+
+        const pick = (features) => {
+          const hit = (features || []).find((f) =>
+            (f.place_type || []).some((t) => settlementTypes.includes(t))
+          );
+          return hit ? (hit.text_ru || hit.text || hit.place_name || '') : '';
+        };
+
+        try {
+          const response = await fetch(base);
+          if (response.ok) {
+            const data = await response.json();
+            const name = pick(data.features);
+            if (name) {
+              return name;
+            }
+          }
+        } catch (error) {
+          console.error('Reverse geocoding failed', error);
+        }
+        return '';
+      }
+
+      async function buildAdvancePostText(layerId, feature, verb) {
+        const isRussia = layerId === 'russian-advances';
+        const flag = isRussia ? '🇷🇺' : '🇺🇦';
+        const army = isRussia ? 'ВС РФ' : 'ВСУ';
+        const action = verb === 'captured' ? 'захватили' : 'продвинулись';
+        const settlement = await findNearestSettlementName(feature);
+
+        const km2 = turf.area(feature) / 1e6;
+        const decimals = km2 < 10 ? 2 : km2 < 100 ? 1 : 0;
+        const areaText = km2.toLocaleString('ru-RU', { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
+
+        return flag + ' ' + army + ' ' + action + ' к ' + (settlement || '[название н.п.]') + '.\n\n' +
+          'Площадь продвижения: ' + areaText + ' км²\n' +
+          'Карта: ' + ADVANCE_MAP_URL;
+      }
+
       function openTerritoryFeaturePopup(layerId, featureId, lngLat) {
         const feature = findTerritoryFeature(layerId, featureId);
         if (!feature) {
@@ -5662,11 +5743,23 @@
           '</div>'
         ) : '';
 
+        const postBlock = (isAdmin() && isAdvance) ? (
+          '<div class="territory-popup-post">' +
+          '<div class="territory-popup-post-row">' +
+          '<button type="button" class="marker-popup-copy territory-popup-post-advanced" data-verb="advanced">Текст: продвинулись</button>' +
+          '<button type="button" class="marker-popup-copy territory-popup-post-captured" data-verb="captured">Текст: захватили</button>' +
+          '</div>' +
+          '<textarea class="territory-popup-post-text" hidden spellcheck="false"></textarea>' +
+          '<button type="button" class="marker-popup-copy territory-popup-post-copy" hidden>Скопировать текст</button>' +
+          '</div>'
+        ) : '';
+
         const html =
           '<div class="marker-popup">' +
           '<div class="marker-popup-title">' + escapeHtml(layer ? layer.name : 'Shape') + '</div>' +
           (areaText ? '<div class="marker-popup-coords">' + escapeHtml(areaText) + '</div>' : '') +
           sourceBlock +
+          postBlock +
           '<div class="marker-popup-actions">' +
           (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
           (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
@@ -5694,6 +5787,41 @@
           sourceSaveBtn.addEventListener('click', () => {
             const input = container.querySelector('.territory-popup-source-input');
             saveTerritorySource(layerId, featureId, input ? input.value : '', lngLat);
+          });
+        }
+
+        const postTextEl = container.querySelector('.territory-popup-post-text');
+        const postCopyBtn = container.querySelector('.territory-popup-post-copy');
+        container.querySelectorAll('.territory-popup-post-advanced, .territory-popup-post-captured').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const originalLabel = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Ищу н.п…';
+            try {
+              const text = await buildAdvancePostText(layerId, feature, btn.dataset.verb);
+              postTextEl.value = text;
+              postTextEl.hidden = false;
+              postCopyBtn.hidden = false;
+            } catch (error) {
+              console.error('Advance post text failed', error);
+              postTextEl.value = 'Не удалось сгенерировать текст.';
+              postTextEl.hidden = false;
+            } finally {
+              btn.disabled = false;
+              btn.textContent = originalLabel;
+            }
+          });
+        });
+        if (postCopyBtn) {
+          postCopyBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(postTextEl.value);
+            } catch (error) {
+              postTextEl.select();
+              document.execCommand('copy');
+            }
+            postCopyBtn.textContent = 'Скопировано ✓';
+            setTimeout(() => { postCopyBtn.textContent = 'Скопировать текст'; }, 1500);
           });
         }
 
