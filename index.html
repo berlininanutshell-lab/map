@@ -5675,74 +5675,105 @@
       // reverse geocoding (Russian names), then fills the post template.
       const ADVANCE_MAP_URL = 'https://berlininanutshell-lab.github.io/map/';
 
-      // Nearest settlement to the shape: OpenStreetMap places via Overpass
-      // (prefers a settlement inside the shape, otherwise the closest one
-      // to its outline), with a MapTiler reverse-geocode as a fallback.
-      async function findNearestSettlementName(feature) {
+      // Settlement lookup for the post text. Returns { name, kind } where
+      // kind is 'city' when the shape lies inside/touches a city or town
+      // (=> "в городе X"), otherwise 'near' (=> "к X"). Uses OpenStreetMap
+      // via Overpass: first "which settlement areas contain the shape"
+      // (so a part of a city like a suburb resolves to the city itself),
+      // then the nearest village/hamlet node, then a MapTiler fallback.
+      async function findSettlement(feature) {
         const center = turf.centroid(feature).geometry.coordinates;
         const [lng, lat] = center;
 
-        const outline = (() => {
-          try {
-            const poly = feature.geometry.type === 'MultiPolygon'
-              ? turf.polygon(feature.geometry.coordinates[0])
-              : feature;
-            return turf.polygonToLine(poly);
-          } catch (error) {
-            return null;
+        // A few sample points across the shape: centre, a point guaranteed
+        // to be inside, and some outline vertices.
+        const samples = [center];
+        try { samples.push(turf.pointOnFeature(feature).geometry.coordinates); } catch (e) { /* ignore */ }
+        try {
+          const coords = turf.coordAll(feature);
+          const step = Math.max(1, Math.floor(coords.length / 5));
+          for (let i = 0; i < coords.length; i += step) {
+            samples.push(coords[i]);
           }
-        })();
+        } catch (e) { /* ignore */ }
+        const points = samples.slice(0, 8).map((c) => [Number(c[0]).toFixed(5), Number(c[1]).toFixed(5)]);
 
-        const distanceTo = (point) => {
-          try {
-            if (turf.booleanPointInPolygon(point, feature)) {
-              return 0;
-            }
-            return outline ? turf.pointToLineDistance(point, outline, { units: 'kilometers' })
-                           : turf.distance(point, turf.point(center), { units: 'kilometers' });
-          } catch (error) {
-            return turf.distance(point, turf.point(center), { units: 'kilometers' });
-          }
-        };
-
-        const overpassHosts = [
+        const hosts = [
           'https://overpass-api.de/api/interpreter',
           'https://overpass.kumi.systems/api/interpreter'
         ];
-        const radii = [8000, 20000];
 
-        for (const radius of radii) {
-          const query = '[out:json][timeout:15];' +
-            'node(around:' + radius + ',' + lat + ',' + lng + ')' +
-            '[place~"^(city|town|village|hamlet|suburb|neighbourhood|isolated_dwelling)$"][name];' +
-            'out body;';
-          for (const host of overpassHosts) {
+        const runOverpass = async (query) => {
+          for (const host of hosts) {
             try {
               const response = await fetch(host + '?data=' + encodeURIComponent(query));
-              if (!response.ok) {
-                continue;
+              if (response.ok) {
+                return await response.json();
               }
-              const data = await response.json();
-              const rank = { city: 0, town: 0, village: 0, hamlet: 1, suburb: 2, neighbourhood: 2, isolated_dwelling: 3 };
-              const nodes = (data.elements || [])
-                .map((el) => ({
-                  name: (el.tags && (el.tags['name:ru'] || el.tags.name)) || '',
-                  place: el.tags && el.tags.place,
-                  dist: distanceTo(turf.point([el.lon, el.lat]))
-                }))
-                .filter((n) => n.name)
-                .sort((a, b) => (a.dist - b.dist) || ((rank[a.place] || 0) - (rank[b.place] || 0)));
-              if (nodes.length) {
-                return nodes[0].name;
-              }
-              break; // host answered but nothing in this radius — widen it
             } catch (error) {
               console.error('Overpass failed on ' + host, error);
             }
           }
+          return null;
+        };
+
+        const nameOf = (tags) => (tags && (tags['name:ru'] || tags.name)) || '';
+        const isCityType = (t) => t === 'city' || t === 'town';
+
+        // 1) Settlement areas that contain the shape (or touch it).
+        const isIn = points.map((pt, i) => 'is_in(' + pt[1] + ',' + pt[0] + ')->.a' + i + ';').join('');
+        const union = '(' + points.map((pt, i) => '.a' + i + ';').join('') + ')->.a;';
+        const nodeAround = 'node(around:6000,' + lat + ',' + lng + ')[place~"^(city|town|village|hamlet)$"][name];';
+        const areaQuery = '[out:json][timeout:25];' + isIn + union +
+          '(area.a[place~"^(city|town|village|hamlet)$"][name];' +
+          'area.a[boundary=administrative][admin_level=8][name];' + nodeAround + ');out tags center;';
+        const areaData = await runOverpass(areaQuery);
+
+        if (areaData && areaData.elements) {
+          const nodeTypeByName = {};
+          areaData.elements.filter((el) => el.type === 'node').forEach((el) => {
+            nodeTypeByName[nameOf(el.tags)] = el.tags.place;
+          });
+
+          const areas = areaData.elements
+            .filter((el) => el.type === 'area' || el.type === 'relation' || el.type === 'way')
+            .map((el) => {
+              const name = nameOf(el.tags);
+              return { name, type: el.tags.place || nodeTypeByName[name] || '' };
+            })
+            .filter((a) => a.name);
+
+          const city = areas.find((a) => isCityType(a.type));
+          if (city) {
+            return { name: city.name, kind: 'city' };
+          }
+          const village = areas.find((a) => a.type === 'village' || a.type === 'hamlet');
+          if (village) {
+            return { name: village.name, kind: 'near' };
+          }
         }
 
-        // Fallback: MapTiler reverse geocoding, settlement-level types only.
+        // 2) Nearest city/town/village/hamlet node (no suburbs/quarters).
+        for (const radius of [8000, 20000]) {
+          const data = await runOverpass('[out:json][timeout:20];node(around:' + radius + ',' + lat + ',' + lng + ')' +
+            '[place~"^(city|town|village|hamlet)$"][name];out body;');
+          if (!data) {
+            continue;
+          }
+          const nodes = (data.elements || [])
+            .map((el) => ({
+              name: nameOf(el.tags),
+              type: el.tags.place,
+              dist: turf.distance(turf.point([el.lon, el.lat]), turf.point(center), { units: 'kilometers' })
+            }))
+            .filter((n) => n.name)
+            .sort((a, b) => a.dist - b.dist);
+          if (nodes.length) {
+            return { name: nodes[0].name, kind: 'near' };
+          }
+        }
+
+        // 3) MapTiler reverse geocoding fallback.
         try {
           const url = 'https://api.maptiler.com/geocoding/' + lng + ',' + lat + '.json' +
             '?key=okpdMcXQXKD9GKjumNOC&language=ru&types=locality,municipality,joint_municipality,place&limit=1';
@@ -5751,13 +5782,13 @@
             const data = await response.json();
             const hit = (data.features || [])[0];
             if (hit) {
-              return hit.text_ru || hit.text || '';
+              return { name: hit.text_ru || hit.text || '', kind: 'near' };
             }
           }
         } catch (error) {
           console.error('Reverse geocoding failed', error);
         }
-        return '';
+        return { name: '', kind: 'near' };
       }
 
       async function buildAdvancePostText(layerId, feature, verb) {
@@ -5765,13 +5796,16 @@
         const flag = isRussia ? '🇷🇺' : '🇺🇦';
         const army = isRussia ? 'ВС РФ' : 'ВСУ';
         const action = verb === 'captured' ? 'захватили' : 'продвинулись';
-        const settlement = await findNearestSettlementName(feature);
+        const place = await findSettlement(feature);
 
         const km2 = turf.area(feature) / 1e6;
         const decimals = km2 < 10 ? 2 : km2 < 100 ? 1 : 0;
         const areaText = km2.toLocaleString('ru-RU', { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
 
-        return flag + ' ' + army + ' ' + action + ' к ' + (settlement || '[название н.п.]') + '.\n\n' +
+        const name = place.name || '[название н.п.]';
+        const where = place.kind === 'city' ? ' в городе ' + name : ' к ' + name;
+
+        return flag + ' ' + army + ' ' + action + where + '.\n\n' +
           'Площадь продвижения: ' + areaText + ' км²\n' +
           'Карта: ' + ADVANCE_MAP_URL;
       }
