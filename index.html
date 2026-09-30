@@ -1707,6 +1707,18 @@
       .maintenance-icon { color: #ff9400; font-size: 34px; margin-bottom: 14px; }
       .maintenance-card h1 { margin: 0 0 14px; font-size: clamp(24px, 5vw, 32px); }
       .maintenance-card p { color: #aab8c6; font-size: 14px; line-height: 1.65; margin: 8px 0; }
+      #maintenanceLoginBtn {
+        margin-top: 18px;
+        border: 1px solid rgba(127, 196, 255, .45);
+        border-radius: 8px;
+        padding: 10px 16px;
+        background: rgba(127, 196, 255, .12);
+        color: #7fc4ff;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #maintenanceLoginBtn:hover { background: rgba(127, 196, 255, .2); }
 
       #openAuthBtn {
         border: 1px solid rgba(127, 196, 255, 0.4);
@@ -2684,6 +2696,7 @@
         <h1 id="maintenanceTitle">We'll be back soon</h1>
         <p>This website is temporarily unavailable due to scheduled maintenance.</p>
         <p>We're working to improve your experience. Please check back soon.</p>
+        <button id="maintenanceLoginBtn" type="button">Administrator login</button>
       </div>
     </div>
 
@@ -2996,6 +3009,7 @@
 
       function hideAuthOverlay() {
         authOverlay.hidden = true;
+        if (typeof renderMaintenanceMode === 'function') renderMaintenanceMode();
       }
 
       // Firebase's own errors are already reasonably readable
@@ -7561,13 +7575,17 @@
       const maintenanceStatus = document.getElementById('maintenanceStatus');
       const maintenanceToggleBtn = document.getElementById('maintenanceToggleBtn');
       const maintenanceAdminNote = document.getElementById('maintenanceAdminNote');
+      const maintenanceLoginBtn = document.getElementById('maintenanceLoginBtn');
       const maintenanceDocRef = db ? db.collection('siteSettings').doc('maintenance') : null;
       let maintenanceEnabled = false;
       let maintenanceUnsubscribe = null;
 
       function renderMaintenanceMode() {
         // Keep the site accessible to the administrator while maintenance is on.
-        maintenanceOverlay.hidden = !maintenanceEnabled || isAdmin();
+        // Let a signed-out administrator open the login dialog even while
+        // maintenance is active. Once the dialog closes, maintenance returns
+        // unless the authenticated account is the administrator.
+        maintenanceOverlay.hidden = !maintenanceEnabled || isAdmin() || !authOverlay.hidden;
         if (maintenanceStatus) {
           maintenanceStatus.textContent = 'Maintenance mode: ' + (maintenanceEnabled ? 'ON' : 'OFF');
         }
@@ -7575,6 +7593,13 @@
           maintenanceToggleBtn.disabled = !isAdmin() || !maintenanceDocRef;
           maintenanceToggleBtn.textContent = maintenanceEnabled ? 'Disable' : 'Enable';
         }
+      }
+
+      if (maintenanceLoginBtn) {
+        maintenanceLoginBtn.addEventListener('click', () => {
+          maintenanceOverlay.hidden = true;
+          showAuthOverlay();
+        });
       }
 
       if (maintenanceDocRef) {
