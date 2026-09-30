@@ -1686,7 +1686,8 @@
       #maintenanceOverlay {
         position: fixed;
         inset: 0;
-        z-index: 10000;
+        /* Keep maintenance screen behind the login dialog, but above the site. */
+        z-index: 4000;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -7582,10 +7583,10 @@
 
       function renderMaintenanceMode() {
         // Keep the site accessible to the administrator while maintenance is on.
-        // Let a signed-out administrator open the login dialog even while
-        // maintenance is active. Once the dialog closes, maintenance returns
-        // unless the authenticated account is the administrator.
-        maintenanceOverlay.hidden = !maintenanceEnabled || isAdmin() || !authOverlay.hidden;
+        // Keep the maintenance screen visible behind the login dialog so the
+        // underlying map/site is never exposed during maintenance.
+        // The auth dialog has a higher z-index and remains usable.
+        maintenanceOverlay.hidden = !maintenanceEnabled || isAdmin();
         if (maintenanceStatus) {
           maintenanceStatus.textContent = 'Maintenance mode: ' + (maintenanceEnabled ? 'ON' : 'OFF');
         }
@@ -7597,7 +7598,7 @@
 
       if (maintenanceLoginBtn) {
         maintenanceLoginBtn.addEventListener('click', () => {
-          maintenanceOverlay.hidden = true;
+          // Do not hide maintenance: the auth dialog appears above it.
           showAuthOverlay();
         });
       }
