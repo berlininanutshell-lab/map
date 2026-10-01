@@ -1641,6 +1641,86 @@
         display: none !important;
       }
 
+      #adminPanel {
+        margin: 12px 18px 4px;
+        padding: 12px;
+        border: 1px solid rgba(255, 148, 0, 0.28);
+        border-radius: 10px;
+        background: rgba(255, 148, 0, 0.055);
+      }
+      .admin-panel-heading {
+        color: #ffb347;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+      .admin-panel-description {
+        color: #98a9b9;
+        font-size: 11px;
+        line-height: 1.4;
+        margin-bottom: 10px;
+      }
+      .admin-maintenance-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11px;
+        color: #ccd6e1;
+      }
+      #maintenanceToggleBtn {
+        flex: none;
+        border: 1px solid rgba(255, 148, 0, .4);
+        border-radius: 7px;
+        padding: 7px 10px;
+        background: rgba(255, 148, 0, .14);
+        color: #ffb347;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #maintenanceToggleBtn:disabled { opacity: .5; cursor: default; }
+      #maintenanceAdminNote { margin-top: 7px; color: #98a9b9; font-size: 10px; line-height: 1.4; }
+      #maintenanceOverlay {
+        position: fixed;
+        inset: 0;
+        /* Keep maintenance screen behind the login dialog, but above the site. */
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #0b0f14;
+        color: #edf5ff;
+      }
+      #maintenanceOverlay[hidden] { display: none; }
+      .maintenance-card {
+        width: min(480px, 100%);
+        text-align: center;
+        padding: 38px 30px;
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 18px;
+        background: #111820;
+        box-shadow: 0 24px 70px rgba(0,0,0,.4);
+      }
+      .maintenance-icon { color: #ff9400; font-size: 34px; margin-bottom: 14px; }
+      .maintenance-card h1 { margin: 0 0 14px; font-size: clamp(24px, 5vw, 32px); }
+      .maintenance-card p { color: #aab8c6; font-size: 14px; line-height: 1.65; margin: 8px 0; }
+      #maintenanceLoginBtn {
+        margin-top: 18px;
+        border: 1px solid rgba(127, 196, 255, .45);
+        border-radius: 8px;
+        padding: 10px 16px;
+        background: rgba(127, 196, 255, .12);
+        color: #7fc4ff;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #maintenanceLoginBtn:hover { background: rgba(127, 196, 255, .2); }
+
       #openAuthBtn {
         border: 1px solid rgba(127, 196, 255, 0.4);
         background: rgba(127, 196, 255, 0.12);
@@ -2478,6 +2558,15 @@
       </div>
       <div id="sidebarViews">
         <div id="legendView" class="sidebar-view is-active" role="tabpanel">
+          <section id="adminPanel" class="admin-only" aria-label="Admin panel">
+            <div class="admin-panel-heading">Admin panel</div>
+            <div class="admin-panel-description">Temporarily restrict public access to the map.</div>
+            <div class="admin-maintenance-row">
+              <span id="maintenanceStatus">Maintenance mode: checking…</span>
+              <button id="maintenanceToggleBtn" type="button" disabled>Loading…</button>
+            </div>
+            <div id="maintenanceAdminNote" aria-live="polite"></div>
+          </section>
           <div id="accountBar">
             <span id="accountStatus">Browsing as guest</span>
             <button id="openAuthBtn" type="button">Log in</button>
@@ -2584,7 +2673,7 @@
                 <button id="laCompareBtn" class="la-btn la-primary" type="button">Compare with Russian Control</button>
                 <button id="laClearBtn" class="la-btn" type="button" hidden>Clear</button>
               </div>
-              <label class="la-btn la-upload">Load KML from my computer<input id="laFileInput" type="file" accept=".kml,.xml" hidden /></label>
+              <label class="la-btn la-upload admin-only">Load KML from my computer<input id="laFileInput" type="file" accept=".kml,.xml" hidden /></label>
               <div id="laResult" class="la-result" aria-live="polite"></div>
               <div id="laNote" class="la-note"></div>
             </div>
@@ -2601,6 +2690,16 @@
     <div id="casualtyTooltip" role="status" aria-live="polite"></div>
     <div id="error"></div>
     <div id="kmlHoverLabel" hidden></div>
+
+    <div id="maintenanceOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="maintenanceTitle">
+      <div class="maintenance-card">
+        <div class="maintenance-icon" aria-hidden="true">⚙</div>
+        <h1 id="maintenanceTitle">We'll be back soon</h1>
+        <p>This website is temporarily unavailable due to scheduled maintenance.</p>
+        <p>We're working to improve your experience. Please check back soon.</p>
+        <button id="maintenanceLoginBtn" type="button">Administrator login</button>
+      </div>
+    </div>
 
     <div id="authOverlay" hidden>
       <div id="authCard">
@@ -2794,6 +2893,7 @@
 
         document.body.classList.toggle('logged-in', role !== 'guest');
         document.body.classList.toggle('is-admin', role === 'admin');
+        if (typeof renderMaintenanceMode === 'function') renderMaintenanceMode();
 
         if (role === 'guest') {
           state.nickname = '';
@@ -2910,6 +3010,7 @@
 
       function hideAuthOverlay() {
         authOverlay.hidden = true;
+        if (typeof renderMaintenanceMode === 'function') renderMaintenanceMode();
       }
 
       // Firebase's own errors are already reasonably readable
@@ -7468,6 +7569,85 @@
         e.textContent = 'Map error: ' + (err && err.error ? err.error.message || err.error : err);
         e.style.display = 'block';
       });
+      // ---- Site-wide maintenance mode (Firestore-backed) ----
+      // Public clients read this flag; only an authenticated admin should be
+      // permitted to write it in Firestore security rules.
+      const maintenanceOverlay = document.getElementById('maintenanceOverlay');
+      const maintenanceStatus = document.getElementById('maintenanceStatus');
+      const maintenanceToggleBtn = document.getElementById('maintenanceToggleBtn');
+      const maintenanceAdminNote = document.getElementById('maintenanceAdminNote');
+      const maintenanceLoginBtn = document.getElementById('maintenanceLoginBtn');
+      const maintenanceDocRef = db ? db.collection('siteSettings').doc('maintenance') : null;
+      let maintenanceEnabled = false;
+      let maintenanceUnsubscribe = null;
+
+      function renderMaintenanceMode() {
+        // Keep the site accessible to the administrator while maintenance is on.
+        // Keep the maintenance screen visible behind the login dialog so the
+        // underlying map/site is never exposed during maintenance.
+        // The auth dialog has a higher z-index and remains usable.
+        maintenanceOverlay.hidden = !maintenanceEnabled || isAdmin();
+        if (maintenanceStatus) {
+          maintenanceStatus.textContent = 'Maintenance mode: ' + (maintenanceEnabled ? 'ON' : 'OFF');
+        }
+        if (maintenanceToggleBtn) {
+          maintenanceToggleBtn.disabled = !isAdmin() || !maintenanceDocRef;
+          maintenanceToggleBtn.textContent = maintenanceEnabled ? 'Disable' : 'Enable';
+        }
+      }
+
+      if (maintenanceLoginBtn) {
+        maintenanceLoginBtn.addEventListener('click', () => {
+          // Do not hide maintenance: the auth dialog appears above it.
+          showAuthOverlay();
+        });
+      }
+
+      if (maintenanceDocRef) {
+        maintenanceUnsubscribe = maintenanceDocRef.onSnapshot((snap) => {
+          maintenanceEnabled = !!(snap.exists && snap.data() && snap.data().enabled === true);
+          renderMaintenanceMode();
+          if (maintenanceAdminNote) maintenanceAdminNote.textContent = '';
+        }, (error) => {
+          console.error('Could not read maintenance setting', error);
+          if (maintenanceAdminNote) {
+            maintenanceAdminNote.textContent = 'Could not sync maintenance mode. Check Firestore rules.';
+          }
+          if (maintenanceToggleBtn) {
+            maintenanceToggleBtn.disabled = true;
+            maintenanceToggleBtn.textContent = 'Unavailable';
+          }
+        });
+      } else if (maintenanceAdminNote) {
+        maintenanceAdminNote.textContent = 'Firestore is not configured; site-wide maintenance mode is unavailable.';
+      }
+
+      if (maintenanceToggleBtn) {
+        maintenanceToggleBtn.addEventListener('click', async () => {
+          if (!isAdmin() || !maintenanceDocRef) return;
+          maintenanceToggleBtn.disabled = true;
+          try {
+            const nextEnabled = !maintenanceEnabled;
+            await maintenanceDocRef.set({
+              enabled: nextEnabled,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            if (maintenanceAdminNote) {
+              maintenanceAdminNote.textContent = nextEnabled
+                ? 'Maintenance mode enabled for all visitors.'
+                : 'Maintenance mode disabled.';
+            }
+          } catch (error) {
+            console.error('Could not update maintenance mode', error);
+            if (maintenanceAdminNote) {
+              maintenanceAdminNote.textContent = 'Could not update. Check Firestore security rules.';
+            }
+          } finally {
+            renderMaintenanceMode();
+          }
+        });
+      }
+
     </script>
     <script>
       // ---- LostArmour overlay + area comparison ----
@@ -7884,6 +8064,11 @@
         if (map.isStyleLoaded()) { ensureLayers(); }
         elSel.addEventListener('change', function () { var e = folderFiles[Number(elSel.value)]; if (e) { loadEntry(e); } });
         elFile.addEventListener('change', function () {
+          // The upload is admin-only in both the UI and its event handler.
+          if (!document.body.classList.contains('is-admin')) {
+            elFile.value = '';
+            return;
+          }
           var f = elFile.files && elFile.files[0];
           if (!f) { return; }
           var r = new FileReader();
