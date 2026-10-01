@@ -7678,7 +7678,7 @@
           compare: 'Compare with Russian Control',
           site: 'Russian Control (this map, inside Ukraine)',
           outside: 'Outside Ukraine (ignored)',
-          ignored: 'Ignored: Dnipro / estuary zone',
+          ignored: 'Ignored: Dnipro / reservoir zone',
           la: 'LostArmour (selected)',
           overlap: 'Overlap',
           onlySite: 'Only on this map',
@@ -7712,12 +7712,28 @@
         // town or the water in front of it is ever counted as land).
         var seaMask = null, clipped = null;
         // Differences inside this zone are ignored (neither "only on this map"
-        // nor "only on LostArmour"): the Dnipro and its estuary west of the
-        // Kakhovka dam, where the two sources just draw the river differently.
-        // Replace it by putting polygons into lostarmour/ignore.geojson.
+        // nor "only on LostArmour"): the Kakhovka reservoir and the Dnipro with
+        // its estuary west of the dam, where the two sources just draw the
+        // water differently. Replace it by putting polygons into
+        // lostarmour/ignore.geojson.
         var IGNORE_ENABLED = true;
         var IGNORE_BOX = [[31.3, 46.3], [33.5, 46.3], [33.5, 47.05], [31.3, 47.05], [31.3, 46.3]];
-        var ignoreMask = null;
+        // Reservoir part: the right-bank line from the dam up to Vasylivka,
+        // widened by IGNORE_KM on both sides.
+        var IGNORE_LINE = [[33.37, 46.75], [33.63, 46.94], [33.71, 47.05], [33.86, 47.17], [34.02, 47.27],
+          [34.04, 47.44], [34.14, 47.49], [34.4, 47.56], [34.76, 47.54], [35.13, 47.49], [35.25, 47.5]];
+        var IGNORE_KM = 14;
+        var ignoreMask = null, defaultZone = null;
+        function getDefaultZone() {
+          if (defaultZone) { return defaultZone; }
+          var box = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [IGNORE_BOX] } };
+          try {
+            var corridor = turf.buffer({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: IGNORE_LINE } },
+              IGNORE_KM, { units: 'kilometers', steps: 6 });
+            defaultZone = gUnion(box, corridor) || box;
+          } catch (e) { console.warn('ignore corridor failed, using box only', e); defaultZone = box; }
+          return defaultZone;
+        }
 
         var elToggle = document.getElementById('laToggle');
         var elGroups = document.getElementById('laGroups');
@@ -7917,8 +7933,7 @@
               onlyLa = cleanDiff(onlyLa, null);
               // Ignore zone: cut it out of both difference sets.
               var ignoredKm2 = 0;
-              var zone = !IGNORE_ENABLED ? null : (ignoreMask ||
-                { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [IGNORE_BOX] } });
+              var zone = !IGNORE_ENABLED ? null : (ignoreMask || getDefaultZone());
               if (zone) {
                 if (onlySite) { ignoredKm2 += areaKm2(gIntersect(onlySite, zone)); onlySite = gDifference(onlySite, zone); }
                 if (onlyLa) { ignoredKm2 += areaKm2(gIntersect(onlyLa, zone)); onlyLa = gDifference(onlyLa, zone); }
