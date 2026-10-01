@@ -7721,7 +7721,10 @@
         // Reservoir part: the right-bank line from the dam up to Vasylivka,
         // widened by IGNORE_KM on both sides.
         var IGNORE_LINE = [[33.37, 46.75], [33.63, 46.94], [33.71, 47.05], [33.86, 47.17], [34.02, 47.27],
-          [34.04, 47.44], [34.14, 47.49], [34.4, 47.56], [34.76, 47.54], [35.13, 47.49], [35.25, 47.5]];
+          [34.04, 47.44], [34.14, 47.49], [34.4, 47.56], [34.76, 47.54], [35.13, 47.49],
+          [35.33135, 47.55143], [35.32264, 47.57208], [35.29794, 47.58262], [35.25252, 47.64956]];
+        // The zone starts at this line (lon, lat) and extends west from it.
+        var ZONE_EAST_EDGE = [[35.33135, 47.55143], [35.32264, 47.57208], [35.29794, 47.58262], [35.25252, 47.64956]];
         var IGNORE_KM = 14;
         var ignoreMask = null, defaultZone = null;
         function getDefaultZone() {
@@ -7731,6 +7734,11 @@
             var corridor = turf.buffer({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: IGNORE_LINE } },
               IGNORE_KM, { units: 'kilometers', steps: 6 });
             defaultZone = gUnion(box, corridor) || box;
+            // keep only what lies west of ZONE_EAST_EDGE
+            var e = ZONE_EAST_EDGE, first = e[0], last = e[e.length - 1];
+            var west = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [
+              [[30, 45.5], [first[0], 45.5]].concat(e, [[last[0], 49], [30, 49], [30, 45.5]]) ] } };
+            defaultZone = gIntersect(defaultZone, west) || defaultZone;
           } catch (e) { console.warn('ignore corridor failed, using box only', e); defaultZone = box; }
           return defaultZone;
         }
