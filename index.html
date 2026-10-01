@@ -7678,6 +7678,7 @@
           compare: 'Compare with Russian Control',
           site: 'Russian Control (this map, inside Ukraine)',
           outside: 'Outside Ukraine (ignored)',
+          ignored: 'Ignored: Dnipro / estuary zone',
           la: 'LostArmour (selected)',
           overlap: 'Overlap',
           onlySite: 'Only on this map',
@@ -7710,6 +7711,13 @@
         // LostArmour areas and Russian Control (so no sliver of a coastal
         // town or the water in front of it is ever counted as land).
         var seaMask = null, clipped = null;
+        // Differences inside this zone are ignored (neither "only on this map"
+        // nor "only on LostArmour"): the Dnipro and its estuary west of the
+        // Kakhovka dam, where the two sources just draw the river differently.
+        // Replace it by putting polygons into lostarmour/ignore.geojson.
+        var IGNORE_ENABLED = true;
+        var IGNORE_BOX = [[31.3, 46.3], [33.5, 46.3], [33.5, 47.05], [31.3, 47.05], [31.3, 46.3]];
+        var ignoreMask = null;
 
         var elToggle = document.getElementById('laToggle');
         var elGroups = document.getElementById('laGroups');
@@ -7898,7 +7906,7 @@
                   crack ? gIntersect(siteFull, crack) : null].filter(Boolean);
                 siteGeom = unionAll(parts);
               }
-              var siteKm2 = areaKm2(siteGeom), laKm2 = areaKm2(laGeom);
+              var siteInUaKm2 = areaKm2(siteGeom);
               var inter = siteGeom ? gIntersect(siteGeom, laGeom) : null;
               var onlySite = siteGeom ? gDifference(siteGeom, laGeom) : null;
               var onlyLa = siteGeom ? gDifference(laGeom, siteGeom) : laGeom;
@@ -7907,7 +7915,17 @@
               // not near the front (lagoons, bays, gaps deep inside occupied land).
               onlySite = cleanDiff(onlySite, front);
               onlyLa = cleanDiff(onlyLa, null);
+              // Ignore zone: cut it out of both difference sets.
+              var ignoredKm2 = 0;
+              var zone = !IGNORE_ENABLED ? null : (ignoreMask ||
+                { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [IGNORE_BOX] } });
+              if (zone) {
+                if (onlySite) { ignoredKm2 += areaKm2(gIntersect(onlySite, zone)); onlySite = gDifference(onlySite, zone); }
+                if (onlyLa) { ignoredKm2 += areaKm2(gIntersect(onlyLa, zone)); onlyLa = gDifference(onlyLa, zone); }
+              }
               var interKm2 = areaKm2(inter), onlySiteKm2 = areaKm2(onlySite), onlyLaKm2 = areaKm2(onlyLa);
+              // Totals follow from the parts so the table always adds up.
+              var siteKm2 = interKm2 + onlySiteKm2, laKm2 = interKm2 + onlyLaKm2;
               diffSite = onlySite ? { type: 'FeatureCollection', features: [onlySite] } : null;
               diffLa = onlyLa ? { type: 'FeatureCollection', features: [onlyLa] } : null;
               ensureLayers();
@@ -7927,7 +7945,8 @@
                 row(T.onlySite, onlySiteKm2, SITE_ONLY_COLOR) +
                 row(T.onlyLa, onlyLaKm2, LA_ONLY_COLOR) +
                 row(T.diff, (delta > 0 ? '+' : delta < 0 ? '−' : '') + fmt(delta) + ' km²', null, 'la-total') +
-                row(T.outside, Math.max(0, siteFullKm2 - siteKm2), null, 'la-muted') +
+                row(T.outside, Math.max(0, siteFullKm2 - siteInUaKm2), null, 'la-muted') +
+                (ignoredKm2 > 0.5 ? row(T.ignored, ignoredKm2, null, 'la-muted') : '') +
                 '</table><div class="la-verdict">' + verdict + '</div>' +
                 (gapNote ? '<div class="la-note la-error" style="margin-top:6px">' + gapNote + '</div>' : '') +
                 (state.frontlineHistoryMode ? '<div class="la-note" style="margin-top:6px">' + T.histNote + '</div>' : '');
@@ -8071,6 +8090,17 @@
           }).catch(function (err) { console.warn('ukraine.geojson not used', err); });
         }
 
+        function loadIgnore() {
+          if (!window.fetch) { return; }
+          exists('ignore.geojson').then(function (ok) {
+            if (!ok) { return; }
+            return fetchText(FOLDER + 'ignore.geojson').then(function (t) {
+              var feats = geoToFeatures(JSON.parse(t));
+              if (feats.length) { ignoreMask = unionAll(feats); clearComparison(); }
+            });
+          }).catch(function (err) { console.warn('ignore.geojson not used', err); });
+        }
+
         function loadSeas() {
           if (!window.fetch) { return; }
           exists('seas.geojson').then(function (ok) {
@@ -8112,6 +8142,7 @@
         loadFolder();
         loadMask();
         loadSeas();
+        loadIgnore();
       })();
     </script>
     <script src="layers.js"></script>
