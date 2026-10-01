@@ -7733,13 +7733,36 @@
           var out = [];
           data.features.forEach(function (f) {
             var res = f;
-            try { res = turf.difference(f, seaMask); } catch (e) { console.warn('sea cut failed', e); res = f; }
+            try { res = gDifference(f, seaMask); } catch (e) { console.warn('sea cut failed', e); res = f; }
             if (res) { res.properties = f.properties; out.push(res); }
           });
           clipped = out;
         }
         function selectedCollection() { return { type: 'FeatureCollection', features: selectedFeatures() }; }
         function areaKm2(geomOrFeature) { return geomOrFeature ? turf.area(geomOrFeature) / 1e6 : 0; }
+
+        // polygon-clipping (inside turf 6.5) can die with "Infinite loop when
+        // passing sweep line over endpoints" on near-coincident edges (e.g. a
+        // border line that almost matches a LostArmour edge). Retry with the
+        // coordinates snapped to a coarser grid, then with a zero-buffer repair.
+        function snap(g, digits) {
+          var c = g;
+          try { c = turf.cleanCoords(g); } catch (e) { c = g; }
+          return turf.truncate(c, { precision: digits, coordinates: 2, mutate: false });
+        }
+        function gOp(op, a, b) {
+          try { return turf[op](a, b); } catch (first) {
+            var digits = [6, 5, 4];
+            for (var i = 0; i < digits.length; i++) {
+              try { return turf[op](snap(a, digits[i]), snap(b, digits[i])); } catch (e) { /* try coarser */ }
+            }
+            try { return turf[op](turf.buffer(a, 0), turf.buffer(b, 0)); } catch (e2) { /* give up */ }
+            throw first;
+          }
+        }
+        function gUnion(a, b) { return gOp('union', a, b); }
+        function gIntersect(a, b) { return gOp('intersect', a, b); }
+        function gDifference(a, b) { return gOp('difference', a, b); }
 
         // Balanced (tree) union is much faster than folding one by one.
         function unionAll(features) {
@@ -7748,7 +7771,7 @@
           while (arr.length > 1) {
             var next = [];
             for (var i = 0; i < arr.length; i += 2) {
-              next.push(i + 1 < arr.length ? (turf.union(arr[i], arr[i + 1]) || arr[i]) : arr[i]);
+              next.push(i + 1 < arr.length ? (gUnion(arr[i], arr[i + 1]) || arr[i]) : arr[i]);
             }
             arr = next;
           }
@@ -7819,7 +7842,7 @@
             if (polyWidthKm(p) < MIN_WIDTH_KM) { return; }
             if (front && areaKm2(p) < 800) {
               var hit = null;
-              try { hit = turf.intersect(p, front); } catch (e) { hit = p; }
+              try { hit = gIntersect(p, front); } catch (e) { hit = p; }
               if (!hit) { return; }
             }
             keep.push(p.geometry.coordinates);
@@ -7840,9 +7863,9 @@
             try {
               var siteFull = unionAll(siteFeatures);
               var siteFullKm2 = areaKm2(siteFull);
-              if (seaMask && siteFull) { siteFull = turf.difference(siteFull, seaMask); }
+              if (seaMask && siteFull) { siteFull = gDifference(siteFull, seaMask); }
               if (siteFull) {
-                try { siteFull = turf.difference(siteFull, { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [RU_RING] } }); }
+                try { siteFull = gDifference(siteFull, { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [RU_RING] } }); }
                 catch (ruErr) { console.warn('Russia cut failed', ruErr); }
               }
               var laGeom = unionAll(laFeatures);
@@ -7851,7 +7874,7 @@
                 siteGeom = null;
               } else if (uaMask) {
                 // Exact outline supplied in lostarmour/ukraine.geojson.
-                siteGeom = turf.intersect(siteFull, uaMask);
+                siteGeom = gIntersect(siteFull, uaMask);
               } else {
                 // Ukrainian Control holds only what Ukraine controls; the rest
                 // of Ukraine is the LostArmour area. Where this map's Russian
@@ -7860,25 +7883,25 @@
                 var ukGeom = unionAll(ukFeatures), crack = null;
                 try {
                   var near = turf.buffer(laGeom, CRACK_KM, { units: 'kilometers', steps: 4 });
-                  var ukNear = turf.intersect(ukGeom, near);
+                  var ukNear = gIntersect(ukGeom, near);
                   if (ukNear) {
                     front = turf.buffer(ukNear, CRACK_KM, { units: 'kilometers', steps: 4 });
-                    var both = turf.intersect(near, front);
-                    crack = both ? turf.difference(both, laGeom) : null;
-                    crack = crack ? turf.difference(crack, ukGeom) : null;
+                    var both = gIntersect(near, front);
+                    crack = both ? gDifference(both, laGeom) : null;
+                    crack = crack ? gDifference(crack, ukGeom) : null;
                   }
                 } catch (gapErr) {
                   console.warn('LostArmour gap fill failed', gapErr);
                   crack = null; front = null; gapNote = T.gapFail;
                 }
-                var parts = [turf.intersect(siteFull, ukGeom), turf.intersect(siteFull, laGeom),
-                  crack ? turf.intersect(siteFull, crack) : null].filter(Boolean);
+                var parts = [gIntersect(siteFull, ukGeom), gIntersect(siteFull, laGeom),
+                  crack ? gIntersect(siteFull, crack) : null].filter(Boolean);
                 siteGeom = unionAll(parts);
               }
               var siteKm2 = areaKm2(siteGeom), laKm2 = areaKm2(laGeom);
-              var inter = siteGeom ? turf.intersect(siteGeom, laGeom) : null;
-              var onlySite = siteGeom ? turf.difference(siteGeom, laGeom) : null;
-              var onlyLa = siteGeom ? turf.difference(laGeom, siteGeom) : laGeom;
+              var inter = siteGeom ? gIntersect(siteGeom, laGeom) : null;
+              var onlySite = siteGeom ? gDifference(siteGeom, laGeom) : null;
+              var onlyLa = siteGeom ? gDifference(laGeom, siteGeom) : laGeom;
               // Drop slivers thinner than MIN_WIDTH_KM (seams between neighbouring
               // polygons) and, for "only on this map", small stray pieces that are
               // not near the front (lagoons, bays, gaps deep inside occupied land).
