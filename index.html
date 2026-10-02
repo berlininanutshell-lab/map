@@ -8235,6 +8235,16 @@
           out.push(b);
           return out;
         }
+        // Exact point at fraction f (0..1) along the great circle a -> b.
+        // (arc() only has intermediate points every ~20 km, so for short
+        // segments it is just [a, b] and cannot give a midpoint.)
+        function interp(a, b, f) {
+          var d = hav(a, b) / R_EARTH;
+          if (d < 1e-9) { return a; }
+          var va = toVec(a), vb = toVec(b), sd = Math.sin(d);
+          var k1 = Math.sin((1 - f) * d) / sd, k2 = Math.sin(f * d) / sd;
+          return toLL([k1 * va[0] + k2 * vb[0], k1 * va[1] + k2 * vb[1], k1 * va[2] + k2 * vb[2]]);
+        }
         function fmtKm(km) {
           if (km < 1) { return Math.round(km * 1000) + ' m'; }
           if (km < 100) { return km.toFixed(2) + ' km'; }
@@ -8312,8 +8322,7 @@
               var seg = hav(pts[k - 1], pts[k]);
               if (acc + seg >= half) {
                 var f = seg > 0 ? (half - acc) / seg : 0;
-                var ar = arc(pts[k - 1], pts[k]);
-                mid = ar[Math.min(ar.length - 1, Math.round(f * (ar.length - 1)))];
+                mid = interp(pts[k - 1], pts[k], f);
                 break;
               }
               acc += seg;
