@@ -2277,6 +2277,54 @@
         font-size: 11px;
       }
 
+      /* Floating timeline: step through locked frontline days (outside the sidebar). */
+      .frontline-timeline {
+        position: fixed;
+        left: calc(50% + var(--sidebar-width, 320px) / 2);
+        bottom: 34px;
+        transform: translateX(-50%);
+        z-index: 450;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: calc(100vw - 24px);
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        background: rgba(12, 16, 22, 0.94);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        color: #edf5ff;
+        font: 13px system-ui, sans-serif;
+        transition: left 0.22s ease;
+      }
+      .frontline-timeline[hidden] { display: none; }
+      body.sidebar-collapsed .frontline-timeline { left: 50%; }
+      .frontline-timeline .tl-center { display: flex; flex-direction: column; gap: 5px; min-width: 150px; }
+      .frontline-timeline .tl-date { text-align: center; font-size: 12.5px; font-weight: 750; white-space: nowrap; }
+      .frontline-timeline.is-history .tl-date { color: #7fc4ff; }
+      .frontline-timeline input[type="range"] { width: 100%; margin: 0; accent-color: #ffb45b; cursor: pointer; }
+      .frontline-timeline button {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        border-radius: 9px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 9px;
+        font: inherit;
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .frontline-timeline button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+      .frontline-timeline button:disabled { opacity: 0.35; cursor: default; }
+      .frontline-timeline #tlPlay { border-color: rgba(255, 148, 0, 0.4); background: rgba(255, 148, 0, 0.14); color: #ffb45b; }
+      .frontline-timeline #tlLive { font-size: 11px; font-weight: 700; color: #7fc4ff; }
+      @media (max-width: 640px) {
+        .frontline-timeline { left: 50%; bottom: 6px; }
+        body.has-timeline .la-panel { bottom: 62px; }
+      }
+
       .frontline-admin-pick {
         display: flex;
         align-items: center;
@@ -2541,6 +2589,16 @@
   </head>
   <body>
     <div id="map"></div>
+    <div id="frontlineTimeline" class="frontline-timeline" hidden role="group" aria-label="Frontline timeline">
+      <button id="tlPrev" type="button" title="Previous day" aria-label="Previous day">‹</button>
+      <div class="tl-center">
+        <div class="tl-date" id="tlDate">Live</div>
+        <input id="tlRange" type="range" min="0" max="0" step="1" value="0" aria-label="Frontline date" />
+      </div>
+      <button id="tlNext" type="button" title="Next day" aria-label="Next day">›</button>
+      <button id="tlPlay" type="button" title="Play animation" aria-label="Play animation">▶</button>
+      <button id="tlLive" type="button" title="Back to the current frontline">Live</button>
+    </div>
     <div id="viewerListOverlay" hidden aria-hidden="true">
       <div id="viewerListCard" role="dialog" aria-modal="false" aria-labelledby="viewerListTitle">
         <div id="viewerListHeader">
@@ -3555,6 +3613,7 @@
         }
 
         renderFrontlineHistoryList();
+        renderFrontlineTimeline();
         frontlineCurrentBanner.hidden = !state.frontlineHistoryMode;
         if (state.frontlineHistoryMode) {
           frontlineCurrentBannerDate.textContent = dateKeyLabel(state.frontlineHistoryDate) + ' — read-only historical map';
@@ -3681,17 +3740,31 @@
         }
       }
 
-      async function showFrontlineHistory(date) {
+      // Unpacked snapshots are cached so stepping back and forth (and the
+      // play animation) does not re-decode the same day again and again.
+      const frontlineSnapshotCache = new Map();
+
+      async function loadFrontlineSnapshot(date) {
         const entry = frontlineHistoryEntries.get(date);
         if (!entry) {
+          return null;
+        }
+        if (!frontlineSnapshotCache.has(date)) {
+          frontlineSnapshotCache.set(date, {
+            main: await readSnapshotFeatureCollection(entry.main),
+            'ukrainian-control': await readSnapshotFeatureCollection(entry.ukrainianControl),
+            'russian-advances': await readSnapshotFeatureCollection(entry.russianAdvances),
+            'ukrainian-advances': await readSnapshotFeatureCollection(entry.ukrainianAdvances)
+          });
+        }
+        return frontlineSnapshotCache.get(date);
+      }
+
+      async function showFrontlineHistory(date) {
+        const loaded = await loadFrontlineSnapshot(date);
+        if (!loaded) {
           return;
         }
-        const loaded = {
-          main: await readSnapshotFeatureCollection(entry.main),
-          'ukrainian-control': await readSnapshotFeatureCollection(entry.ukrainianControl),
-          'russian-advances': await readSnapshotFeatureCollection(entry.russianAdvances),
-          'ukrainian-advances': await readSnapshotFeatureCollection(entry.ukrainianAdvances)
-        };
 
         if (!state.frontlineHistoryMode) {
           state.frontlineLiveBackup = cloneTerritoryData();
@@ -3751,6 +3824,172 @@
         renderFrontlineView();
       }
 
+      // ---- Floating timeline: ‹ previous day · › next day · ▶ play ----
+      // Steps over the days that have a locked snapshot (oldest -> newest).
+      // The last stop after the newest snapshot is the live, current frontline.
+      const TIMELINE_STEP_MS = 1000;
+      var timelineState = { playing: false, busy: false, timer: null };
+
+      function timelineDates() {
+        return Array.from(frontlineHistoryEntries.keys()).sort();
+      }
+
+      // Index of what is on the map now: 0..n-1 = locked days, n = live.
+      function timelineIndex(dates) {
+        if (!state.frontlineHistoryMode) {
+          return dates.length;
+        }
+        const i = dates.indexOf(state.frontlineHistoryDate);
+        return i < 0 ? dates.length : i;
+      }
+
+      function timelineLabel(dates, index) {
+        if (index >= dates.length) {
+          return 'Live';
+        }
+        return new Date(dates[index] + 'T12:00:00')
+          .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      function renderFrontlineTimeline() {
+        const bar = document.getElementById('frontlineTimeline');
+        if (!bar) {
+          return;
+        }
+        const dates = timelineDates();
+        const has = dates.length > 0;
+        bar.hidden = !has;
+        document.body.classList.toggle('has-timeline', has);
+        if (!has) {
+          return;
+        }
+        const index = timelineIndex(dates);
+        const range = document.getElementById('tlRange');
+        range.max = String(dates.length);
+        range.value = String(index);
+        document.getElementById('tlDate').textContent = timelineLabel(dates, index);
+        document.getElementById('tlPrev').disabled = index <= 0;
+        document.getElementById('tlNext').disabled = index >= dates.length;
+        document.getElementById('tlLive').hidden = index >= dates.length;
+        const isPlaying = !!(timelineState && timelineState.playing);
+        const play = document.getElementById('tlPlay');
+        play.textContent = isPlaying ? '❚❚' : '▶';
+        play.title = isPlaying ? 'Pause' : 'Play animation';
+        bar.classList.toggle('is-history', index < dates.length);
+      }
+
+      async function timelineGo(index) {
+        if (timelineState.busy) {
+          return;
+        }
+        timelineState.busy = true;
+        try {
+          const dates = timelineDates();
+          if (index >= dates.length) {
+            await returnToCurrentFrontline();
+          } else if (index >= 0) {
+            await showFrontlineHistory(dates[index]);
+          }
+        } finally {
+          timelineState.busy = false;
+          renderFrontlineTimeline();
+        }
+      }
+
+      function stopTimelinePlay() {
+        timelineState.playing = false;
+        clearTimeout(timelineState.timer);
+        timelineState.timer = null;
+        renderFrontlineTimeline();
+      }
+
+      async function timelinePlayStep() {
+        if (!timelineState.playing) {
+          return;
+        }
+        const dates = timelineDates();
+        const index = timelineIndex(dates);
+        if (index >= dates.length) {
+          stopTimelinePlay();
+          return;
+        }
+        await timelineGo(index + 1);
+        if (!timelineState.playing) {
+          return;
+        }
+        const after = timelineDates();
+        const next = timelineIndex(after);
+        if (next >= after.length) {
+          stopTimelinePlay();
+          return;
+        }
+        // Decode the following day while this one is on screen.
+        if (next + 1 < after.length) {
+          loadFrontlineSnapshot(after[next + 1]).catch(() => {});
+        }
+        timelineState.timer = setTimeout(timelinePlayStep, TIMELINE_STEP_MS);
+      }
+
+      async function startTimelinePlay() {
+        const dates = timelineDates();
+        if (!dates.length) {
+          return;
+        }
+        timelineState.playing = true;
+        renderFrontlineTimeline();
+        // From the newest day or from live: restart from the oldest day.
+        if (timelineIndex(dates) >= dates.length - 1) {
+          await timelineGo(0);
+          if (!timelineState.playing) {
+            return;
+          }
+          if (dates.length > 1) {
+            loadFrontlineSnapshot(dates[1]).catch(() => {});
+          }
+          timelineState.timer = setTimeout(timelinePlayStep, TIMELINE_STEP_MS);
+        } else {
+          timelinePlayStep();
+        }
+      }
+
+      (function bindFrontlineTimeline() {
+        const prev = document.getElementById('tlPrev');
+        const next = document.getElementById('tlNext');
+        const play = document.getElementById('tlPlay');
+        const live = document.getElementById('tlLive');
+        const range = document.getElementById('tlRange');
+        if (!prev || !next || !play || !live || !range) {
+          return;
+        }
+        prev.addEventListener('click', () => {
+          stopTimelinePlay();
+          timelineGo(timelineIndex(timelineDates()) - 1);
+        });
+        next.addEventListener('click', () => {
+          stopTimelinePlay();
+          timelineGo(timelineIndex(timelineDates()) + 1);
+        });
+        live.addEventListener('click', () => {
+          stopTimelinePlay();
+          timelineGo(timelineDates().length);
+        });
+        play.addEventListener('click', () => {
+          if (timelineState.playing) {
+            stopTimelinePlay();
+          } else {
+            startTimelinePlay();
+          }
+        });
+        range.addEventListener('input', () => {
+          const dates = timelineDates();
+          document.getElementById('tlDate').textContent = timelineLabel(dates, Number(range.value));
+        });
+        range.addEventListener('change', () => {
+          stopTimelinePlay();
+          timelineGo(Number(range.value));
+        });
+      })();
+
       if (frontlineLockBtn) {
         frontlineLockBtn.addEventListener('click', lockFrontlineForToday);
       }
@@ -3767,6 +4006,7 @@
       if (frontlineHistoryCollectionRef) {
         frontlineHistoryCollectionRef.onSnapshot((snapshot) => {
           frontlineHistoryEntries.clear();
+          frontlineSnapshotCache.clear();
           snapshot.forEach((doc) => {
             const data = doc.data() || {};
             frontlineHistoryEntries.set(doc.id, { ...data, date: data.date || doc.id });
