@@ -8305,7 +8305,15 @@
           elTotal.textContent = fmtKm(t);
           elMi.textContent = fmtMi(t);
           if (done && pts.length) {
-            var tl = makeLabel('Total ' + fmtKm(t), pts[pts.length - 1], 'left', [14, -14]);
+            // Single segment: put the Total label in the middle of the line.
+            // Multi-segment: keep it beside the last point.
+            var tl;
+            if (pts.length === 2) {
+              var ta = arc(pts[0], pts[1]);
+              tl = makeLabel('Total ' + fmtKm(t), ta[Math.floor(ta.length / 2)]);
+            } else {
+              tl = makeLabel('Total ' + fmtKm(t), pts[pts.length - 1], 'left', [14, -14]);
+            }
             tl.getElement().style.fontWeight = '700';
             labels.push(tl);
           }
