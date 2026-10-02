@@ -2271,6 +2271,52 @@
         font-size: 11px;
       }
 
+      .frontline-admin-pick {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: #98a9b9;
+        font-size: 11px;
+      }
+
+      .frontline-admin-pick input[type="date"] {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 148, 0, 0.3);
+        border-radius: 7px;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        padding: 5px 7px;
+        color-scheme: dark;
+      }
+
+      .frontline-missed {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        font-size: 10.5px;
+        color: #98a9b9;
+      }
+
+      .frontline-missed-chip {
+        border: 1px solid rgba(255, 148, 0, 0.32);
+        background: rgba(255, 148, 0, 0.08);
+        color: #ffb45b;
+        border-radius: 999px;
+        padding: 3px 9px;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .frontline-missed-chip:hover,
+      .frontline-missed-chip.active {
+        background: rgba(255, 148, 0, 0.22);
+      }
+
       .frontline-lock-btn,
       #frontlineReturnCurrentBtn {
         border: 1px solid rgba(255, 148, 0, 0.38);
@@ -2644,6 +2690,10 @@
             </div>
             <div class="frontline-admin admin-only" id="frontlineAdminPanel">
               <div class="frontline-admin-title">Admin · daily lock</div>
+              <label class="frontline-admin-pick">Date to lock
+                <input type="date" id="frontlineLockDateInput" />
+              </label>
+              <div class="frontline-missed" id="frontlineMissedDays" hidden></div>
               <div class="frontline-admin-date" id="frontlineAdminDate"></div>
               <div class="frontline-admin-status" id="frontlineAdminStatus"></div>
               <button id="frontlineLockBtn" class="frontline-lock-btn" type="button">Lock frontline for today</button>
@@ -3387,6 +3437,10 @@
       const frontlineAdminDateEl = document.getElementById('frontlineAdminDate');
       const frontlineAdminStatusEl = document.getElementById('frontlineAdminStatus');
       const frontlineLockBtn = document.getElementById('frontlineLockBtn');
+      const frontlineLockDateInput = document.getElementById('frontlineLockDateInput');
+      const frontlineMissedDaysEl = document.getElementById('frontlineMissedDays');
+      // Date the admin is about to lock; null means "today".
+      let frontlineLockDate = null;
       const frontlineCurrentBanner = document.getElementById('frontlineCurrentBanner');
       const frontlineCurrentBannerDate = document.getElementById('frontlineCurrentBannerDate');
       const frontlineReturnCurrentBtn = document.getElementById('frontlineReturnCurrentBtn');
@@ -3412,24 +3466,85 @@
         }
       }
 
+      function shiftDateKey(dateKey, days) {
+        const d = new Date(dateKey + 'T12:00:00');
+        d.setDate(d.getDate() + days);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
+
+      function shortDateKeyLabel(dateKey) {
+        return new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      // Unlocked days between the earliest locked day and yesterday (newest first, max 14).
+      function missedDateKeys(todayKey) {
+        const locked = Array.from(frontlineHistoryEntries.keys()).sort();
+        if (!locked.length) {
+          return [];
+        }
+        const missed = [];
+        let key = shiftDateKey(todayKey, -1);
+        while (key >= locked[0] && missed.length < 14) {
+          if (!frontlineHistoryEntries.has(key)) {
+            missed.push(key);
+          }
+          key = shiftDateKey(key, -1);
+        }
+        return missed;
+      }
+
       function renderFrontlineView() {
         const todayKey = todayDateKey();
-        frontlineAdminDateEl.textContent = dateKeyLabel(todayKey);
+        if (!frontlineLockDate || frontlineLockDate > todayKey) {
+          frontlineLockDate = todayKey;
+        }
+        const selectedKey = frontlineLockDate;
+        const isToday = selectedKey === todayKey;
+        frontlineAdminDateEl.textContent = dateKeyLabel(selectedKey);
+        if (frontlineLockDateInput) {
+          frontlineLockDateInput.max = todayKey;
+          frontlineLockDateInput.value = selectedKey;
+        }
 
-        const todayEntry = frontlineHistoryEntries.get(todayKey);
+        if (frontlineMissedDaysEl) {
+          const missed = isAdmin() ? missedDateKeys(todayKey) : [];
+          frontlineMissedDaysEl.innerHTML = '';
+          frontlineMissedDaysEl.hidden = !missed.length;
+          if (missed.length) {
+            const label = document.createElement('span');
+            label.textContent = 'Not locked:';
+            frontlineMissedDaysEl.appendChild(label);
+            missed.forEach((key) => {
+              const chip = document.createElement('button');
+              chip.type = 'button';
+              chip.className = 'frontline-missed-chip' + (key === selectedKey ? ' active' : '');
+              chip.textContent = shortDateKeyLabel(key);
+              chip.addEventListener('click', () => {
+                frontlineLockDate = key;
+                renderFrontlineView();
+              });
+              frontlineMissedDaysEl.appendChild(chip);
+            });
+          }
+        }
+
+        const selectedEntry = frontlineHistoryEntries.get(selectedKey);
         if (isAdmin()) {
-          if (todayEntry) {
-            frontlineAdminStatusEl.textContent = 'Today is already locked. The saved snapshot cannot be overwritten.';
+          const dayWord = isToday ? 'today' : shortDateKeyLabel(selectedKey);
+          if (selectedEntry) {
+            frontlineAdminStatusEl.textContent = (isToday ? 'Today' : 'This date') + ' is already locked. The saved snapshot cannot be overwritten.';
             frontlineLockBtn.disabled = true;
-            frontlineLockBtn.textContent = 'Locked for today';
+            frontlineLockBtn.textContent = 'Locked for ' + dayWord;
           } else if (state.frontlineHistoryMode) {
-            frontlineAdminStatusEl.textContent = 'Exit historical view before locking today.';
+            frontlineAdminStatusEl.textContent = 'Exit historical view before locking a date.';
             frontlineLockBtn.disabled = true;
             frontlineLockBtn.textContent = 'Return to current frontline first';
           } else {
-            frontlineAdminStatusEl.textContent = 'The current map and current Advances areas will be saved exactly as they are.';
+            frontlineAdminStatusEl.textContent = isToday
+              ? 'The current map and current Advances areas will be saved exactly as they are.'
+              : 'Missed day: the CURRENT map and current Advances areas will be saved under this date. Make sure the map matches that day first.';
             frontlineLockBtn.disabled = false;
-            frontlineLockBtn.textContent = 'Lock frontline for today';
+            frontlineLockBtn.textContent = 'Lock frontline for ' + dayWord;
           }
         }
 
@@ -3459,7 +3574,7 @@
           date.textContent = dateKeyLabel(entry.date);
           const locked = document.createElement('div');
           locked.className = 'frontline-history-locked';
-          locked.textContent = 'Locked';
+          locked.textContent = entry.lockedLate ? 'Locked late' : 'Locked';
           head.appendChild(date);
           head.appendChild(locked);
 
@@ -3501,15 +3616,17 @@
           return;
         }
 
-        const date = todayDateKey();
+        const todayKey = todayDateKey();
+        const date = (frontlineLockDate && frontlineLockDate <= todayKey) ? frontlineLockDate : todayKey;
+        const lateLock = date !== todayKey;
         frontlineLockBtn.disabled = true;
-        setFrontlineHistoryStatus('Saving today’s snapshot…');
+        setFrontlineHistoryStatus('Saving snapshot for ' + dateKeyLabel(date) + '…');
 
         try {
           const docRef = frontlineHistoryCollectionRef.doc(date);
           const existing = await docRef.get();
           if (existing.exists) {
-            setFrontlineHistoryStatus('Today was already locked by an admin.');
+            setFrontlineHistoryStatus('This date was already locked by an admin.');
             renderFrontlineView();
             return;
           }
@@ -3531,7 +3648,8 @@
             russianAdvanceShapeCount: russian.count,
             ukrainianAdvanceShapeCount: ukrainian.count,
             lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            lockedBy: user ? (user.email || user.uid) : 'admin'
+            lockedBy: user ? (user.email || user.uid) : 'admin',
+            lockedLate: lateLock
           });
 
           setFrontlineHistoryStatus('Locked successfully for ' + dateKeyLabel(date) + '.');
@@ -3629,6 +3747,12 @@
 
       if (frontlineLockBtn) {
         frontlineLockBtn.addEventListener('click', lockFrontlineForToday);
+      }
+      if (frontlineLockDateInput) {
+        frontlineLockDateInput.addEventListener('change', () => {
+          frontlineLockDate = frontlineLockDateInput.value || null;
+          renderFrontlineView();
+        });
       }
       if (frontlineReturnCurrentBtn) {
         frontlineReturnCurrentBtn.addEventListener('click', returnToCurrentFrontline);
@@ -8044,6 +8168,27 @@
             return r.ok && !/text\/html/i.test(r.headers.get('content-type') || '');
           }).catch(function () { return false; });
         }
+        // lostarmour/files.json (optional) lists what is in the folder, so the
+        // page does not have to guess with ~150 HEAD requests that each show up
+        // as a red 404 in the console. Format:
+        //   { "kml": ["2026-10-02.kml", "2026-10-01.kml"], "latest": false,
+        //     "extras": ["ukraine.geojson", "ignore.geojson", "seas.geojson"] }
+        // Without it the old probing is used as a fallback.
+        var manifestPromise = null;
+        function getManifest() {
+          if (!manifestPromise) {
+            manifestPromise = fetchText(FOLDER + 'files.json').then(function (t) {
+              var m = JSON.parse(t);
+              return m && typeof m === 'object' ? m : null;
+            }).catch(function () { return null; });
+          }
+          return manifestPromise;
+        }
+        function extraExists(name) {
+          return getManifest().then(function (m) {
+            return m ? (m.extras || []).indexOf(name) !== -1 : exists(name);
+          });
+        }
         function isoDate(d) {
           var m = d.getMonth() + 1, day = d.getDate();
           return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
@@ -8069,7 +8214,15 @@
         // shown; if there are several, a dropdown appears.
         function loadFolder() {
           if (!window.fetch) { return Promise.resolve(); }
-          return Promise.all([exists('latest.kml'), listDir(), probeDates(150)]).then(function (res) {
+          return getManifest().then(function (man) {
+            if (man) {
+              var listed = (Array.isArray(man.kml) ? man.kml : []).filter(function (n) {
+                return typeof n === 'string' && /^[\w.\-]+\.kml$/i.test(n) && n !== 'latest.kml';
+              });
+              return [!!man.latest, [], listed];
+            }
+            return Promise.all([exists('latest.kml'), listDir(), probeDates(150)]);
+          }).then(function (res) {
             var seen = {}, names = [];
             res[1].concat(res[2]).forEach(function (n) { if (n !== 'latest.kml' && !seen[n]) { seen[n] = 1; names.push(n); } });
             names.sort(function (a, b) { return a < b ? 1 : -1; });
@@ -8104,7 +8257,7 @@
         // (with Crimea). When present it replaces the automatic estimate.
         function loadMask() {
           if (!window.fetch) { return; }
-          exists('ukraine.geojson').then(function (ok) {
+          extraExists('ukraine.geojson').then(function (ok) {
             if (!ok) { return; }
             return fetchText(FOLDER + 'ukraine.geojson').then(function (t) {
               var feats = geoToFeatures(JSON.parse(t));
@@ -8115,7 +8268,7 @@
 
         function loadIgnore() {
           if (!window.fetch) { return; }
-          exists('ignore.geojson').then(function (ok) {
+          extraExists('ignore.geojson').then(function (ok) {
             if (!ok) { return; }
             return fetchText(FOLDER + 'ignore.geojson').then(function (t) {
               var feats = geoToFeatures(JSON.parse(t));
@@ -8126,7 +8279,7 @@
 
         function loadSeas() {
           if (!window.fetch) { return; }
-          exists('seas.geojson').then(function (ok) {
+          extraExists('seas.geojson').then(function (ok) {
             if (!ok) { return; }
             return fetchText(FOLDER + 'seas.geojson').then(function (t) {
               var feats = geoToFeatures(JSON.parse(t));
