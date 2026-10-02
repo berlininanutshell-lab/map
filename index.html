@@ -2277,7 +2277,7 @@
         font-size: 11px;
       }
 
-      /* Floating timeline: step through locked frontline days (outside the sidebar). */
+      /* Floating timeline (DeepState-style): play · speed · ‹ date › · calendar */
       .frontline-timeline {
         position: fixed;
         left: calc(50% + var(--sidebar-width, 320px) / 2);
@@ -2286,42 +2286,58 @@
         z-index: 450;
         display: flex;
         align-items: center;
-        gap: 8px;
-        max-width: calc(100vw - 24px);
-        padding: 8px 10px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        gap: 4px;
+        max-width: calc(100vw - 16px);
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 14px;
         background: rgba(12, 16, 22, 0.94);
         box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
         color: #edf5ff;
         font: 13px system-ui, sans-serif;
         transition: left 0.22s ease;
+        user-select: none;
       }
       .frontline-timeline[hidden] { display: none; }
       body.sidebar-collapsed .frontline-timeline { left: 50%; }
-      .frontline-timeline .tl-center { display: flex; flex-direction: column; gap: 5px; min-width: 150px; }
-      .frontline-timeline .tl-date { text-align: center; font-size: 12.5px; font-weight: 750; white-space: nowrap; }
-      .frontline-timeline.is-history .tl-date { color: #7fc4ff; }
-      .frontline-timeline input[type="range"] { width: 100%; margin: 0; accent-color: #ffb45b; cursor: pointer; }
       .frontline-timeline button {
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.06);
-        color: #edf5ff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 34px;
+        padding: 0 6px;
+        border: 0;
         border-radius: 9px;
-        min-width: 32px;
-        height: 32px;
-        padding: 0 9px;
+        background: transparent;
+        color: #aebdcc;
         font: inherit;
-        font-size: 16px;
-        line-height: 1;
+        font-size: 14px;
+        font-weight: 700;
         cursor: pointer;
       }
-      .frontline-timeline button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
-      .frontline-timeline button:disabled { opacity: 0.35; cursor: default; }
-      .frontline-timeline #tlPlay { border-color: rgba(255, 148, 0, 0.4); background: rgba(255, 148, 0, 0.14); color: #ffb45b; }
-      .frontline-timeline #tlLive { font-size: 11px; font-weight: 700; color: #7fc4ff; }
+      .frontline-timeline button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .frontline-timeline button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.09); color: #fff; }
+      .frontline-timeline button:disabled { opacity: 0.3; cursor: default; }
+      .frontline-timeline #tlPlay.is-playing { color: #ffb45b; }
+      .frontline-timeline .tl-date-wrap { display: flex; align-items: center; gap: 7px; padding: 0 4px; }
+      .frontline-timeline .tl-date { min-width: 84px; text-align: center; font-size: 14px; font-weight: 750; letter-spacing: 0.01em; white-space: nowrap; }
+      .frontline-timeline.is-history .tl-date { color: #7fc4ff; }
+      .frontline-timeline #tlLive {
+        min-width: 0;
+        height: 20px;
+        padding: 0 7px;
+        border: 1px solid rgba(127, 196, 255, 0.45);
+        border-radius: 999px;
+        color: #7fc4ff;
+        font-size: 9.5px;
+        letter-spacing: 0.06em;
+      }
+      .frontline-timeline #tlLive.is-live { border-color: rgba(95, 211, 141, 0.5); color: #5fd38d; opacity: 1; }
+      .frontline-timeline #tlDatePick { position: absolute; right: 12px; bottom: 6px; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
       @media (max-width: 640px) {
-        .frontline-timeline { left: 50%; bottom: 6px; }
+        .frontline-timeline { left: 50%; bottom: 6px; padding: 6px 8px; gap: 2px; }
+        .frontline-timeline .tl-date { min-width: 76px; font-size: 13px; }
         body.has-timeline .la-panel { bottom: 62px; }
       }
 
@@ -2590,27 +2606,17 @@
   <body>
     <div id="map"></div>
     <div id="frontlineTimeline" class="frontline-timeline" hidden role="group" aria-label="Frontline timeline">
-      <button id="tlPrev" type="button" title="Previous day" aria-label="Previous day">‹</button>
-      <div class="tl-center">
-        <div class="tl-date" id="tlDate">Live</div>
-        <input id="tlRange" type="range" min="0" max="0" step="1" value="0" aria-label="Frontline date" />
+      <button id="tlPlay" type="button" title="Play animation" aria-label="Play animation"></button>
+      <button id="tlSpeed" type="button" title="Playback speed" aria-label="Playback speed">1x</button>
+      <button id="tlPrev" type="button" title="Previous day" aria-label="Previous day"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="tl-date-wrap">
+        <span class="tl-date" id="tlDate">—</span>
+        <button id="tlLive" type="button" title="Back to the current frontline">LIVE</button>
       </div>
-      <button id="tlNext" type="button" title="Next day" aria-label="Next day">›</button>
-      <button id="tlPlay" type="button" title="Play animation" aria-label="Play animation">▶</button>
-      <button id="tlLive" type="button" title="Back to the current frontline">Live</button>
+      <button id="tlNext" type="button" title="Next day" aria-label="Next day"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button id="tlCal" type="button" title="Pick a date" aria-label="Pick a date"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></button>
+      <input type="date" id="tlDatePick" tabindex="-1" aria-hidden="true" />
     </div>
-    <div id="viewerListOverlay" hidden aria-hidden="true">
-      <div id="viewerListCard" role="dialog" aria-modal="false" aria-labelledby="viewerListTitle">
-        <div id="viewerListHeader">
-          <strong id="viewerListTitle">Current viewers</strong>
-          <button id="viewerListClose" type="button" aria-label="Close viewer list">×</button>
-        </div>
-        <div id="viewerList" aria-live="polite"></div>
-      </div>
-    </div>
-    <button id="sidebarToggleBtn" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="sidebar">
-      <span aria-hidden="true">‹</span>
-    </button>
     <aside id="sidebar">
       <div id="sidebarResizeHandle" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
       <header id="sidebar-header">
@@ -2663,7 +2669,7 @@
         <button id="legendTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="true" aria-controls="legendView">Legend</button>
         <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
         <button id="advancesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="advancesView">Advances</button>
-        <button id="frontlineTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="frontlineView">Frontline</button>
+        <button id="frontlineTabBtn" class="sidebar-tab admin-only" type="button" role="tab" aria-selected="false" aria-controls="frontlineView">Frontline</button>
         <button id="contactTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="contactView">Contact<span id="contactTabBadge" class="cc-tab-badge" hidden></span></button>
       </div>
       <div id="sidebarViews">
@@ -2724,7 +2730,7 @@
           <div id="casualtySources" class="casualty-sources"></div>
         </div>
         <div id="advancesView" class="sidebar-view" role="tabpanel" hidden>
-          <div class="advances-note">Live pending territory drawn with the Territory polygon tool on the Russian advances / Ukrainian advances layers, before it's applied to Russian Control / Ukrainian Control. For locked day-by-day values and historical map positions, use the Frontline tab.</div>
+          <div class="advances-note">Live pending territory drawn with the Territory polygon tool on the Russian advances / Ukrainian advances layers, before it's applied to Russian Control / Ukrainian Control. For locked day-by-day historical map positions, use the timeline at the bottom of the map.</div>
           <div class="advances-section">
             <div class="advances-section-header">
               <span class="casualty-dot" style="background:#FF9400"></span>
@@ -2746,12 +2752,6 @@
         </div>
         <div id="frontlineView" class="sidebar-view" role="tabpanel" hidden>
           <div class="frontline-history-panel">
-            <div class="frontline-history-intro">Daily snapshots of the saved frontline. Select a date to display that exact locked map position and the advances recorded for that day.</div>
-            <div class="frontline-current-banner" id="frontlineCurrentBanner" hidden>
-              <strong>Historical view</strong>
-              <span id="frontlineCurrentBannerDate"></span>
-              <button id="frontlineReturnCurrentBtn" type="button">Return to current frontline</button>
-            </div>
             <div class="frontline-admin admin-only" id="frontlineAdminPanel">
               <div class="frontline-admin-title">Admin · daily lock</div>
               <label class="frontline-admin-pick">Date to lock
@@ -2761,9 +2761,6 @@
               <div class="frontline-admin-date" id="frontlineAdminDate"></div>
               <div class="frontline-admin-status" id="frontlineAdminStatus"></div>
               <button id="frontlineLockBtn" class="frontline-lock-btn" type="button">Lock frontline for today</button>
-            </div>
-            <div class="frontline-history-list" id="frontlineHistoryList">
-              <div class="frontline-empty">No daily frontline snapshots yet.</div>
             </div>
           </div>
         </div>
@@ -3035,8 +3032,12 @@
         if (role !== 'admin' && state.drawingTool === 'flag') {
           deactivateDrawingTool();
         }
-        if (role !== 'admin' && state.frontlineHistoryMode) {
-          returnToCurrentFrontline();
+        if (role !== 'admin') {
+          const frontlineTab = document.getElementById('frontlineTabBtn');
+          const legendTab = document.getElementById('legendTabBtn');
+          if (frontlineTab && legendTab && frontlineTab.getAttribute('aria-selected') === 'true') {
+            legendTab.click();
+          }
         }
         renderLayers();
         if (typeof renderFrontlineView === 'function') {
@@ -3600,9 +3601,9 @@
             frontlineLockBtn.disabled = true;
             frontlineLockBtn.textContent = 'Locked for ' + dayWord;
           } else if (state.frontlineHistoryMode) {
-            frontlineAdminStatusEl.textContent = 'Exit historical view before locking a date.';
+            frontlineAdminStatusEl.textContent = 'Switch the timeline back to LIVE before locking a date.';
             frontlineLockBtn.disabled = true;
-            frontlineLockBtn.textContent = 'Return to current frontline first';
+            frontlineLockBtn.textContent = 'Go to LIVE first';
           } else {
             frontlineAdminStatusEl.textContent = isToday
               ? 'The current map and current Advances areas will be saved exactly as they are.'
@@ -3614,13 +3615,18 @@
 
         renderFrontlineHistoryList();
         renderFrontlineTimeline();
-        frontlineCurrentBanner.hidden = !state.frontlineHistoryMode;
-        if (state.frontlineHistoryMode) {
+        if (frontlineCurrentBanner) {
+          frontlineCurrentBanner.hidden = !state.frontlineHistoryMode;
+        }
+        if (state.frontlineHistoryMode && frontlineCurrentBannerDate) {
           frontlineCurrentBannerDate.textContent = dateKeyLabel(state.frontlineHistoryDate) + ' — read-only historical map';
         }
       }
 
       function renderFrontlineHistoryList() {
+        if (!frontlineHistoryListEl) {
+          return;
+        }
         const entries = Array.from(frontlineHistoryEntries.values()).sort((a, b) => b.date.localeCompare(a.date));
         frontlineHistoryListEl.innerHTML = '';
         if (!entries.length) {
@@ -3824,11 +3830,18 @@
         renderFrontlineView();
       }
 
-      // ---- Floating timeline: ‹ previous day · › next day · ▶ play ----
+      // ---- Floating timeline: play · speed · ‹ date › · calendar ----
       // Steps over the days that have a locked snapshot (oldest -> newest).
       // The last stop after the newest snapshot is the live, current frontline.
-      const TIMELINE_STEP_MS = 1000;
-      var timelineState = { playing: false, busy: false, timer: null };
+      const TIMELINE_SPEEDS = [1, 2, 4, 0.5];
+      const TL_ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg>';
+      const TL_ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+      // var (hoisted): renderFrontlineView() can run before this point.
+      var timelineState = { playing: false, busy: false, timer: null, speedIdx: 0 };
+
+      function timelineStepMs() {
+        return Math.round(1000 / TIMELINE_SPEEDS[timelineState.speedIdx]);
+      }
 
       function timelineDates() {
         return Array.from(frontlineHistoryEntries.keys()).sort();
@@ -3843,12 +3856,9 @@
         return i < 0 ? dates.length : i;
       }
 
-      function timelineLabel(dates, index) {
-        if (index >= dates.length) {
-          return 'Live';
-        }
-        return new Date(dates[index] + 'T12:00:00')
-          .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      function timelineFormatKey(key) {
+        const parts = String(key).split('-');
+        return parts[2] + '.' + parts[1] + '.' + parts[0];
       }
 
       function renderFrontlineTimeline() {
@@ -3864,18 +3874,26 @@
           return;
         }
         const index = timelineIndex(dates);
-        const range = document.getElementById('tlRange');
-        range.max = String(dates.length);
-        range.value = String(index);
-        document.getElementById('tlDate').textContent = timelineLabel(dates, index);
-        document.getElementById('tlPrev').disabled = index <= 0;
-        document.getElementById('tlNext').disabled = index >= dates.length;
-        document.getElementById('tlLive').hidden = index >= dates.length;
+        const live = index >= dates.length;
         const isPlaying = !!(timelineState && timelineState.playing);
+        const todayKey = todayDateKey();
+
+        document.getElementById('tlDate').textContent = timelineFormatKey(live ? todayKey : dates[index]);
+        document.getElementById('tlPrev').disabled = index <= 0;
+        document.getElementById('tlNext').disabled = live;
+        const liveBtn = document.getElementById('tlLive');
+        liveBtn.disabled = live;
+        liveBtn.classList.toggle('is-live', live);
+        liveBtn.title = live ? 'Showing the current frontline' : 'Back to the current frontline';
         const play = document.getElementById('tlPlay');
-        play.textContent = isPlaying ? '❚❚' : '▶';
+        play.innerHTML = isPlaying ? TL_ICON_PAUSE : TL_ICON_PLAY;
+        play.classList.toggle('is-playing', isPlaying);
         play.title = isPlaying ? 'Pause' : 'Play animation';
-        bar.classList.toggle('is-history', index < dates.length);
+        document.getElementById('tlSpeed').textContent = TIMELINE_SPEEDS[timelineState.speedIdx] + 'x';
+        const pick = document.getElementById('tlDatePick');
+        pick.min = dates[0];
+        pick.max = todayKey;
+        bar.classList.toggle('is-history', !live);
       }
 
       async function timelineGo(index) {
@@ -3927,7 +3945,7 @@
         if (next + 1 < after.length) {
           loadFrontlineSnapshot(after[next + 1]).catch(() => {});
         }
-        timelineState.timer = setTimeout(timelinePlayStep, TIMELINE_STEP_MS);
+        timelineState.timer = setTimeout(timelinePlayStep, timelineStepMs());
       }
 
       async function startTimelinePlay() {
@@ -3946,47 +3964,77 @@
           if (dates.length > 1) {
             loadFrontlineSnapshot(dates[1]).catch(() => {});
           }
-          timelineState.timer = setTimeout(timelinePlayStep, TIMELINE_STEP_MS);
+          timelineState.timer = setTimeout(timelinePlayStep, timelineStepMs());
         } else {
           timelinePlayStep();
         }
       }
 
       (function bindFrontlineTimeline() {
-        const prev = document.getElementById('tlPrev');
-        const next = document.getElementById('tlNext');
-        const play = document.getElementById('tlPlay');
-        const live = document.getElementById('tlLive');
-        const range = document.getElementById('tlRange');
-        if (!prev || !next || !play || !live || !range) {
-          return;
+        const ids = ['tlPlay', 'tlSpeed', 'tlPrev', 'tlNext', 'tlLive', 'tlCal', 'tlDatePick'];
+        const el = {};
+        for (const id of ids) {
+          el[id] = document.getElementById(id);
+          if (!el[id]) {
+            return;
+          }
         }
-        prev.addEventListener('click', () => {
+        el.tlPrev.addEventListener('click', () => {
           stopTimelinePlay();
           timelineGo(timelineIndex(timelineDates()) - 1);
         });
-        next.addEventListener('click', () => {
+        el.tlNext.addEventListener('click', () => {
           stopTimelinePlay();
           timelineGo(timelineIndex(timelineDates()) + 1);
         });
-        live.addEventListener('click', () => {
+        el.tlLive.addEventListener('click', () => {
           stopTimelinePlay();
           timelineGo(timelineDates().length);
         });
-        play.addEventListener('click', () => {
+        el.tlPlay.addEventListener('click', () => {
           if (timelineState.playing) {
             stopTimelinePlay();
           } else {
             startTimelinePlay();
           }
         });
-        range.addEventListener('input', () => {
-          const dates = timelineDates();
-          document.getElementById('tlDate').textContent = timelineLabel(dates, Number(range.value));
+        el.tlSpeed.addEventListener('click', () => {
+          timelineState.speedIdx = (timelineState.speedIdx + 1) % TIMELINE_SPEEDS.length;
+          renderFrontlineTimeline();
         });
-        range.addEventListener('change', () => {
+        el.tlCal.addEventListener('click', () => {
           stopTimelinePlay();
-          timelineGo(Number(range.value));
+          const dates = timelineDates();
+          const index = timelineIndex(dates);
+          el.tlDatePick.value = index >= dates.length ? todayDateKey() : dates[index];
+          try {
+            el.tlDatePick.showPicker();
+          } catch (error) {
+            el.tlDatePick.focus();
+            el.tlDatePick.click();
+          }
+        });
+        // A picked day jumps to the newest snapshot on or before it; today
+        // (or later) means the live frontline.
+        el.tlDatePick.addEventListener('change', () => {
+          const picked = el.tlDatePick.value;
+          if (!picked) {
+            return;
+          }
+          const dates = timelineDates();
+          let target;
+          if (picked >= todayDateKey()) {
+            target = dates.length;
+          } else {
+            target = 0;
+            dates.forEach((key, i) => {
+              if (key <= picked) {
+                target = i;
+              }
+            });
+          }
+          stopTimelinePlay();
+          timelineGo(target);
         });
       })();
 
