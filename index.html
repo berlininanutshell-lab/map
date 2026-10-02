@@ -8294,7 +8294,10 @@
           setData('ruler-pts', { type: 'FeatureCollection', features: pts.map(function (p) {
             return { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: p } }; }) });
           clearLabels();
-          for (var j = 1; j < pts.length; j++) {
+          // A finished single-segment line would show the same distance twice
+          // ("1.14 km" + "Total 1.14 km"), so keep only the Total label then.
+          var singleDone = done && pts.length === 2;
+          for (var j = 1; j < pts.length && !singleDone; j++) {
             var a = arc(pts[j - 1], pts[j]);
             labels.push(makeLabel(fmtKm(hav(pts[j - 1], pts[j])), a[Math.floor(a.length / 2)]));
           }
