@@ -8294,26 +8294,31 @@
           setData('ruler-pts', { type: 'FeatureCollection', features: pts.map(function (p) {
             return { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: p } }; }) });
           clearLabels();
-          // A finished single-segment line would show the same distance twice
-          // ("1.14 km" + "Total 1.14 km"), so keep only the Total label then.
-          var singleDone = done && pts.length === 2;
-          for (var j = 1; j < pts.length && !singleDone; j++) {
-            var a = arc(pts[j - 1], pts[j]);
-            labels.push(makeLabel(fmtKm(hav(pts[j - 1], pts[j])), a[Math.floor(a.length / 2)]));
+          // Finished line: one "Total" label at the middle of the whole path
+          // (by distance), no per-segment labels so nothing overlaps.
+          // While measuring, each segment keeps its own label.
+          if (!done) {
+            for (var j = 1; j < pts.length; j++) {
+              var a = arc(pts[j - 1], pts[j]);
+              labels.push(makeLabel(fmtKm(hav(pts[j - 1], pts[j])), a[Math.floor(a.length / 2)]));
+            }
           }
           var t = total();
           elTotal.textContent = fmtKm(t);
           elMi.textContent = fmtMi(t);
-          if (done && pts.length) {
-            // Single segment: put the Total label in the middle of the line.
-            // Multi-segment: keep it beside the last point.
-            var tl;
-            if (pts.length === 2) {
-              var ta = arc(pts[0], pts[1]);
-              tl = makeLabel('Total ' + fmtKm(t), ta[Math.floor(ta.length / 2)]);
-            } else {
-              tl = makeLabel('Total ' + fmtKm(t), pts[pts.length - 1], 'left', [14, -14]);
+          if (done && pts.length > 1) {
+            var half = t / 2, acc = 0, mid = pts[0];
+            for (var k = 1; k < pts.length; k++) {
+              var seg = hav(pts[k - 1], pts[k]);
+              if (acc + seg >= half) {
+                var f = seg > 0 ? (half - acc) / seg : 0;
+                var ar = arc(pts[k - 1], pts[k]);
+                mid = ar[Math.min(ar.length - 1, Math.round(f * (ar.length - 1)))];
+                break;
+              }
+              acc += seg;
             }
+            var tl = makeLabel('Total ' + fmtKm(t), mid);
             tl.getElement().style.fontWeight = '700';
             labels.push(tl);
           }
