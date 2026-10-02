@@ -1,0 +1,239 @@
+      #drawToolsBtn {
+        min-width: 82px;
+        height: 42px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f5f8ff;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      }
+
+      #drawToolsBtn:hover,
+      #drawToolsBtn[aria-expanded="true"] {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      #drawToolsBtn span {
+        margin-right: 5px;
+        font-size: 17px;
+      }
+
+      #toolMenu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 12px;
+        z-index: 2;
+        width: 220px;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: #111820;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      #toolMenu[hidden] {
+        display: none;
+      }
+
+      .tool-option {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        width: 100%;
+        padding: 10px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #edf5ff;
+        text-align: left;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .tool-option:hover,
+      .tool-option[aria-pressed="true"] {
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .tool-symbol {
+        width: 22px;
+        color: #aebdca;
+        text-align: center;
+        font-size: 17px;
+      }
+
+      .tool-divider {
+        height: 1px;
+        margin: 6px 2px;
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      /* Layer picker shown under the Territory polygon tool while it's
+         armed, so an admin picks which layer a drawn shape edits before
+         (or while) drawing it. Built dynamically in JS from state.layers
+         so the dots always match each layer's current color. */
+      .territory-layer-picker {
+        margin: 2px 2px 6px;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .territory-layer-picker[hidden] {
+        display: none;
+      }
+
+      .territory-layer-picker-title {
+        padding: 0 2px 6px;
+        color: #94a5b4;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .territory-layer-option {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 7px 8px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #edf5ff;
+        text-align: left;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+      }
+
+      .territory-layer-option:hover,
+      .territory-layer-option[aria-pressed="true"] {
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .territory-layer-dot {
+        width: 10px;
+        height: 10px;
+        flex: none;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+      }
+
+      /* Right-click flyout on the Line tool button, offering a dashed
+         variant. Positioned in JS (fixed, at the cursor) rather than
+         anchored to the button, since it opens wherever the user
+         right-clicked. */
+      #lineVariantMenu {
+        position: fixed;
+        z-index: 3;
+        width: 170px;
+        padding: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: #111820;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      #lineVariantMenu[hidden] {
+        display: none;
+      }
+
+      .clear-drawings {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        width: 100%;
+        padding: 10px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #ff9b91;
+        text-align: left;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .clear-drawings:hover:not(:disabled) {
+        background: rgba(255, 115, 102, 0.1);
+      }
+
+      .clear-drawings:disabled {
+        opacity: 0.42;
+        cursor: default;
+      }
+
+
+      .draw-thickness-option {
+        gap: 8px;
+      }
+
+      .draw-thickness-option > span {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.75;
+      }
+
+      .draw-thickness-option input[type="range"] {
+        width: 100%;
+        accent-color: #ff9400;
+      }
+
+      .color-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        color: #d7e0e8;
+        font-size: 13px;
+      }
+
+      #drawColor {
+        width: 34px;
+        height: 28px;
+        padding: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 7px;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      #colorSwatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        padding: 2px 10px 10px;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: transform 0.08s ease;
+      }
+
+      .color-swatch:hover {
+        transform: scale(1.14);
+      }
+
+      .color-swatch[aria-pressed="true"] {
+        border-color: #edf5ff;
+        box-shadow: 0 0 0 2px #111820, 0 0 0 3px #edf5ff;
+      }
+
+      #drawHint {
+        min-height: 28px;
+        padding: 5px 10px 2px;
+        color: #94a5b4;
+        font-size: 11px;
+        line-height: 1.4;
+      }

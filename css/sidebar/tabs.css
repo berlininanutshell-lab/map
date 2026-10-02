@@ -1,0 +1,29 @@
+      #sidebarTabs {
+        display: flex;
+        gap: 6px;
+        padding: 12px 18px 0;
+      }
+
+      .sidebar-tab {
+        flex: 1;
+        height: 36px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+        color: #98a9b9;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .sidebar-tab:hover {
+        background: rgba(255, 255, 255, 0.07);
+        color: #edf5ff;
+      }
+
+      .sidebar-tab[aria-selected="true"] {
+        background: rgba(255, 148, 0, 0.14);
+        border-color: rgba(255, 148, 0, 0.4);
+        color: #ff9400;
+      }

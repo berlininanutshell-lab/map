@@ -1,0 +1,169 @@
+      .maplibregl-popup-content {
+        padding: 14px;
+        border-radius: 10px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      .maplibregl-popup-tip {
+        border-top-color: #111820 !important;
+        border-bottom-color: #111820 !important;
+      }
+
+      .maplibregl-popup-close-button {
+        color: #edf5ff;
+        font-size: 18px;
+        padding: 4px 8px;
+      }
+
+      .maplibregl-popup-close-button:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .marker-popup-title {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0 18px 2px 0;
+      }
+
+      .marker-popup-subtitle {
+        font-size: 12px;
+        color: #98a9b9;
+        margin-bottom: 8px;
+      }
+
+      .marker-popup-coords {
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      .marker-popup-copy {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .marker-popup-copy:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .territory-popup-post {
+        margin: 2px 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .territory-popup-post-row {
+        display: flex;
+        gap: 6px;
+      }
+
+      .territory-popup-post-row .marker-popup-copy {
+        flex: 1;
+        padding: 6px 4px;
+        font-size: 12px;
+      }
+
+      .territory-popup-post-text {
+        width: 100%;
+        min-height: 110px;
+        padding: 7px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        line-height: 1.45;
+        resize: vertical;
+      }
+
+      .territory-popup-source {
+        margin: 2px 0 10px;
+        padding: 8px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .territory-popup-source-label {
+        display: block;
+        font-size: 11px;
+        color: #98a9b9;
+        margin-bottom: 4px;
+      }
+
+      .territory-popup-source a {
+        color: #76b9ff;
+        font-size: 12px;
+        word-break: break-all;
+        text-decoration: none;
+      }
+
+      .territory-popup-source a:hover {
+        text-decoration: underline;
+      }
+
+      .territory-popup-source-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.2);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        outline: none;
+      }
+
+      .territory-popup-source-input:focus {
+        border-color: rgba(118, 185, 255, 0.65);
+      }
+
+      .marker-popup-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .marker-popup-delete {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid rgba(255, 115, 102, 0.35);
+        border-radius: 6px;
+        background: rgba(255, 115, 102, 0.1);
+        color: #ff9b91;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .marker-popup-delete:hover {
+        background: rgba(255, 115, 102, 0.2);
+      }
+
+      .marker-popup-apply {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid rgba(96, 210, 138, 0.4);
+        border-radius: 6px;
+        background: rgba(96, 210, 138, 0.12);
+        color: #8be8ac;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .marker-popup-apply:hover {
+        background: rgba(96, 210, 138, 0.22);
+      }

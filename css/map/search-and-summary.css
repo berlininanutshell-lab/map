@@ -1,0 +1,76 @@
+      #mapSummary {
+        padding: 14px 18px 10px;
+        color: #ccd6e1;
+        font-size: 12px;
+        opacity: 0.9;
+      }
+
+      #searchBox {
+        position: relative;
+        display: flex;
+        gap: 8px;
+        padding: 14px 18px 4px;
+      }
+
+      #searchInput {
+        flex: 1;
+        min-width: 0;
+        height: 38px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 13px;
+      }
+
+      #searchInput::placeholder {
+        color: #7c8a97;
+      }
+
+      #searchResults {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 18px;
+        right: 18px;
+        z-index: 20;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: #111820;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      #searchResults[hidden] {
+        display: none;
+      }
+
+      .search-result-item {
+        display: block;
+        width: 100%;
+        padding: 10px 12px;
+        border: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: transparent;
+        color: #edf5ff;
+        text-align: left;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .search-result-item:last-child {
+        border-bottom: 0;
+      }
+
+      .search-result-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .search-result-message {
+        padding: 10px 12px;
+        color: #94a5b4;
+        font-size: 12px;
+      }

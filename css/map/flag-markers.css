@@ -1,0 +1,24 @@
+      .flag-marker {
+        cursor: grab;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+        transform-origin: bottom left;
+      }
+
+      .flag-marker img {
+        display: block;
+        width: 32px;
+        height: auto;
+        border-radius: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+      }
+
+      .flag-marker:active {
+        cursor: grabbing;
+      }
+
+      .tool-symbol img {
+        display: block;
+        width: 18px;
+        height: auto;
+        border-radius: 2px;
+      }

@@ -1,0 +1,127 @@
+      /* Admin-only live viewer counter. It lives inside the sidebar header
+         so it stays attached to the panel when the sidebar is resized. */
+      #adminViewerCount {
+        position: absolute;
+        top: 8px;
+        right: 14px;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.035);
+        color: #98a9b9;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+        backdrop-filter: blur(8px);
+      }
+
+      #viewerListOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 58px 0 0 18px;
+        background: transparent;
+      }
+
+      #viewerListOverlay[hidden] {
+        display: none;
+      }
+
+      #viewerListCard {
+        width: min(320px, calc(100vw - 36px));
+        max-height: min(420px, calc(100vh - 90px));
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 12px;
+        background: rgba(14,14,16,.97);
+        box-shadow: 0 18px 45px rgba(0,0,0,.45);
+        color: #edf5ff;
+        backdrop-filter: blur(14px);
+      }
+
+      #viewerListHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+      }
+
+      #viewerListHeader strong { font-size: 13px; }
+
+      #viewerListClose {
+        border: 0;
+        background: transparent;
+        color: #98a9b9;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        padding: 2px 4px;
+      }
+
+      #viewerList {
+        padding: 8px;
+        overflow-y: auto;
+        max-height: 350px;
+      }
+
+      .viewer-list-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 8px;
+        border-radius: 8px;
+      }
+
+      .viewer-list-row:hover { background: rgba(255,255,255,.05); }
+
+      .viewer-list-dot {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 7px;
+        border-radius: 50%;
+        background: #39d353;
+        box-shadow: 0 0 0 3px rgba(57,211,83,.10);
+      }
+
+      .viewer-list-info {
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+
+      .viewer-list-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+      }
+
+      .viewer-list-duration {
+        color: #7f8d9a;
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .admin-viewer-dot {
+        width: 6px;
+        height: 6px;
+        flex: 0 0 6px;
+        border-radius: 50%;
+        background: #39d353;
+        box-shadow: 0 0 0 2px rgba(57, 211, 83, 0.10);
+      }

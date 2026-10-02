@@ -1,0 +1,32 @@
+      #sidebarViews {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .sidebar-view {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.22s ease, transform 0.22s ease;
+        pointer-events: none;
+      }
+
+      .sidebar-view.is-active {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      /* Higher specificity than the base .sidebar-view rule above, so a
+         panel that has finished fading out is actually removed from
+         layout/hit-testing instead of just sitting there invisible
+         (which is what happens if [hidden] never wins over an
+         unconditional `display` declared on the same element). */
+      .sidebar-view[hidden] {
+        display: none;
+      }

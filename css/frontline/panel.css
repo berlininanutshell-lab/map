@@ -1,0 +1,46 @@
+      .frontline-history-panel {
+        padding: 16px 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .frontline-history-intro,
+      .frontline-admin,
+      .frontline-current-banner {
+        padding: 11px 12px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #aebdcc;
+        font-size: 11.5px;
+        line-height: 1.55;
+      }
+
+      .frontline-admin {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        background: rgba(255, 148, 0, 0.055);
+        border-color: rgba(255, 148, 0, 0.18);
+      }
+
+      .frontline-admin-title {
+        color: #ffb45b;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .frontline-admin-date {
+        color: #edf5ff;
+        font-size: 15px;
+        font-weight: 750;
+      }
+
+      .frontline-admin-status {
+        min-height: 16px;
+        color: #98a9b9;
+        font-size: 11px;
+      }

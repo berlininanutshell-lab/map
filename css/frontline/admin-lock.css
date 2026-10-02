@@ -1,0 +1,163 @@
+      .frontline-admin-pick {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: #98a9b9;
+        font-size: 11px;
+      }
+
+      .frontline-admin-pick input[type="date"] {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 148, 0, 0.3);
+        border-radius: 7px;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        padding: 5px 7px;
+        color-scheme: dark;
+      }
+
+      .frontline-missed {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        font-size: 10.5px;
+        color: #98a9b9;
+      }
+
+      .frontline-missed-chip {
+        border: 1px solid rgba(255, 148, 0, 0.32);
+        background: rgba(255, 148, 0, 0.08);
+        color: #ffb45b;
+        border-radius: 999px;
+        padding: 3px 9px;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .frontline-missed-chip:hover,
+      .frontline-missed-chip.active {
+        background: rgba(255, 148, 0, 0.22);
+      }
+
+      .frontline-lock-btn,
+      #frontlineReturnCurrentBtn {
+        border: 1px solid rgba(255, 148, 0, 0.38);
+        background: rgba(255, 148, 0, 0.12);
+        color: #ffb45b;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .frontline-lock-btn:hover:not(:disabled),
+      #frontlineReturnCurrentBtn:hover {
+        background: rgba(255, 148, 0, 0.2);
+      }
+
+      .frontline-lock-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .frontline-current-banner {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        background: rgba(127, 196, 255, 0.06);
+        border-color: rgba(127, 196, 255, 0.2);
+      }
+
+      .frontline-current-banner strong {
+        color: #7fc4ff;
+      }
+
+      .frontline-history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .frontline-history-day {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        padding: 11px 12px;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .frontline-history-day-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .frontline-history-date {
+        color: #edf5ff;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .frontline-history-locked {
+        color: #6d7d8c;
+        font-size: 10px;
+      }
+
+      .frontline-history-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+      }
+
+      .frontline-history-stat {
+        padding: 7px 8px;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .frontline-history-stat-label {
+        color: #6d7d8c;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .frontline-history-stat-value {
+        margin-top: 2px;
+        color: #edf5ff;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .frontline-history-open {
+        border: 1px solid rgba(127, 196, 255, 0.24);
+        background: rgba(127, 196, 255, 0.08);
+        color: #9dd1ff;
+        border-radius: 7px;
+        padding: 7px 9px;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .frontline-history-open:hover {
+        background: rgba(127, 196, 255, 0.15);
+      }
+
+      .frontline-empty {
+        padding: 16px 4px;
+        color: #6d7d8c;
+        font-size: 11px;
+        text-align: center;
+      }

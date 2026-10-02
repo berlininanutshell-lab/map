@@ -1,0 +1,18 @@
+      @media (max-width: 640px) {
+        #sidebar {
+          width: var(--sidebar-width, 70vw);
+          max-width: 88vw;
+        }
+
+        #sidebarToggleBtn {
+          left: var(--sidebar-width, 70vw);
+        }
+
+        body.sidebar-collapsed #sidebarToggleBtn {
+          left: 0;
+        }
+
+        #sidebar-header h1 {
+          font-size: 22px;
+        }
+      }

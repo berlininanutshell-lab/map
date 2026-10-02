@@ -1,0 +1,30 @@
+      #error {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        display: none;
+        z-index: 9999;
+      }
+
+      #kmlHoverLabel {
+        position: fixed;
+        z-index: 1500;
+        padding: 4px 9px;
+        border-radius: 6px;
+        background: rgba(17, 24, 32, 0.92);
+        color: #edf5ff;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+      }
+
+      #kmlHoverLabel[hidden] {
+        display: none;
+      }

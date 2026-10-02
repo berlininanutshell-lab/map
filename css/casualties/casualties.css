@@ -1,0 +1,293 @@
+      #casualtiesView {
+        padding: 16px 18px 20px;
+        gap: 18px;
+      }
+
+      .casualty-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .casualty-section-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .casualty-section-header h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #edf5ff;
+      }
+
+      .casualty-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        flex-shrink: 0;
+      }
+
+      .casualty-total-since {
+        font-size: 11px;
+        letter-spacing: 0.03em;
+        color: #98a9b9;
+      }
+
+      .casualty-total-since strong {
+        display: block;
+        margin-top: 2px;
+        color: #edf5ff;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: normal;
+      }
+
+      .casualty-total {
+        font-size: 12px;
+        color: #98a9b9;
+      }
+
+      .casualty-total strong {
+        color: #edf5ff;
+        font-size: 14px;
+      }
+
+      .casualty-chart-wrap {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 6px;
+      }
+
+      .casualty-chart {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .casualty-chart circle {
+        cursor: pointer;
+      }
+
+      .casualty-chart circle:hover,
+      .casualty-chart circle.active {
+        r: 4.2;
+      }
+
+      #casualtyTooltip {
+        position: fixed;
+        z-index: 1200;
+        min-width: 150px;
+        padding: 9px 11px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+        font-size: 12px;
+        line-height: 1.5;
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.14s ease, transform 0.14s ease;
+      }
+
+      #casualtyTooltip.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+
+      #casualtyTooltip .casualty-tooltip-date {
+        color: #98a9b9;
+        font-size: 10.5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+      }
+
+      #casualtyTooltip .casualty-tooltip-value {
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      #casualtyTooltip .casualty-tooltip-label {
+        font-weight: 400;
+        color: #98a9b9;
+        font-size: 11px;
+        margin-left: 4px;
+      }
+
+      .casualty-disclaimer {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(255, 115, 102, 0.1);
+        border: 1px solid rgba(255, 115, 102, 0.3);
+        color: #f2c9c4;
+        font-size: 11.5px;
+        line-height: 1.55;
+      }
+
+      .casualty-disclaimer strong {
+        color: #ff9b91;
+      }
+
+      .casualty-note {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(255, 148, 0, 0.08);
+        border: 1px solid rgba(255, 148, 0, 0.25);
+        color: #d9c2a0;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .casualty-note code {
+        font-family: monospace;
+        color: #ff9400;
+      }
+
+      .casualty-admin {
+        margin-top: 4px;
+        padding: 10px;
+        border: 1px dashed rgba(255, 148, 0, 0.35);
+        border-radius: 8px;
+        background: rgba(255, 148, 0, 0.04);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .casualty-admin-title {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #ff9400;
+        font-weight: 700;
+      }
+
+      .casualty-admin-total-row,
+      .casualty-admin-add-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .casualty-admin-total-row label {
+        flex: 1;
+        color: #98a9b9;
+        font-size: 12px;
+      }
+
+      .casualty-admin input[type="number"],
+      .casualty-admin input[type="date"] {
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 6px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+      }
+
+      .casualty-admin-total-row input[type="number"] {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .casualty-admin-add-row input[type="date"] {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .casualty-admin-add-row input[type="number"] {
+        width: 84px;
+      }
+
+      .casualty-admin-btn {
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .casualty-admin-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .casualty-admin-btn.danger {
+        border-color: rgba(255, 115, 102, 0.35);
+        background: rgba(255, 115, 102, 0.1);
+        color: #ff9b91;
+      }
+
+      .casualty-admin-btn.danger:hover {
+        background: rgba(255, 115, 102, 0.2);
+      }
+
+      .casualty-admin-entries {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+
+      .casualty-admin-entry {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .casualty-admin-entry .entry-date {
+        flex: 1;
+        color: #98a9b9;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .casualty-admin-entry input[type="number"] {
+        width: 76px;
+      }
+
+      .casualty-admin-empty {
+        color: #6d7d8c;
+        font-size: 12px;
+      }
+
+      .casualty-sources {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .casualty-sources-title {
+        color: #98a9b9;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .casualty-source-item {
+        display: block;
+        color: #7fc4ff;
+        font-size: 12px;
+        line-height: 1.7;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+      }
+
+      .casualty-source-item:hover {
+        text-decoration: underline;
+      }

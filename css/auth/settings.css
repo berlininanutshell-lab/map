@@ -1,0 +1,151 @@
+      #settingsBtn {
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(255, 255, 255, 0.04);
+        color: #edf5ff;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      #settingsBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      #settingsOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 9, 13, 0.88);
+        backdrop-filter: blur(2px);
+      }
+
+      #settingsOverlay[hidden] {
+        display: none;
+      }
+
+      #settingsCard {
+        position: relative;
+        width: 340px;
+        max-width: calc(100vw - 32px);
+        padding: 26px 24px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        background: #111820;
+        color: #edf5ff;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+
+      #settingsCard h2 {
+        margin: 0 0 16px;
+        font-size: 21px;
+      }
+
+      #settingsCloseBtn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #98a9b9;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      #settingsCloseBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #edf5ff;
+      }
+
+      .settings-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        color: #98a9b9;
+        margin-bottom: 6px;
+      }
+
+      .settings-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .settings-row input {
+        flex: 1;
+        min-width: 0;
+        height: 38px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: #151515;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 14px;
+      }
+
+      #settingsSaveBtn {
+        flex-shrink: 0;
+        height: 38px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #ff9400;
+        color: #16110a;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #settingsSaveBtn:hover {
+        background: #ffab33;
+      }
+
+      #settingsSaveBtn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      #settingsStatus {
+        min-height: 16px;
+        margin-bottom: 10px;
+        color: #7fc4ff;
+        font-size: 11px;
+      }
+
+      .settings-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .settings-info-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 13px;
+      }
+
+      .settings-info-label {
+        color: #98a9b9;
+        flex-shrink: 0;
+      }
+
+      .settings-info-value {
+        color: #edf5ff;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+        text-align: right;
+      }

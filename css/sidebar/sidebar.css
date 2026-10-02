@@ -1,0 +1,122 @@
+      #sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: var(--sidebar-width, 320px);
+        z-index: 500;
+        background: rgba(10, 10, 10, 0.96);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 18px 0 34px rgba(0, 0, 0, 0.25);
+        color: #edf5ff;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.22s ease;
+      }
+
+      /* The whole sidebar can be resized by dragging its right edge. */
+      #sidebarResizeHandle {
+        position: absolute;
+        top: 0;
+        right: -5px;
+        bottom: 0;
+        width: 10px;
+        z-index: 10;
+        cursor: ew-resize;
+        touch-action: none;
+      }
+
+      #sidebarResizeHandle::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 2px;
+        width: 2px;
+        height: 54px;
+        transform: translateY(-50%);
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.16);
+        opacity: 0;
+        transition: opacity 0.15s ease, background 0.15s ease;
+      }
+
+      #sidebarResizeHandle:hover::after,
+      body.sidebar-resizing #sidebarResizeHandle::after {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      body.sidebar-resizing,
+      body.sidebar-resizing * {
+        cursor: ew-resize !important;
+        user-select: none !important;
+      }
+
+      /* Sidebar collapse: slides #sidebar fully off-screen (by its own
+         width, via percentage translate — works whether it's 320px or
+         the mobile 70vw). #map is always full-viewport (see #map
+         above) and sits underneath the sidebar the whole time, so
+         collapsing/reopening the sidebar only ever reveals or covers
+         part of it — the map itself never resizes or re-centers. The
+         toggle button is a fixed sibling, not a child of #sidebar, so
+         it stays put at the left edge and stays clickable to bring
+         the sidebar back. */
+      body.sidebar-collapsed #sidebar {
+        transform: translateX(-100%);
+      }
+
+      #sidebarToggleBtn {
+        position: fixed;
+        top: 22px;
+        left: var(--sidebar-width, 320px);
+        z-index: 600;
+        width: 20px;
+        height: 56px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-left: none;
+        border-radius: 0 10px 10px 0;
+        background: rgba(15, 21, 28, 0.92);
+        color: #cdd8e3;
+        font-size: 15px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 6px 0 16px rgba(0, 0, 0, 0.25);
+        transition: left 0.22s ease, background 0.15s ease, color 0.15s ease;
+      }
+
+      #sidebarToggleBtn:hover {
+        background: rgba(30, 40, 52, 0.96);
+        color: #ffffff;
+      }
+
+      body.sidebar-collapsed #sidebarToggleBtn {
+        left: 0;
+      }
+
+      #sidebar-header {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 34px 18px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #98a9b9;
+        margin-bottom: 4px;
+      }
+
+      #sidebar-header h1 {
+        margin: 0;
+        font-size: 26px;
+        line-height: 1.1;
+        font-weight: 700;
+      }

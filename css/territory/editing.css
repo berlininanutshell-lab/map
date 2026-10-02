@@ -1,0 +1,125 @@
+      /* ---- Territory polygon vertex-edit handles ----
+         Small draggable dots for existing vertices (bigger, solid) and
+         faint "+" dots at edge midpoints that insert a new vertex when
+         clicked. Both are plain DOM markers positioned by MapLibre. */
+      .territory-vertex-handle {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ffd166;
+        border: 2px solid #1a1f26;
+        box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.6);
+        cursor: grab;
+      }
+
+      .territory-vertex-handle:active {
+        cursor: grabbing;
+      }
+
+      .territory-vertex-add {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 209, 102, 0.45);
+        border: 1.5px dashed #ffd166;
+        cursor: copy;
+      }
+
+      .territory-edit-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        z-index: 1100;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #161b22;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        color: #cdd9e5;
+        font-size: 12.5px;
+        max-width: 92vw;
+      }
+
+      .territory-edit-controls button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .territory-edit-controls .territory-edit-done {
+        border-color: rgba(96, 210, 138, 0.4);
+        background: rgba(96, 210, 138, 0.14);
+        color: #8be8ac;
+      }
+
+      .territory-edit-controls button:hover {
+        filter: brightness(1.15);
+      }
+
+      /* Smoothing controls shown after RMB finishes a new territory polygon. */
+      .territory-smoothing-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        z-index: 1100;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #161b22;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        color: #cdd9e5;
+        font-size: 12.5px;
+        max-width: 92vw;
+      }
+
+      .territory-smoothing-controls .territory-smoothing-title {
+        color: #edf5ff;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .territory-smoothing-controls input[type="range"] {
+        width: 120px;
+      }
+
+      .territory-smoothing-controls .territory-smoothing-value {
+        min-width: 48px;
+        color: #94a5b4;
+        white-space: nowrap;
+      }
+
+      .territory-smoothing-controls button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .territory-smoothing-controls .territory-smoothing-done {
+        border-color: rgba(96, 210, 138, 0.4);
+        background: rgba(96, 210, 138, 0.14);
+        color: #8be8ac;
+      }
+
+      .territory-smoothing-controls button:hover {
+        filter: brightness(1.15);
+      }
