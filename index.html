@@ -239,6 +239,7 @@
             <section class="geo-admin admin-only" aria-label="Add geolocation">
               <div class="geo-admin-title">Admin · publish a location</div>
               <button id="geoPickLocationBtn" class="geo-pick-location" type="button">Choose location on map</button>
+              <p class="geo-coordinate-hint">Or enter coordinates as latitude, longitude.</p>
               <form id="geoLocationForm">
                 <label class="geo-field">Flag
                   <select id="geoNationInput" required>
@@ -249,14 +250,9 @@
                 <label class="geo-field">Date
                   <input id="geoDateInput" type="date" required />
                 </label>
-                <div class="geo-coordinate-row">
-                  <label class="geo-field">Latitude
-                    <input id="geoLatitudeInput" type="number" min="-90" max="90" step="any" placeholder="49.3160" required />
-                  </label>
-                  <label class="geo-field">Longitude
-                    <input id="geoLongitudeInput" type="number" min="-180" max="180" step="any" placeholder="30.6937" required />
-                  </label>
-                </div>
+                <label class="geo-field">Coordinates (latitude, longitude)
+                  <input id="geoCoordinatesInput" type="text" inputmode="decimal" placeholder="49.3160, 30.6937" autocomplete="off" required />
+                </label>
                 <label class="geo-field">Source
                   <input id="geoSourceInput" type="text" maxlength="300" placeholder="Source name or URL" required />
                 </label>

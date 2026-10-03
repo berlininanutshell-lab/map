@@ -13,8 +13,7 @@
       const geoAdminStatusEl = document.getElementById('geoAdminStatus');
       const geoLocationForm = document.getElementById('geoLocationForm');
       const geoDateInput = document.getElementById('geoDateInput');
-      const geoLatitudeInput = document.getElementById('geoLatitudeInput');
-      const geoLongitudeInput = document.getElementById('geoLongitudeInput');
+      const geoCoordinatesInput = document.getElementById('geoCoordinatesInput');
       const geoPickLocationBtn = document.getElementById('geoPickLocationBtn');
       const geoPublishBtn = document.getElementById('geoPublishBtn');
       const geoCollectionRef = typeof db !== 'undefined' && db
@@ -283,8 +282,7 @@
         if (!geoPickingLocation || state.role !== 'admin' || event.defaultPrevented) {
           return;
         }
-        geoLatitudeInput.value = event.lngLat.lat.toFixed(6);
-        geoLongitudeInput.value = event.lngLat.lng.toFixed(6);
+        geoCoordinatesInput.value = event.lngLat.lat.toFixed(6) + ', ' + event.lngLat.lng.toFixed(6);
         geoPickingLocation = false;
         geoPickLocationBtn.classList.remove('is-picking');
         geoPickLocationBtn.textContent = 'Choose location on map';
@@ -317,8 +315,9 @@
 
         const nation = document.getElementById('geoNationInput').value;
         const date = geoDateInput.value;
-        const lat = Number(geoLatitudeInput.value);
-        const lng = Number(geoLongitudeInput.value);
+        const coordinates = parseCoordinateInput(geoCoordinatesInput.value);
+        const lat = coordinates ? coordinates.lat : NaN;
+        const lng = coordinates ? coordinates.lng : NaN;
         const source = document.getElementById('geoSourceInput').value.trim();
         const description = document.getElementById('geoDescriptionInput').value.trim();
         if (!geoNationDetails[nation] || !isValidGeoDateKey(date) ||
