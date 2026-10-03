@@ -406,6 +406,11 @@
     <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="js/auth/firebase-auth.js"></script>
+    <script>
+      window.geolocationCollectionRef = db
+        ? db.collection('mapState').doc('geolocations').collection('locations')
+        : null;
+    </script>
     <script src="js/utils/helpers.js"></script>
     <script src="js/auth/roles.js"></script>
     <script src="js/auth/profile.js"></script>
