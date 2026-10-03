@@ -1,3 +1,4 @@
+      // Supports both the combined and legacy split-coordinate form fields.
       const geoNationDetails = {
         ukraine: { label: 'Ukraine', flagCode: 'ua' },
         russia: { label: 'Russia', flagCode: 'ru' }
