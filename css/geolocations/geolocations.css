@@ -456,37 +456,40 @@
       }
 
       .geo-popup {
-        min-width: 170px;
-        max-width: 240px;
+        min-width: 190px;
+        max-width: 280px;
         color: #edf5ff;
         font-family: inherit;
       }
 
       .geo-popup-title {
-        margin-bottom: 4px;
-        color: #18212a;
-        font-size: 12px;
+        margin: 0 20px 6px 0;
+        color: #edf5ff;
+        font-size: 14px;
         font-weight: 800;
       }
 
       .geo-popup-date {
-        margin-bottom: 7px;
-        color: #9a5700;
-        font-size: 10px;
+        margin-bottom: 8px;
+        color: #ffb45b;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
       }
 
       .geo-popup-description {
-        margin-bottom: 7px;
-        color: #344252;
-        font-size: 11px;
-        line-height: 1.45;
+        margin-bottom: 8px;
+        color: #cbd7e2;
+        font-size: 12px;
+        line-height: 1.5;
         overflow-wrap: anywhere;
         white-space: pre-wrap;
       }
 
       .geo-popup-source {
-        color: #1766a0;
-        font-size: 10px;
+        color: #7fc4ff;
+        font-size: 11px;
+        line-height: 1.45;
         overflow-wrap: anywhere;
         text-decoration: none;
       }
@@ -498,10 +501,10 @@
       .geo-popup-delete {
         margin-top: 8px;
         padding: 5px 8px;
-        border: 1px solid rgba(176, 44, 34, 0.25);
+        border: 1px solid rgba(255, 115, 102, 0.3);
         border-radius: 6px;
         background: rgba(255, 75, 62, 0.1);
-        color: #b02c22;
+        color: #ff9b91;
         font: inherit;
         font-size: 10px;
         cursor: pointer;

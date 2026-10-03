@@ -109,6 +109,16 @@
             return true;
           }
         }
+        if (map.getLayer('geolocation-flags-symbols')) {
+          const p = event.point;
+          const hits = map.queryRenderedFeatures(
+            [[p.x - 18, p.y - 18], [p.x + 18, p.y + 18]],
+            { layers: ['geolocation-flags-symbols'] }
+          );
+          if (hits.length) {
+            return true;
+          }
+        }
         return false;
       }
 
