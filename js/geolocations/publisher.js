@@ -1,7 +1,7 @@
       // Supports both the combined and legacy split-coordinate form fields.
       const geoNationDetails = {
-        ukraine: { label: 'Ukraine', flagCode: 'ua' },
-        russia: { label: 'Russia', flagCode: 'ru' }
+        ukraine: { label: 'Ukraine' },
+        russia: { label: 'Russia' }
       };
 
       const geoLocationsListEl = document.getElementById('geoLocationsList');
@@ -24,7 +24,10 @@
         ? db.collection('mapState').doc('geolocations').collection('locations')
         : null;
       const geoLocations = new Map();
-      const geoMarkers = new Map();
+      let geoVisibleLocations = [];
+      let geoPopup = null;
+      let geoPopupLocationId = null;
+      let geoMapClickBound = false;
 
       const geoToday = new Date();
       const geoTodayKey = toGeoDateKey(geoToday);
@@ -115,44 +118,138 @@
           '</div>';
       }
 
-      function removeGeoMarker(locationId) {
-        const marker = geoMarkers.get(locationId);
-        if (marker) {
-          marker.remove();
-          geoMarkers.delete(locationId);
+      function geoFlagImageData(nation) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 22;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          throw new Error('Could not create geolocation flag image.');
+        }
+
+        if (nation === 'ukraine') {
+          context.fillStyle = '#0057b7';
+          context.fillRect(0, 0, 32, 11);
+          context.fillStyle = '#ffd700';
+          context.fillRect(0, 11, 32, 11);
+        } else {
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, 32, 22 / 3);
+          context.fillStyle = '#0039a6';
+          context.fillRect(0, 22 / 3, 32, 22 / 3);
+          context.fillStyle = '#d52b1e';
+          context.fillRect(0, 44 / 3, 32, 22 / 3);
+        }
+        context.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        context.lineWidth = 1;
+        context.strokeRect(0.5, 0.5, 31, 21);
+        return context.getImageData(0, 0, canvas.width, canvas.height);
+      }
+
+      function geoFeatureCollection(locations) {
+        return {
+          type: 'FeatureCollection',
+          features: locations.map((location) => ({
+            type: 'Feature',
+            id: location.id,
+            properties: {
+              id: location.id,
+              nation: location.nation,
+              date: location.date,
+              source: location.source,
+              description: location.description,
+              icon: 'geolocation-flag-' + location.nation
+            },
+            geometry: {
+              type: 'Point',
+              coordinates: [location.lng, location.lat]
+            }
+          }))
+        };
+      }
+
+      function ensureGeoMapLayer() {
+        if (!map.isStyleLoaded()) {
+          return;
+        }
+        ['ukraine', 'russia'].forEach((nation) => {
+          const imageId = 'geolocation-flag-' + nation;
+          if (!map.hasImage(imageId)) {
+            map.addImage(imageId, geoFlagImageData(nation));
+          }
+        });
+
+        if (!map.getSource('geolocation-flags')) {
+          map.addSource('geolocation-flags', {
+            type: 'geojson',
+            data: geoFeatureCollection(geoVisibleLocations)
+          });
+        }
+        if (!map.getLayer('geolocation-flags-symbols')) {
+          map.addLayer({
+            id: 'geolocation-flags-symbols',
+            type: 'symbol',
+            source: 'geolocation-flags',
+            layout: {
+              'icon-image': ['get', 'icon'],
+              'icon-anchor': 'bottom-left',
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+              'icon-size': 1
+            }
+          });
+        }
+        if (!geoMapClickBound) {
+          map.on('click', 'geolocation-flags-symbols', (event) => {
+            const feature = event.features && event.features[0];
+            if (!feature) {
+              return;
+            }
+            const location = geoLocations.get(feature.properties.id);
+            if (!location) {
+              return;
+            }
+            if (geoPopup) {
+              geoPopup.remove();
+            }
+            geoPopup = new maplibregl.Popup({ offset: 16, closeButton: true, closeOnClick: false })
+              .setLngLat(feature.geometry.coordinates)
+              .setHTML(geoLocationPopupHtml(location))
+              .addTo(map);
+            geoPopupLocationId = location.id;
+          });
+          geoMapClickBound = true;
+        }
+
+        const source = map.getSource('geolocation-flags');
+        if (source) {
+          source.setData(geoFeatureCollection(geoVisibleLocations));
+        }
+      }
+
+      function restoreGeoMapLayerAfterStyleChange() {
+        if (!map.isStyleLoaded()) {
+          return;
+        }
+        const layerMissing = !map.getLayer('geolocation-flags-symbols');
+        const sourceMissing = !map.getSource('geolocation-flags');
+        const imageMissing = !map.hasImage('geolocation-flag-ukraine') ||
+          !map.hasImage('geolocation-flag-russia');
+        if (layerMissing || sourceMissing || imageMissing) {
+          ensureGeoMapLayer();
         }
       }
 
       function renderGeoMarkers(locations) {
-        const visibleIds = new Set(locations.map((location) => location.id));
-        geoMarkers.forEach((marker, id) => {
-          if (!visibleIds.has(id)) {
-            removeGeoMarker(id);
-          }
-        });
-
-        locations.forEach((location) => {
-          const nation = geoNationDetails[location.nation];
-          let marker = geoMarkers.get(location.id);
-          if (!marker) {
-            const element = document.createElement('div');
-            element.className = 'geo-map-marker';
-            element.setAttribute('role', 'img');
-            element.setAttribute('aria-label', nation.label + ' flag');
-            element.innerHTML = '<img src="https://flagcdn.com/w40/' + nation.flagCode +
-              '.png" alt="" draggable="false" />';
-            const popup = new maplibregl.Popup({ offset: 16, closeButton: true, closeOnClick: false })
-              .setHTML(geoLocationPopupHtml(location));
-            marker = new maplibregl.Marker({ element, anchor: 'bottom-left' })
-              .setLngLat([location.lng, location.lat])
-              .setPopup(popup)
-              .addTo(map);
-            geoMarkers.set(location.id, marker);
-          } else {
-            marker.setLngLat([location.lng, location.lat]);
-            marker.getPopup().setHTML(geoLocationPopupHtml(location));
-          }
-        });
+        geoVisibleLocations = locations;
+        if (map.isStyleLoaded()) {
+          ensureGeoMapLayer();
+        }
+        if (geoPopup && !locations.some((location) => location.id === geoPopupLocationId)) {
+          geoPopup.remove();
+          geoPopup = null;
+          geoPopupLocationId = null;
+        }
       }
 
       function locationsInSelectedRange() {
@@ -305,10 +402,14 @@
         }
         if (button.dataset.geoAction === 'show') {
           map.flyTo({ center: [location.lng, location.lat], zoom: Math.max(map.getZoom(), 8) });
-          const marker = geoMarkers.get(location.id);
-          if (marker) {
-            marker.togglePopup();
+          if (geoPopup) {
+            geoPopup.remove();
           }
+          geoPopup = new maplibregl.Popup({ offset: 16, closeButton: true, closeOnClick: false })
+            .setLngLat([location.lng, location.lat])
+            .setHTML(geoLocationPopupHtml(location))
+            .addTo(map);
+          geoPopupLocationId = location.id;
         } else if (button.dataset.geoAction === 'delete') {
           deleteGeoLocation(location.id);
         }
@@ -461,6 +562,8 @@
         setGeoAdminStatus('Firestore is unavailable. Published locations cannot be loaded or saved.', 'error');
       }
 
+      map.on('style.load', restoreGeoMapLayerAfterStyleChange);
+      map.on('styledata', restoreGeoMapLayerAfterStyleChange);
       geoDateInput.value = geoTodayKey;
       renderGeolocationsView();
       window.renderGeolocationsView = renderGeolocationsView;
