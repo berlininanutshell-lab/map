@@ -10,10 +10,13 @@
       const geoCalendarHintEl = document.getElementById('geoCalendarHint');
       const geoRangeStartEl = document.getElementById('geoRangeStart');
       const geoRangeEndEl = document.getElementById('geoRangeEnd');
+      const geoAdminAccessNoteEl = document.getElementById('geoAdminAccessNote');
       const geoAdminStatusEl = document.getElementById('geoAdminStatus');
       const geoLocationForm = document.getElementById('geoLocationForm');
       const geoDateInput = document.getElementById('geoDateInput');
       const geoCoordinatesInput = document.getElementById('geoCoordinatesInput');
+      const geoLatitudeInput = document.getElementById('geoLatitudeInput');
+      const geoLongitudeInput = document.getElementById('geoLongitudeInput');
       const geoPickLocationBtn = document.getElementById('geoPickLocationBtn');
       const geoPublishBtn = document.getElementById('geoPublishBtn');
       const geoCollectionRef = typeof db !== 'undefined' && db
@@ -57,6 +60,29 @@
         geoAdminStatusEl.textContent = message || '';
         geoAdminStatusEl.classList.toggle('is-error', type === 'error');
         geoAdminStatusEl.classList.toggle('is-success', type === 'success');
+      }
+
+      function readGeoCoordinates() {
+        if (geoCoordinatesInput) {
+          return parseCoordinateInput(geoCoordinatesInput.value);
+        }
+        if (!geoLatitudeInput || !geoLongitudeInput) {
+          return null;
+        }
+        const lat = Number(geoLatitudeInput.value);
+        const lng = Number(geoLongitudeInput.value);
+        return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+      }
+
+      function fillGeoCoordinates(lat, lng) {
+        if (geoCoordinatesInput) {
+          geoCoordinatesInput.value = lat.toFixed(6) + ', ' + lng.toFixed(6);
+          return;
+        }
+        if (geoLatitudeInput && geoLongitudeInput) {
+          geoLatitudeInput.value = lat.toFixed(6);
+          geoLongitudeInput.value = lng.toFixed(6);
+        }
       }
 
       function safeGeoSourceMarkup(source, popup) {
@@ -139,6 +165,15 @@
 
       function renderGeolocationsView() {
         renderGeoCalendar();
+        geoAdminAccessNoteEl.hidden = state.role === 'admin';
+        if (state.role === 'guest') {
+          geoAdminAccessNoteEl.innerHTML =
+            'To publish or remove flags, sign in with the verified administrator account.' +
+            ' <button id="geoAdminLoginBtn" class="geo-admin-login-btn" type="button">Log in</button>';
+        } else if (state.role !== 'admin') {
+          geoAdminAccessNoteEl.textContent =
+            'You are signed in, but publishing and deleting flags are available only to the administrator.';
+        }
         const locations = locationsInSelectedRange();
         geoResultsCountEl.textContent = String(locations.length);
         geoLocationsListEl.innerHTML = locations.length
@@ -278,11 +313,17 @@
         }
       });
 
+      geoAdminAccessNoteEl.addEventListener('click', (event) => {
+        if (event.target.closest('#geoAdminLoginBtn') && typeof showAuthOverlay === 'function') {
+          showAuthOverlay();
+        }
+      });
+
       map.on('click', (event) => {
         if (!geoPickingLocation || state.role !== 'admin' || event.defaultPrevented) {
           return;
         }
-        geoCoordinatesInput.value = event.lngLat.lat.toFixed(6) + ', ' + event.lngLat.lng.toFixed(6);
+        fillGeoCoordinates(event.lngLat.lat, event.lngLat.lng);
         geoPickingLocation = false;
         geoPickLocationBtn.classList.remove('is-picking');
         geoPickLocationBtn.textContent = 'Choose location on map';
@@ -313,13 +354,21 @@
           return;
         }
 
-        const nation = document.getElementById('geoNationInput').value;
+        const nationInput = document.getElementById('geoNationInput');
+        const sourceInput = document.getElementById('geoSourceInput');
+        const descriptionInput = document.getElementById('geoDescriptionInput');
+        if (!nationInput || !geoDateInput || !sourceInput || !descriptionInput || !geoAdminStatusEl) {
+          console.error('Geolocation form is missing required fields in index.html.');
+          return;
+        }
+
+        const nation = nationInput.value;
         const date = geoDateInput.value;
-        const coordinates = parseCoordinateInput(geoCoordinatesInput.value);
+        const coordinates = readGeoCoordinates();
         const lat = coordinates ? coordinates.lat : NaN;
         const lng = coordinates ? coordinates.lng : NaN;
-        const source = document.getElementById('geoSourceInput').value.trim();
-        const description = document.getElementById('geoDescriptionInput').value.trim();
+        const source = sourceInput.value.trim();
+        const description = descriptionInput.value.trim();
         if (!geoNationDetails[nation] || !isValidGeoDateKey(date) ||
             !Number.isFinite(lat) || lat < -90 || lat > 90 ||
             !Number.isFinite(lng) || lng < -180 || lng > 180 ||
@@ -348,7 +397,20 @@
           setGeoAdminStatus('Location published.', 'success');
         } catch (error) {
           console.error('Failed to publish geolocation', error);
-          setGeoAdminStatus('Could not publish the location. Check Firestore permissions and try again.', 'error');
+          const errorCode = error && error.code ? error.code : '';
+          if (errorCode === 'permission-denied') {
+            setGeoAdminStatus(
+              'Firestore rejected the write. Verify that you are signed in as the administrator with a verified email, and that the latest Firestore rules are published.',
+              'error'
+            );
+          } else if (errorCode === 'unauthenticated') {
+            setGeoAdminStatus('Your session has expired. Sign in again and retry.', 'error');
+          } else {
+            setGeoAdminStatus(
+              'Could not publish the location (' + (errorCode || 'unknown error') + '). Check the browser console for details.',
+              'error'
+            );
+          }
         } finally {
           geoPublishBtn.disabled = false;
         }
