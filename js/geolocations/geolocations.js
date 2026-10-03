@@ -17,6 +17,9 @@
       const geoLongitudeInput = document.getElementById('geoLongitudeInput');
       const geoPickLocationBtn = document.getElementById('geoPickLocationBtn');
       const geoPublishBtn = document.getElementById('geoPublishBtn');
+      const geoCollectionRef = typeof db !== 'undefined' && db
+        ? db.collection('mapState').doc('geolocations').collection('locations')
+        : null;
       const geoLocations = new Map();
       const geoMarkers = new Map();
 
@@ -224,11 +227,11 @@
       }
 
       async function deleteGeoLocation(locationId) {
-        if (state.role !== 'admin' || !geolocationCollectionRef) {
+        if (state.role !== 'admin' || !geoCollectionRef) {
           return;
         }
         try {
-          await geolocationCollectionRef.doc(locationId).delete();
+          await geoCollectionRef.doc(locationId).delete();
           setGeoAdminStatus('Location deleted.', 'success');
         } catch (error) {
           console.error('Failed to delete geolocation', error);
@@ -307,7 +310,7 @@
           setGeoAdminStatus('Only an administrator can publish locations.', 'error');
           return;
         }
-        if (!geolocationCollectionRef) {
+        if (!geoCollectionRef) {
           setGeoAdminStatus('Firestore is unavailable. This location was not saved.', 'error');
           return;
         }
@@ -329,7 +332,7 @@
         geoPublishBtn.disabled = true;
         setGeoAdminStatus('Publishing…', '');
         try {
-          await geolocationCollectionRef.add({
+          await geoCollectionRef.add({
             nation,
             date,
             lat,
@@ -359,8 +362,8 @@
         }
       });
 
-      if (geolocationCollectionRef) {
-        geolocationCollectionRef.orderBy('date', 'asc').onSnapshot((snapshot) => {
+      if (geoCollectionRef) {
+        geoCollectionRef.orderBy('date', 'asc').onSnapshot((snapshot) => {
           geoLoadError = '';
           geoLocations.clear();
           snapshot.forEach((documentSnapshot) => {
@@ -398,3 +401,4 @@
 
       geoDateInput.value = geoTodayKey;
       renderGeolocationsView();
+      window.renderGeolocationsView = renderGeolocationsView;

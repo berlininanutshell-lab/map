@@ -61,7 +61,9 @@
         } else if (tab === 'frontline') {
           renderFrontlineView();
         } else if (tab === 'geolocations') {
-          renderGeolocationsView();
+          if (typeof window.renderGeolocationsView === 'function') {
+            window.renderGeolocationsView();
+          }
         } else if (tab === 'contact' && typeof window.contactOnTabShown === 'function') {
           window.contactOnTabShown();
         }
