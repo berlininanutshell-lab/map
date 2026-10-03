@@ -36,6 +36,7 @@
     <link rel="stylesheet" href="css/frontline/timeline.css" />
     <link rel="stylesheet" href="css/frontline/admin-lock.css" />
     <link rel="stylesheet" href="css/advances/advances.css" />
+    <link rel="stylesheet" href="css/geolocations/geolocations.css" />
     <link rel="stylesheet" href="css/lostarmour/lostarmour.css" />
     <link rel="stylesheet" href="contact.css" />
   </head>
@@ -118,6 +119,7 @@
         <button id="casualtiesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="casualtiesView">Casualties</button>
         <button id="advancesTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="advancesView">Advances</button>
         <button id="frontlineTabBtn" class="sidebar-tab admin-only" type="button" role="tab" aria-selected="false" aria-controls="frontlineView">Frontline</button>
+        <button id="geolocationsTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="geolocationsView">Geolocations</button>
         <button id="contactTabBtn" class="sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="contactView">Contact<span id="contactTabBadge" class="cc-tab-badge" hidden></span></button>
       </div>
       <div id="sidebarViews">
@@ -210,6 +212,67 @@
               <div class="frontline-admin-status" id="frontlineAdminStatus"></div>
               <button id="frontlineLockBtn" class="frontline-lock-btn" type="button">Lock frontline for today</button>
             </div>
+          </div>
+        </div>
+        <div id="geolocationsView" class="sidebar-view" role="tabpanel" hidden>
+          <div class="geo-panel">
+            <p class="geo-intro">Browse reported locations by date. Select a start and end date to show all flags recorded during that period.</p>
+            <section class="geo-calendar" aria-label="Filter geolocations by date">
+              <div class="geo-calendar-heading">
+                <button id="geoCalendarPrev" class="geo-calendar-nav" type="button" aria-label="Previous month">‹</button>
+                <h2 id="geoCalendarMonth"></h2>
+                <button id="geoCalendarNext" class="geo-calendar-nav" type="button" aria-label="Next month">›</button>
+              </div>
+              <div class="geo-calendar-weekdays" aria-hidden="true">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              </div>
+              <div id="geoCalendarDays" class="geo-calendar-days" role="group" aria-label="Choose a date range"></div>
+              <div class="geo-range-summary">
+                <span id="geoRangeStart">Choose start date</span>
+                <span class="geo-range-arrow" aria-hidden="true">→</span>
+                <span id="geoRangeEnd">Choose end date</span>
+              </div>
+              <p id="geoCalendarHint" class="geo-calendar-hint" aria-live="polite">Choose a start date.</p>
+              <button id="geoRangeReset" class="geo-range-reset" type="button">Reset dates</button>
+            </section>
+
+            <section class="geo-admin admin-only" aria-label="Add geolocation">
+              <div class="geo-admin-title">Admin · publish a location</div>
+              <button id="geoPickLocationBtn" class="geo-pick-location" type="button">Choose location on map</button>
+              <form id="geoLocationForm">
+                <label class="geo-field">Flag
+                  <select id="geoNationInput" required>
+                    <option value="ukraine">🇺🇦 Ukraine</option>
+                    <option value="russia">🇷🇺 Russia</option>
+                  </select>
+                </label>
+                <label class="geo-field">Date
+                  <input id="geoDateInput" type="date" required />
+                </label>
+                <div class="geo-coordinate-row">
+                  <label class="geo-field">Latitude
+                    <input id="geoLatitudeInput" type="number" min="-90" max="90" step="any" placeholder="49.3160" required />
+                  </label>
+                  <label class="geo-field">Longitude
+                    <input id="geoLongitudeInput" type="number" min="-180" max="180" step="any" placeholder="30.6937" required />
+                  </label>
+                </div>
+                <label class="geo-field">Source
+                  <input id="geoSourceInput" type="text" maxlength="300" placeholder="Source name or URL" required />
+                </label>
+                <label class="geo-field">Description
+                  <textarea id="geoDescriptionInput" maxlength="1200" rows="3" placeholder="What happened at this location?" required></textarea>
+                </label>
+                <div id="geoAdminStatus" class="geo-admin-status" role="status" aria-live="polite"></div>
+                <button id="geoPublishBtn" class="geo-publish-btn" type="submit">Publish flag</button>
+              </form>
+            </section>
+
+            <div class="geo-results-heading">
+              <h2>Locations</h2>
+              <span id="geoResultsCount" class="geo-results-count">0</span>
+            </div>
+            <div id="geoLocationsList" class="geo-locations-list" aria-live="polite"></div>
           </div>
         </div>
         <div id="contactView" class="sidebar-view" role="tabpanel" hidden></div>
@@ -343,6 +406,7 @@
     <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="js/auth/firebase-auth.js"></script>
+    <script src="js/utils/helpers.js"></script>
     <script src="js/auth/roles.js"></script>
     <script src="js/auth/profile.js"></script>
     <script src="js/auth/auth-overlay.js"></script>
@@ -373,13 +437,13 @@
     <script src="js/territory/smoothing.js"></script>
     <script src="js/territory/vertex-editing.js"></script>
     <script src="js/map/kml-loading.js"></script>
-    <script src="js/utils/helpers.js"></script>
     <script src="js/map/marker-popups.js"></script>
     <script src="js/search/search.js"></script>
     <script src="js/map/coordinate-popup.js"></script>
     <script src="js/map/drawings.js"></script>
     <script src="js/flags/flags.js"></script>
     <script src="js/map/map-interactions.js"></script>
+    <script src="js/geolocations/geolocations.js"></script>
     <script src="js/maintenance/maintenance-mode.js"></script>
     <script src="js/lostarmour/embedded-data.js"></script>
     <script src="js/lostarmour/lostarmour.js"></script>

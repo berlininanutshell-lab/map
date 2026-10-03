@@ -65,6 +65,12 @@
         ? db.collection('mapState').doc('frontlineHistory').collection('days')
         : null;
 
+      // Geolocation records are stored separately so the collection can grow
+      // without approaching Firestore's per-document size limit.
+      const geolocationCollectionRef = db
+        ? db.collection('mapState').doc('geolocations').collection('locations')
+        : null;
+
       const authOverlay = document.getElementById('authOverlay');
       const authCard = document.getElementById('authCard');
       const authCloseBtn = document.getElementById('authCloseBtn');

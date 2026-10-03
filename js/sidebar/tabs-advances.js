@@ -3,11 +3,13 @@
       const casualtiesTabBtn = document.getElementById('casualtiesTabBtn');
       const advancesTabBtn = document.getElementById('advancesTabBtn');
       const frontlineTabBtn = document.getElementById('frontlineTabBtn');
+      const geolocationsTabBtn = document.getElementById('geolocationsTabBtn');
       const contactTabBtn = document.getElementById('contactTabBtn');
       const legendView = document.getElementById('legendView');
       const casualtiesView = document.getElementById('casualtiesView');
       const advancesView = document.getElementById('advancesView');
       const frontlineView = document.getElementById('frontlineView');
+      const geolocationsView = document.getElementById('geolocationsView');
       const contactView = document.getElementById('contactView');
       const sidebarEyebrow = document.getElementById('sidebarEyebrow');
       let sidebarTab = 'legend';
@@ -17,6 +19,7 @@
         casualties: casualtiesView,
         advances: advancesView,
         frontline: frontlineView,
+        geolocations: geolocationsView,
         contact: contactView
       };
       const sidebarTabBtns = {
@@ -24,6 +27,7 @@
         casualties: casualtiesTabBtn,
         advances: advancesTabBtn,
         frontline: frontlineTabBtn,
+        geolocations: geolocationsTabBtn,
         contact: contactTabBtn
       };
       const sidebarTabLabels = {
@@ -31,6 +35,7 @@
         casualties: 'Casualties',
         advances: 'Advances',
         frontline: 'Frontline',
+        geolocations: 'Geolocations',
         contact: 'Contact'
       };
 
@@ -55,6 +60,8 @@
           renderAdvancesView();
         } else if (tab === 'frontline') {
           renderFrontlineView();
+        } else if (tab === 'geolocations') {
+          renderGeolocationsView();
         } else if (tab === 'contact' && typeof window.contactOnTabShown === 'function') {
           window.contactOnTabShown();
         }
@@ -83,6 +90,7 @@
       casualtiesTabBtn.addEventListener('click', () => setSidebarTab('casualties'));
       advancesTabBtn.addEventListener('click', () => setSidebarTab('advances'));
       frontlineTabBtn.addEventListener('click', () => setSidebarTab('frontline'));
+      geolocationsTabBtn.addEventListener('click', () => setSidebarTab('geolocations'));
       contactTabBtn.addEventListener('click', () => setSidebarTab('contact'));
 
       // ---- Advances tab: live pending-advance area, dated to today ----

@@ -1,0 +1,495 @@
+      #geolocationsView {
+        padding: 14px 16px 22px;
+      }
+
+      .geo-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .geo-intro {
+        margin: 0;
+        color: #98a9b9;
+        font-size: 11.5px;
+        line-height: 1.55;
+      }
+
+      .geo-calendar {
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 12px;
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(255, 148, 0, 0.09), transparent 65%),
+          rgba(255, 255, 255, 0.025);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+      }
+
+      .geo-calendar-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .geo-calendar-heading h2 {
+        margin: 0;
+        color: #edf5ff;
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .geo-calendar-nav {
+        width: 30px;
+        height: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #cbd7e2;
+        font: inherit;
+        font-size: 21px;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .geo-calendar-nav:hover {
+        border-color: rgba(255, 148, 0, 0.4);
+        background: rgba(255, 148, 0, 0.11);
+      }
+
+      .geo-calendar-weekdays,
+      .geo-calendar-days {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .geo-calendar-weekdays {
+        margin-bottom: 5px;
+      }
+
+      .geo-calendar-weekdays span {
+        color: #6d7d8c;
+        font-size: 9px;
+        font-weight: 700;
+        text-align: center;
+        text-transform: uppercase;
+      }
+
+      .geo-calendar-day {
+        position: relative;
+        aspect-ratio: 1;
+        min-width: 0;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: #c7d2dd;
+        font: inherit;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        cursor: pointer;
+        transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+      }
+
+      .geo-calendar-day:hover {
+        border-color: rgba(255, 148, 0, 0.32);
+        background: rgba(255, 148, 0, 0.12);
+        color: #fff;
+      }
+
+      .geo-calendar-day.outside-month {
+        color: #52606c;
+      }
+
+      .geo-calendar-day.in-range {
+        border-radius: 5px;
+        background: rgba(255, 148, 0, 0.12);
+        color: #ffd39a;
+      }
+
+      .geo-calendar-day.range-edge,
+      .geo-calendar-day.range-edge:hover {
+        border-color: #ffb45b;
+        border-radius: 8px;
+        background: #ff9400;
+        color: #17120b;
+        font-weight: 800;
+      }
+
+      .geo-calendar-day.today:not(.range-edge)::after {
+        position: absolute;
+        right: 5px;
+        bottom: 3px;
+        left: 5px;
+        height: 2px;
+        border-radius: 2px;
+        background: #7fc4ff;
+        content: '';
+      }
+
+      .geo-range-summary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 12px;
+        color: #edf5ff;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+      }
+
+      .geo-range-summary span:first-child,
+      .geo-range-summary span:last-child {
+        min-width: 78px;
+        text-align: center;
+      }
+
+      .geo-range-arrow {
+        color: #ffb45b;
+      }
+
+      .geo-calendar-hint {
+        min-height: 15px;
+        margin: 6px 0 0;
+        color: #8192a1;
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .geo-range-reset {
+        display: block;
+        margin: 5px auto 0;
+        padding: 4px 8px;
+        border: 0;
+        background: transparent;
+        color: #8da0af;
+        font: inherit;
+        font-size: 10px;
+        cursor: pointer;
+      }
+
+      .geo-range-reset:hover {
+        color: #ffb45b;
+      }
+
+      .geo-admin {
+        padding: 12px;
+        border: 1px solid rgba(255, 148, 0, 0.2);
+        border-radius: 10px;
+        background: rgba(255, 148, 0, 0.045);
+      }
+
+      .geo-admin-title {
+        margin-bottom: 9px;
+        color: #ffb45b;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .geo-admin form {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 9px;
+      }
+
+      .geo-field {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 4px;
+        color: #a8b6c3;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .geo-field input,
+      .geo-field select,
+      .geo-field textarea {
+        width: 100%;
+        min-width: 0;
+        padding: 8px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 7px;
+        outline: none;
+        background: #111820;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 11px;
+      }
+
+      .geo-field input:focus,
+      .geo-field select:focus,
+      .geo-field textarea:focus {
+        border-color: rgba(255, 148, 0, 0.65);
+        box-shadow: 0 0 0 2px rgba(255, 148, 0, 0.1);
+      }
+
+      .geo-field textarea {
+        resize: vertical;
+      }
+
+      .geo-coordinate-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .geo-pick-location,
+      .geo-publish-btn {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 148, 0, 0.3);
+        border-radius: 7px;
+        background: rgba(255, 148, 0, 0.1);
+        color: #ffd39a;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .geo-pick-location:hover,
+      .geo-pick-location.is-picking {
+        border-color: #ffb45b;
+        background: rgba(255, 148, 0, 0.2);
+      }
+
+      .geo-publish-btn {
+        border-color: #ff9400;
+        background: #ff9400;
+        color: #18120a;
+      }
+
+      .geo-publish-btn:hover {
+        background: #ffb347;
+      }
+
+      .geo-publish-btn:disabled {
+        cursor: wait;
+        opacity: 0.55;
+      }
+
+      .geo-admin-status {
+        min-height: 14px;
+        color: #9aaab8;
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .geo-admin-status.is-error {
+        color: #ff9b91;
+      }
+
+      .geo-admin-status.is-success {
+        color: #7bd99a;
+      }
+
+      .geo-results-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 7px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .geo-results-heading h2 {
+        margin: 0;
+        color: #edf5ff;
+        font-size: 13px;
+      }
+
+      .geo-results-count {
+        display: grid;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        place-items: center;
+        border: 1px solid rgba(255, 148, 0, 0.25);
+        border-radius: 999px;
+        background: rgba(255, 148, 0, 0.1);
+        color: #ffb45b;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .geo-locations-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .geo-location-card {
+        position: relative;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .geo-location-topline {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .geo-location-flag {
+        width: 25px;
+        height: auto;
+        flex: 0 0 25px;
+        margin-top: 2px;
+        border-radius: 2px;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+      }
+
+      .geo-location-heading {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .geo-location-name {
+        color: #edf5ff;
+        font-size: 11px;
+        font-weight: 750;
+      }
+
+      .geo-location-date {
+        margin-top: 2px;
+        color: #ffb45b;
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .geo-location-description {
+        margin: 8px 0;
+        color: #bdc9d4;
+        font-size: 11px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
+      .geo-location-source {
+        color: #7fc4ff;
+        font-size: 10px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        text-decoration: none;
+      }
+
+      .geo-location-source:hover {
+        text-decoration: underline;
+      }
+
+      .geo-location-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .geo-location-action {
+        padding: 4px 7px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.045);
+        color: #aebdcc;
+        font: inherit;
+        font-size: 9px;
+        cursor: pointer;
+      }
+
+      .geo-location-action:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+
+      .geo-location-action.danger {
+        border-color: rgba(255, 115, 102, 0.22);
+        color: #ff9b91;
+      }
+
+      .geo-location-empty {
+        padding: 14px 8px;
+        color: #72818e;
+        font-size: 11px;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .geo-map-marker {
+        width: 30px;
+        height: 23px;
+        cursor: pointer;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.65));
+        transition: transform 0.15s ease;
+      }
+
+      .geo-map-marker:hover {
+        transform: translateY(-3px) scale(1.08);
+      }
+
+      .geo-map-marker img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .geo-popup {
+        min-width: 170px;
+        max-width: 240px;
+        color: #edf5ff;
+        font-family: inherit;
+      }
+
+      .geo-popup-title {
+        margin-bottom: 4px;
+        color: #18212a;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .geo-popup-date {
+        margin-bottom: 7px;
+        color: #9a5700;
+        font-size: 10px;
+      }
+
+      .geo-popup-description {
+        margin-bottom: 7px;
+        color: #344252;
+        font-size: 11px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
+      .geo-popup-source {
+        color: #1766a0;
+        font-size: 10px;
+        overflow-wrap: anywhere;
+        text-decoration: none;
+      }
+
+      .geo-popup-source:hover {
+        text-decoration: underline;
+      }
+
+      .geo-popup-delete {
+        margin-top: 8px;
+        padding: 5px 8px;
+        border: 1px solid rgba(176, 44, 34, 0.25);
+        border-radius: 6px;
+        background: rgba(255, 75, 62, 0.1);
+        color: #b02c22;
+        font: inherit;
+        font-size: 10px;
+        cursor: pointer;
+      }

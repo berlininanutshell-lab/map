@@ -1,0 +1,400 @@
+      const geoNationDetails = {
+        ukraine: { label: 'Ukraine', flagCode: 'ua' },
+        russia: { label: 'Russia', flagCode: 'ru' }
+      };
+
+      const geoLocationsListEl = document.getElementById('geoLocationsList');
+      const geoResultsCountEl = document.getElementById('geoResultsCount');
+      const geoCalendarMonthEl = document.getElementById('geoCalendarMonth');
+      const geoCalendarDaysEl = document.getElementById('geoCalendarDays');
+      const geoCalendarHintEl = document.getElementById('geoCalendarHint');
+      const geoRangeStartEl = document.getElementById('geoRangeStart');
+      const geoRangeEndEl = document.getElementById('geoRangeEnd');
+      const geoAdminStatusEl = document.getElementById('geoAdminStatus');
+      const geoLocationForm = document.getElementById('geoLocationForm');
+      const geoDateInput = document.getElementById('geoDateInput');
+      const geoLatitudeInput = document.getElementById('geoLatitudeInput');
+      const geoLongitudeInput = document.getElementById('geoLongitudeInput');
+      const geoPickLocationBtn = document.getElementById('geoPickLocationBtn');
+      const geoPublishBtn = document.getElementById('geoPublishBtn');
+      const geoLocations = new Map();
+      const geoMarkers = new Map();
+
+      const geoToday = new Date();
+      const geoTodayKey = toGeoDateKey(geoToday);
+      let geoRangeStart = geoTodayKey;
+      let geoRangeEnd = geoTodayKey;
+      let geoCalendarMonth = new Date(geoToday.getFullYear(), geoToday.getMonth(), 1);
+      let geoPickingLocation = false;
+      let geoLocationsLoaded = false;
+      let geoLoadError = '';
+
+      function toGeoDateKey(date) {
+        return date.getFullYear() + '-' +
+          String(date.getMonth() + 1).padStart(2, '0') + '-' +
+          String(date.getDate()).padStart(2, '0');
+      }
+
+      function isValidGeoDateKey(value) {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return false;
+        }
+        const date = new Date(value + 'T12:00:00');
+        return !Number.isNaN(date.getTime()) && toGeoDateKey(date) === value;
+      }
+
+      function formatGeoDate(dateKey) {
+        if (!isValidGeoDateKey(dateKey)) {
+          return dateKey || '';
+        }
+        const [year, month, day] = dateKey.split('-');
+        return day + '.' + month + '.' + year;
+      }
+
+      function setGeoAdminStatus(message, type) {
+        geoAdminStatusEl.textContent = message || '';
+        geoAdminStatusEl.classList.toggle('is-error', type === 'error');
+        geoAdminStatusEl.classList.toggle('is-success', type === 'success');
+      }
+
+      function safeGeoSourceMarkup(source, popup) {
+        const safeSource = escapeHtml(source);
+        let sourceUrl;
+        try {
+          sourceUrl = new URL(source);
+        } catch (error) {
+          return safeSource;
+        }
+        if (sourceUrl.protocol !== 'https:' && sourceUrl.protocol !== 'http:') {
+          return safeSource;
+        }
+        const className = popup ? 'geo-popup-source' : 'geo-location-source';
+        return '<a class="' + className + '" href="' + escapeHtml(sourceUrl.href) +
+          '" target="_blank" rel="noopener noreferrer">' + safeSource + '</a>';
+      }
+
+      function geoLocationPopupHtml(location) {
+        const nation = geoNationDetails[location.nation];
+        return '<div class="geo-popup">' +
+          '<div class="geo-popup-title">' + escapeHtml(nation.label) + ' flag</div>' +
+          '<div class="geo-popup-date">' + escapeHtml(formatGeoDate(location.date)) + '</div>' +
+          '<div class="geo-popup-description">' + escapeHtml(location.description) + '</div>' +
+          safeGeoSourceMarkup(location.source, true) +
+          (state.role === 'admin'
+            ? '<br /><button type="button" class="geo-popup-delete" data-geo-id="' + escapeHtml(location.id) + '">Delete location</button>'
+            : '') +
+          '</div>';
+      }
+
+      function removeGeoMarker(locationId) {
+        const marker = geoMarkers.get(locationId);
+        if (marker) {
+          marker.remove();
+          geoMarkers.delete(locationId);
+        }
+      }
+
+      function renderGeoMarkers(locations) {
+        const visibleIds = new Set(locations.map((location) => location.id));
+        geoMarkers.forEach((marker, id) => {
+          if (!visibleIds.has(id)) {
+            removeGeoMarker(id);
+          }
+        });
+
+        locations.forEach((location) => {
+          const nation = geoNationDetails[location.nation];
+          let marker = geoMarkers.get(location.id);
+          if (!marker) {
+            const element = document.createElement('div');
+            element.className = 'geo-map-marker';
+            element.setAttribute('role', 'img');
+            element.setAttribute('aria-label', nation.label + ' flag');
+            element.innerHTML = '<img src="https://flagcdn.com/w40/' + nation.flagCode +
+              '.png" alt="" draggable="false" />';
+            const popup = new maplibregl.Popup({ offset: 16, closeButton: true, closeOnClick: false })
+              .setHTML(geoLocationPopupHtml(location));
+            marker = new maplibregl.Marker({ element, anchor: 'bottom-left' })
+              .setLngLat([location.lng, location.lat])
+              .setPopup(popup)
+              .addTo(map);
+            geoMarkers.set(location.id, marker);
+          } else {
+            marker.setLngLat([location.lng, location.lat]);
+            marker.getPopup().setHTML(geoLocationPopupHtml(location));
+          }
+        });
+      }
+
+      function locationsInSelectedRange() {
+        if (!geoRangeStart || !geoRangeEnd) {
+          return [];
+        }
+        return Array.from(geoLocations.values())
+          .filter((location) => location.date >= geoRangeStart && location.date <= geoRangeEnd)
+          .sort((first, second) => second.date.localeCompare(first.date));
+      }
+
+      function renderGeolocationsView() {
+        renderGeoCalendar();
+        const locations = locationsInSelectedRange();
+        geoResultsCountEl.textContent = String(locations.length);
+        geoLocationsListEl.innerHTML = locations.length
+          ? locations.map((location) => {
+            const nation = geoNationDetails[location.nation];
+            return '<article class="geo-location-card" data-geo-id="' + escapeHtml(location.id) + '">' +
+              '<div class="geo-location-topline">' +
+              '<img class="geo-location-flag" src="https://flagcdn.com/w40/' + nation.flagCode +
+              '.png" alt="' + escapeHtml(nation.label) + ' flag" />' +
+              '<div class="geo-location-heading">' +
+              '<div class="geo-location-name">' + escapeHtml(nation.label) + '</div>' +
+              '<div class="geo-location-date">' + escapeHtml(formatGeoDate(location.date)) + '</div>' +
+              '</div>' +
+              '</div>' +
+              '<p class="geo-location-description">' + escapeHtml(location.description) + '</p>' +
+              safeGeoSourceMarkup(location.source, false) +
+              '<div class="geo-location-actions">' +
+              '<button class="geo-location-action" type="button" data-geo-action="show" data-geo-id="' +
+              escapeHtml(location.id) + '">Show on map</button>' +
+              (state.role === 'admin'
+                ? '<button class="geo-location-action danger" type="button" data-geo-action="delete" data-geo-id="' +
+                  escapeHtml(location.id) + '">Delete</button>'
+                : '') +
+              '</div>' +
+              '</article>';
+          }).join('')
+          : '<div class="geo-location-empty">' +
+            (geoLoadError
+              ? escapeHtml(geoLoadError)
+              : geoLocationsLoaded ? 'No flags in this date range.' : 'Loading published locations…') +
+            '</div>';
+        renderGeoMarkers(locations);
+      }
+
+      function renderGeoCalendar() {
+        const year = geoCalendarMonth.getFullYear();
+        const month = geoCalendarMonth.getMonth();
+        geoCalendarMonthEl.textContent = geoCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        const firstDay = new Date(year, month, 1);
+        const mondayOffset = (firstDay.getDay() + 6) % 7;
+        const gridStart = new Date(year, month, 1 - mondayOffset);
+        const cells = [];
+        for (let index = 0; index < 42; index += 1) {
+          const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index);
+          const dateKey = toGeoDateKey(date);
+          const isStart = dateKey === geoRangeStart;
+          const isEnd = dateKey === geoRangeEnd;
+          const inRange = geoRangeStart && geoRangeEnd &&
+            dateKey > geoRangeStart && dateKey < geoRangeEnd;
+          const classes = ['geo-calendar-day'];
+          if (date.getMonth() !== month) classes.push('outside-month');
+          if (dateKey === geoTodayKey) classes.push('today');
+          if (inRange) classes.push('in-range');
+          if (isStart || isEnd) classes.push('range-edge');
+          cells.push(
+            '<button class="' + classes.join(' ') + '" type="button" data-geo-date="' + dateKey +
+            '" aria-label="' + escapeHtml(date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })) +
+            '"' + (isStart || isEnd ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' +
+            date.getDate() + '</button>'
+          );
+        }
+        geoCalendarDaysEl.innerHTML = cells.join('');
+        geoRangeStartEl.textContent = geoRangeStart ? formatGeoDate(geoRangeStart) : 'Choose start date';
+        geoRangeEndEl.textContent = geoRangeEnd ? formatGeoDate(geoRangeEnd) : 'Choose end date';
+        geoCalendarHintEl.textContent = !geoRangeStart
+          ? 'Choose a start date.'
+          : !geoRangeEnd
+            ? 'Now choose an end date.'
+            : 'Showing dates from ' + formatGeoDate(geoRangeStart) + ' through ' + formatGeoDate(geoRangeEnd) + '.';
+      }
+
+      function selectGeoCalendarDate(dateKey) {
+        if (!geoRangeStart || geoRangeEnd) {
+          geoRangeStart = dateKey;
+          geoRangeEnd = null;
+        } else if (dateKey < geoRangeStart) {
+          geoRangeStart = dateKey;
+        } else {
+          geoRangeEnd = dateKey;
+        }
+        const selectedDate = new Date(dateKey + 'T12:00:00');
+        geoCalendarMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+        renderGeolocationsView();
+      }
+
+      async function deleteGeoLocation(locationId) {
+        if (state.role !== 'admin' || !geolocationCollectionRef) {
+          return;
+        }
+        try {
+          await geolocationCollectionRef.doc(locationId).delete();
+          setGeoAdminStatus('Location deleted.', 'success');
+        } catch (error) {
+          console.error('Failed to delete geolocation', error);
+          setGeoAdminStatus('Could not delete the location. Check Firestore permissions and try again.', 'error');
+        }
+      }
+
+      document.getElementById('geoCalendarPrev').addEventListener('click', () => {
+        geoCalendarMonth = new Date(geoCalendarMonth.getFullYear(), geoCalendarMonth.getMonth() - 1, 1);
+        renderGeoCalendar();
+      });
+      document.getElementById('geoCalendarNext').addEventListener('click', () => {
+        geoCalendarMonth = new Date(geoCalendarMonth.getFullYear(), geoCalendarMonth.getMonth() + 1, 1);
+        renderGeoCalendar();
+      });
+      document.getElementById('geoRangeReset').addEventListener('click', () => {
+        geoRangeStart = null;
+        geoRangeEnd = null;
+        renderGeolocationsView();
+      });
+      geoCalendarDaysEl.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-geo-date]');
+        if (button) {
+          selectGeoCalendarDate(button.dataset.geoDate);
+        }
+      });
+
+      geoLocationsListEl.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-geo-action]');
+        if (!button) {
+          return;
+        }
+        const location = geoLocations.get(button.dataset.geoId);
+        if (!location) {
+          return;
+        }
+        if (button.dataset.geoAction === 'show') {
+          map.flyTo({ center: [location.lng, location.lat], zoom: Math.max(map.getZoom(), 8) });
+          const marker = geoMarkers.get(location.id);
+          if (marker) {
+            marker.togglePopup();
+          }
+        } else if (button.dataset.geoAction === 'delete') {
+          deleteGeoLocation(location.id);
+        }
+      });
+
+      map.on('click', (event) => {
+        if (!geoPickingLocation || state.role !== 'admin' || event.defaultPrevented) {
+          return;
+        }
+        geoLatitudeInput.value = event.lngLat.lat.toFixed(6);
+        geoLongitudeInput.value = event.lngLat.lng.toFixed(6);
+        geoPickingLocation = false;
+        geoPickLocationBtn.classList.remove('is-picking');
+        geoPickLocationBtn.textContent = 'Choose location on map';
+        setGeoAdminStatus('Coordinates selected. Add the source and description, then publish.', '');
+      });
+
+      geoPickLocationBtn.addEventListener('click', () => {
+        if (state.role !== 'admin') {
+          return;
+        }
+        if (typeof deactivateDrawingTool === 'function') {
+          deactivateDrawingTool();
+        }
+        geoPickingLocation = true;
+        geoPickLocationBtn.classList.add('is-picking');
+        geoPickLocationBtn.textContent = 'Click a point on the map…';
+        setGeoAdminStatus('Click the map to choose the location.', '');
+      });
+
+      geoLocationForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (state.role !== 'admin') {
+          setGeoAdminStatus('Only an administrator can publish locations.', 'error');
+          return;
+        }
+        if (!geolocationCollectionRef) {
+          setGeoAdminStatus('Firestore is unavailable. This location was not saved.', 'error');
+          return;
+        }
+
+        const nation = document.getElementById('geoNationInput').value;
+        const date = geoDateInput.value;
+        const lat = Number(geoLatitudeInput.value);
+        const lng = Number(geoLongitudeInput.value);
+        const source = document.getElementById('geoSourceInput').value.trim();
+        const description = document.getElementById('geoDescriptionInput').value.trim();
+        if (!geoNationDetails[nation] || !isValidGeoDateKey(date) ||
+            !Number.isFinite(lat) || lat < -90 || lat > 90 ||
+            !Number.isFinite(lng) || lng < -180 || lng > 180 ||
+            !source || !description) {
+          setGeoAdminStatus('Enter a valid date, coordinates, source, and description.', 'error');
+          return;
+        }
+
+        geoPublishBtn.disabled = true;
+        setGeoAdminStatus('Publishing…', '');
+        try {
+          await geolocationCollectionRef.add({
+            nation,
+            date,
+            lat,
+            lng,
+            source,
+            description,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          geoLocationForm.reset();
+          geoDateInput.value = geoTodayKey;
+          geoPickingLocation = false;
+          geoPickLocationBtn.classList.remove('is-picking');
+          geoPickLocationBtn.textContent = 'Choose location on map';
+          setGeoAdminStatus('Location published.', 'success');
+        } catch (error) {
+          console.error('Failed to publish geolocation', error);
+          setGeoAdminStatus('Could not publish the location. Check Firestore permissions and try again.', 'error');
+        } finally {
+          geoPublishBtn.disabled = false;
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('.geo-popup-delete[data-geo-id]');
+        if (button) {
+          deleteGeoLocation(button.dataset.geoId);
+        }
+      });
+
+      if (geolocationCollectionRef) {
+        geolocationCollectionRef.orderBy('date', 'asc').onSnapshot((snapshot) => {
+          geoLoadError = '';
+          geoLocations.clear();
+          snapshot.forEach((documentSnapshot) => {
+            const data = documentSnapshot.data();
+            if (!geoNationDetails[data.nation] || !isValidGeoDateKey(data.date) ||
+                !Number.isFinite(data.lat) || data.lat < -90 || data.lat > 90 ||
+                !Number.isFinite(data.lng) || data.lng < -180 || data.lng > 180 ||
+                typeof data.source !== 'string' || typeof data.description !== 'string') {
+              console.warn('Skipping invalid geolocation record', documentSnapshot.id);
+              return;
+            }
+            geoLocations.set(documentSnapshot.id, {
+              id: documentSnapshot.id,
+              nation: data.nation,
+              date: data.date,
+              lat: data.lat,
+              lng: data.lng,
+              source: data.source,
+              description: data.description
+            });
+          });
+          geoLocationsLoaded = true;
+          renderGeolocationsView();
+        }, (error) => {
+          console.error('Failed to load shared geolocations', error);
+          geoLocationsLoaded = true;
+          geoLoadError = 'Could not load locations. Check Firestore configuration and read permissions.';
+          renderGeolocationsView();
+        });
+      } else {
+        geoLocationsLoaded = true;
+        geoLoadError = 'Firestore is unavailable. Published locations cannot be loaded.';
+        setGeoAdminStatus('Firestore is unavailable. Published locations cannot be loaded or saved.', 'error');
+      }
+
+      geoDateInput.value = geoTodayKey;
+      renderGeolocationsView();

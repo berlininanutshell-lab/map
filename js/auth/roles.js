@@ -64,6 +64,9 @@
         if (typeof renderFrontlineView === 'function') {
           renderFrontlineView();
         }
+        if (typeof renderGeolocationsView === 'function') {
+          renderGeolocationsView();
+        }
       }
 
       // Shows "Signed in as <nickname or email>" plus the role badge.

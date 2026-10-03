@@ -1,0 +1,174 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // MAP STATE — ADMIN ONLY, VERIFIED EMAIL REQUIRED
+    // =========================================================
+
+    match /mapState/layerColors {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /mapState/casualtyData {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /mapState/flags {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /mapState/territories {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /mapState/frontlineHistory/days/{date} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /mapState/geolocations/locations/{locationId} {
+      allow read: if true;
+      allow create, delete: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+      allow update: if false;
+    }
+
+
+    // =========================================================
+    // SITE SETTINGS — MAINTENANCE MODE
+    // Public can read the maintenance flag.
+    // Only verified admin can change it.
+    // =========================================================
+
+    match /siteSettings/maintenance {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'berlininanutshell@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+
+    // =========================================================
+    // CONTACT / CHAT
+    //
+    // chats/{uid}
+    // chats/{uid}/messages/{messageId}
+    // =========================================================
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verified() {
+      return signedIn()
+        && request.auth.token.email_verified == true;
+    }
+
+    function admin() {
+      return verified()
+        && request.auth.token.email == 'berlininanutshell@gmail.com';
+    }
+
+    function ownChat(uid) {
+      return verified()
+        && request.auth.uid == uid;
+    }
+
+
+    // -------------------------
+    // Conversation documents
+    // -------------------------
+
+    match /chats/{uid} {
+
+      // A user can read only their own conversation.
+      // Admin can read all conversations.
+      allow read: if ownChat(uid) || admin();
+
+
+      // A verified user can create their own chat.
+      allow create: if ownChat(uid)
+        && request.resource.data.uid == request.auth.uid;
+
+
+      // A verified user can update only their own chat.
+      // Admin can update any chat.
+      allow update: if
+        admin()
+        ||
+        (
+          ownChat(uid)
+          && request.resource.data.uid == request.auth.uid
+        );
+
+
+      // Don't allow deleting conversations from the client.
+      allow delete: if admin();
+
+
+      // -------------------------
+      // Messages
+      // -------------------------
+
+      match /messages/{messageId} {
+
+        // User sees only their own messages.
+        // Admin can see every message.
+        allow read: if ownChat(uid) || admin();
+
+
+        // A verified user may create a message in their own chat.
+        //
+        // Admin may also create replies.
+        allow create: if
+          (
+            ownChat(uid)
+            && request.resource.data.from == 'user'
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 1000
+          )
+          ||
+          (
+            admin()
+            && request.resource.data.from == 'admin'
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000
+          );
+
+
+        // Messages cannot be edited or deleted.
+        allow update, delete: if false;
+      }
+    }
+
+
+    // =========================================================
+    // USER PROFILES
+    // =========================================================
+
+    match /userProfiles/{userId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId;
+    }
+  }
+}
