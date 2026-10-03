@@ -192,7 +192,7 @@
             source: 'geolocation-flags',
             layout: {
               'icon-image': ['get', 'icon'],
-              'icon-anchor': 'bottom-left',
+              'icon-anchor': 'center',
               'icon-allow-overlap': true,
               'icon-ignore-placement': true,
               'icon-size': 1
@@ -279,8 +279,12 @@
             const nation = geoNationDetails[location.nation];
             return '<article class="geo-location-card" data-geo-id="' + escapeHtml(location.id) + '">' +
               '<div class="geo-location-topline">' +
-              '<img class="geo-location-flag" src="https://flagcdn.com/w40/' + nation.flagCode +
-              '.png" alt="' + escapeHtml(nation.label) + ' flag" />' +
+              '<span class="geo-location-flag geo-location-flag--' + escapeHtml(location.nation) +
+              '" role="img" aria-label="' + escapeHtml(nation.label) + ' flag">' +
+              (location.nation === 'ukraine'
+                ? '<span></span><span></span>'
+                : '<span></span><span></span><span></span>') +
+              '</span>' +
               '<div class="geo-location-heading">' +
               '<div class="geo-location-name">' + escapeHtml(nation.label) + '</div>' +
               '<div class="geo-location-date">' + escapeHtml(formatGeoDate(location.date)) + '</div>' +

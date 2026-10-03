@@ -372,12 +372,39 @@
       }
 
       .geo-location-flag {
+        display: flex;
         width: 25px;
-        height: auto;
+        height: 16px;
         flex: 0 0 25px;
         margin-top: 2px;
+        flex-direction: column;
+        overflow: hidden;
         border-radius: 2px;
         box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+      }
+
+      .geo-location-flag span {
+        flex: 1;
+      }
+
+      .geo-location-flag--ukraine span:first-child {
+        background: #0057b7;
+      }
+
+      .geo-location-flag--ukraine span:last-child {
+        background: #ffd700;
+      }
+
+      .geo-location-flag--russia span:first-child {
+        background: #fff;
+      }
+
+      .geo-location-flag--russia span:nth-child(2) {
+        background: #0039a6;
+      }
+
+      .geo-location-flag--russia span:last-child {
+        background: #d52b1e;
       }
 
       .geo-location-heading {
