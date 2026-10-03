@@ -53,6 +53,18 @@
       <button id="tlCal" type="button" title="Pick a date" aria-label="Pick a date"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></button>
       <input type="date" id="tlDatePick" tabindex="-1" aria-hidden="true" />
     </div>
+    <div id="viewerListOverlay" hidden aria-hidden="true">
+      <div id="viewerListCard" role="dialog" aria-modal="false" aria-labelledby="viewerListTitle">
+        <div id="viewerListHeader">
+          <strong id="viewerListTitle">Current viewers</strong>
+          <button id="viewerListClose" type="button" aria-label="Close viewer list">×</button>
+        </div>
+        <div id="viewerList" aria-live="polite"></div>
+      </div>
+    </div>
+    <button id="sidebarToggleBtn" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="sidebar">
+      <span aria-hidden="true">‹</span>
+    </button>
     <aside id="sidebar">
       <div id="sidebarResizeHandle" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
       <header id="sidebar-header">
