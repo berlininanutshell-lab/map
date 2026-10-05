@@ -248,6 +248,9 @@
       }
 
       function restoreGeoMapLayerAfterStyleChange() {
+        // Recheck after the new style has finished loading; style.load can
+        // run before the map is ready to render the restored symbols.
+        map.once('idle', ensureGeoMapLayer);
         ensureGeoMapLayer();
       }
 
