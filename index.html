@@ -236,9 +236,9 @@
             </section>
 
             <section class="geo-admin admin-only" aria-label="Add geolocation">
-              <div class="geo-admin-title">Admin · publish a location</div>
+              <div class="geo-admin-title">Admin · publish locations</div>
               <button id="geoPickLocationBtn" class="geo-pick-location" type="button">Choose location on map</button>
-              <p class="geo-coordinate-hint">Or enter coordinates as latitude, longitude.</p>
+              <p class="geo-coordinate-hint">Enter one latitude, longitude pair per line. All locations share the selected flag, date, source, and description.</p>
               <form id="geoLocationForm">
                 <label class="geo-field">Flag
                   <select id="geoNationInput" required>
@@ -249,8 +249,8 @@
                 <label class="geo-field">Date
                   <input id="geoDateInput" type="date" required />
                 </label>
-                <label class="geo-field">Coordinates (latitude, longitude)
-                  <input id="geoCoordinatesInput" type="text" inputmode="decimal" placeholder="49.3160, 30.6937" autocomplete="off" required />
+                <label class="geo-field">Coordinates (one location per line)
+                  <textarea id="geoCoordinatesInput" rows="3" placeholder="49.3160, 30.6937&#10;48.3794, 31.1656" autocomplete="off" required></textarea>
                 </label>
                 <label class="geo-field">Source
                   <input id="geoSourceInput" type="text" maxlength="300" placeholder="Source name or URL" required />
@@ -259,7 +259,7 @@
                   <textarea id="geoDescriptionInput" maxlength="1200" rows="3" placeholder="What happened at this location?" required></textarea>
                 </label>
                 <div id="geoAdminStatus" class="geo-admin-status" role="status" aria-live="polite"></div>
-                <button id="geoPublishBtn" class="geo-publish-btn" type="submit">Publish flag</button>
+                <button id="geoPublishBtn" class="geo-publish-btn" type="submit">Publish locations</button>
               </form>
             </section>
 

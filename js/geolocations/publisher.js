@@ -68,19 +68,35 @@
 
       function readGeoCoordinates() {
         if (geoCoordinatesInput) {
-          return parseCoordinateInput(geoCoordinatesInput.value);
+          return geoCoordinatesInput.value.split(/\r?\n/).reduce((coordinates, line, index) => {
+            const value = line.trim();
+            if (!value) return coordinates;
+            const parsed = parseCoordinateInput(value);
+            if (!parsed || parsed.lat < -90 || parsed.lat > 90 ||
+                parsed.lng < -180 || parsed.lng > 180) {
+              coordinates.errors.push(index + 1);
+            } else {
+              coordinates.values.push(parsed);
+            }
+            return coordinates;
+          }, { values: [], errors: [] });
         }
         if (!geoLatitudeInput || !geoLongitudeInput) {
-          return null;
+          return { values: [], errors: [] };
         }
         const lat = Number(geoLatitudeInput.value);
         const lng = Number(geoLongitudeInput.value);
-        return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+        return Number.isFinite(lat) && Number.isFinite(lng)
+          ? { values: [{ lat, lng }], errors: [] }
+          : { values: [], errors: [1] };
       }
 
       function fillGeoCoordinates(lat, lng) {
         if (geoCoordinatesInput) {
-          geoCoordinatesInput.value = lat.toFixed(6) + ', ' + lng.toFixed(6);
+          const coordinate = lat.toFixed(6) + ', ' + lng.toFixed(6);
+          geoCoordinatesInput.value = geoCoordinatesInput.value.trim()
+            ? geoCoordinatesInput.value.trimEnd() + '\n' + coordinate
+            : coordinate;
           return;
         }
         if (geoLatitudeInput && geoLongitudeInput) {
@@ -433,7 +449,7 @@
         geoPickingLocation = false;
         geoPickLocationBtn.classList.remove('is-picking');
         geoPickLocationBtn.textContent = 'Choose location on map';
-        setGeoAdminStatus('Coordinates selected. Add the source and description, then publish.', '');
+        setGeoAdminStatus('Coordinates added. Add the source and description, then publish.', '');
       });
 
       geoPickLocationBtn.addEventListener('click', () => {
@@ -471,36 +487,52 @@
         const nation = nationInput.value;
         const date = geoDateInput.value;
         const coordinates = readGeoCoordinates();
-        const lat = coordinates ? coordinates.lat : NaN;
-        const lng = coordinates ? coordinates.lng : NaN;
         const source = sourceInput.value.trim();
         const description = descriptionInput.value.trim();
         if (!geoNationDetails[nation] || !isValidGeoDateKey(date) ||
-            !Number.isFinite(lat) || lat < -90 || lat > 90 ||
-            !Number.isFinite(lng) || lng < -180 || lng > 180 ||
+            !coordinates.values.length || coordinates.errors.length ||
             !source || !description) {
-          setGeoAdminStatus('Enter a valid date, coordinates, source, and description.', 'error');
+          const lineError = coordinates.errors.length
+            ? ' Check coordinate line' + (coordinates.errors.length === 1 ? ' ' : 's ') +
+              coordinates.errors.join(', ') + '.'
+            : '';
+          setGeoAdminStatus(
+            'Enter a valid date, at least one valid coordinate pair, source, and description.' + lineError,
+            'error'
+          );
+          return;
+        }
+        if (coordinates.values.length > 500) {
+          setGeoAdminStatus('Publish no more than 500 locations at a time.', 'error');
           return;
         }
 
         geoPublishBtn.disabled = true;
-        setGeoAdminStatus('Publishing…', '');
+        setGeoAdminStatus('Publishing ' + coordinates.values.length + ' location(s)…', '');
         try {
-          await geoCollectionRef.add({
-            nation,
-            date,
-            lat,
-            lng,
-            source,
-            description,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          const batch = geoCollectionRef.firestore.batch();
+          coordinates.values.forEach(({ lat, lng }) => {
+            batch.set(geoCollectionRef.doc(), {
+              nation,
+              date,
+              lat,
+              lng,
+              source,
+              description,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
           });
+          await batch.commit();
           geoLocationForm.reset();
           geoDateInput.value = geoTodayKey;
           geoPickingLocation = false;
           geoPickLocationBtn.classList.remove('is-picking');
           geoPickLocationBtn.textContent = 'Choose location on map';
-          setGeoAdminStatus('Location published.', 'success');
+          setGeoAdminStatus(
+            coordinates.values.length === 1 ? 'Location published.' :
+              coordinates.values.length + ' locations published.',
+            'success'
+          );
         } catch (error) {
           console.error('Failed to publish geolocation', error);
           const errorCode = error && error.code ? error.code : '';
@@ -513,7 +545,7 @@
             setGeoAdminStatus('Your session has expired. Sign in again and retry.', 'error');
           } else {
             setGeoAdminStatus(
-              'Could not publish the location (' + (errorCode || 'unknown error') + '). Check the browser console for details.',
+              'Could not publish the locations (' + (errorCode || 'unknown error') + '). Check the browser console for details.',
               'error'
             );
           }

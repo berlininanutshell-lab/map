@@ -22,6 +22,10 @@
         backdrop-filter: blur(8px);
       }
 
+      body.is-admin #adminViewerCount {
+        display: none;
+      }
+
       #viewerListOverlay {
         position: fixed;
         inset: 0;
