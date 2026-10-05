@@ -86,7 +86,8 @@
         }
         const lat = Number(geoLatitudeInput.value);
         const lng = Number(geoLongitudeInput.value);
-        return Number.isFinite(lat) && Number.isFinite(lng)
+        return Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
+          Number.isFinite(lng) && lng >= -180 && lng <= 180
           ? { values: [{ lat, lng }], errors: [] }
           : { values: [], errors: [1] };
       }
@@ -472,7 +473,7 @@
           return;
         }
         if (!geoCollectionRef) {
-          setGeoAdminStatus('Firestore is unavailable. This location was not saved.', 'error');
+          setGeoAdminStatus('Firestore is unavailable. These locations were not saved.', 'error');
           return;
         }
 
