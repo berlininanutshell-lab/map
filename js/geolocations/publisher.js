@@ -186,7 +186,10 @@
       }
 
       function ensureGeoMapLayer() {
-        if (!map.isStyleLoaded()) {
+        // style.load can fire while isStyleLoaded() still reports false.
+        // The style itself is available then, and adding custom sources and
+        // layers at that point is safe.
+        if (!map.getStyle()) {
           return;
         }
         ['ukraine', 'russia'].forEach((nation) => {
@@ -245,23 +248,12 @@
       }
 
       function restoreGeoMapLayerAfterStyleChange() {
-        if (!map.isStyleLoaded()) {
-          return;
-        }
-        const layerMissing = !map.getLayer('geolocation-flags-symbols');
-        const sourceMissing = !map.getSource('geolocation-flags');
-        const imageMissing = !map.hasImage('geolocation-flag-ukraine') ||
-          !map.hasImage('geolocation-flag-russia');
-        if (layerMissing || sourceMissing || imageMissing) {
-          ensureGeoMapLayer();
-        }
+        ensureGeoMapLayer();
       }
 
       function renderGeoMarkers(locations) {
         geoVisibleLocations = locations;
-        if (map.isStyleLoaded()) {
-          ensureGeoMapLayer();
-        }
+        ensureGeoMapLayer();
         if (geoPopup && !locations.some((location) => location.id === geoPopupLocationId)) {
           geoPopup.remove();
           geoPopup = null;
@@ -600,7 +592,6 @@
       }
 
       map.on('style.load', restoreGeoMapLayerAfterStyleChange);
-      map.on('styledata', restoreGeoMapLayerAfterStyleChange);
       geoDateInput.value = geoTodayKey;
       renderGeolocationsView();
       window.renderGeolocationsView = renderGeolocationsView;
