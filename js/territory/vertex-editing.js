@@ -105,7 +105,8 @@
         territoryEditControlsEl.innerHTML =
           '<span>Drag points to move · click + to add a point · right-click a point to remove it</span>' +
           '<button type="button" class="territory-edit-done">Done</button>' +
-          '<button type="button" class="territory-edit-cancel">Cancel</button>';
+          '<button type="button" class="territory-edit-cancel">Cancel</button>' +
+          '<button type="button" class="territory-edit-delete">Delete polygon</button>';
         document.body.appendChild(territoryEditControlsEl);
 
         territoryEditControlsEl.querySelector('.territory-edit-done').addEventListener('click', () => {
@@ -113,6 +114,16 @@
         });
         territoryEditControlsEl.querySelector('.territory-edit-cancel').addEventListener('click', () => {
           finishVertexEditMode(false);
+        });
+        territoryEditControlsEl.querySelector('.territory-edit-delete').addEventListener('click', () => {
+          const edit = state.territoryEdit;
+          if (!edit || !window.confirm('Delete this polygon? This cannot be undone.')) {
+            return;
+          }
+
+          finishVertexEditMode(false);
+          removeTerritoryFeature(edit.layerId, edit.featureId);
+          drawHint.textContent = 'Polygon deleted.';
         });
       }
 

@@ -62,6 +62,12 @@
         color: #8be8ac;
       }
 
+      .territory-edit-controls .territory-edit-delete {
+        border-color: rgba(255, 96, 96, 0.45);
+        background: rgba(255, 96, 96, 0.14);
+        color: #ff9a9a;
+      }
+
       .territory-edit-controls button:hover {
         filter: brightness(1.15);
       }
