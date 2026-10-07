@@ -225,6 +225,12 @@
       // territory-layer picker. See the comment above this section for
       // what happens on each layer.
       function applyTerritoryPolygon(ring, layerId) {
+        if (!territoryDrawLayerIds.includes(layerId)) {
+          console.error('Cannot draw a polygon into an unsupported territory layer', layerId);
+          drawHint.textContent = 'Choose Russian advances, Ukrainian advances, or Contested before drawing.';
+          return;
+        }
+
         let drawnPolygon;
         try {
           drawnPolygon = turf.polygon([ring]);
@@ -246,18 +252,6 @@
           }
           addTerritoryFeature('contested', clipped.geometry || clipped);
           drawHint.textContent = 'Added a rounded manual Contested area. Click it to edit or delete.';
-          return;
-        }
-
-        if (layerId === 'main') {
-          addTerritoryFeature('main', drawnPolygon.geometry);
-          drawHint.textContent = 'Added to Russian Control. Click it to edit or delete.';
-          return;
-        }
-
-        if (layerId === 'ukrainian-control') {
-          addTerritoryFeature('ukrainian-control', drawnPolygon.geometry);
-          drawHint.textContent = 'Added to Ukrainian Control. Click it to edit or delete.';
           return;
         }
 

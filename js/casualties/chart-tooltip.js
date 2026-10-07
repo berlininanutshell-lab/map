@@ -109,7 +109,7 @@
         nickname: '',
         // Which layer a drawn Territory polygon will be applied to —
         // see the "Territory polygon" tool below.
-        territoryLayerId: 'main',
+        territoryLayerId: 'russian-advances',
         // Non-null while a territory shape's points are being
         // dragged/added/removed via "Edit shape" — see
         // enterVertexEditMode / finishVertexEditMode below.

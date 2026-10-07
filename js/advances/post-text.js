@@ -157,7 +157,7 @@
             : '<span class="marker-popup-subtitle">No source added.</span>') +
           (isAdmin()
             ? '<input class="territory-popup-source-input" type="url" placeholder="https://example.com/source" value="' + escapeHtml(source || '') + '" />' +
-              '<button type="button" class="marker-popup-copy territory-popup-source-save">Save source</button>'
+              '<button type="button" class="marker-popup-copy territory-popup-source-save">' + (source ? 'Save Source' : 'Add Source') + '</button>'
             : '') +
           '</div>'
         ) : '';
@@ -180,7 +180,7 @@
           sourceBlock +
           postBlock +
           '<div class="marker-popup-actions">' +
-          (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
+          (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-apply">Apply Advance</button>' : '') +
           (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' : '') +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-kmz">Download KMZ</button>' : '') +
