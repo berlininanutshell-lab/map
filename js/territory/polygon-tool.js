@@ -158,6 +158,36 @@
         subtractFromLayer('main', geometryToRemove);
       }
 
+      function robustTerritoryDifference(minuend, subtrahend) {
+        try {
+          return turf.difference(minuend, subtrahend);
+        } catch (originalError) {
+          for (const precision of [6, 5, 4]) {
+            try {
+              const cleanMinuend = turf.truncate(turf.cleanCoords(minuend), {
+                precision,
+                coordinates: 2,
+                mutate: false
+              });
+              const cleanSubtrahend = turf.truncate(turf.cleanCoords(subtrahend), {
+                precision,
+                coordinates: 2,
+                mutate: false
+              });
+              return turf.difference(cleanMinuend, cleanSubtrahend);
+            } catch (retryError) {
+              // Retry at lower precision when edges nearly coincide.
+            }
+          }
+
+          try {
+            return turf.difference(turf.buffer(minuend, 0), turf.buffer(subtrahend, 0));
+          } catch (repairError) {
+            throw originalError;
+          }
+        }
+      }
+
       // Same as subtractFromMain, but for any territory layer (used to
       // keep Russian Control and Ukrainian Control from overlapping
       // when an advance is applied).
@@ -166,21 +196,16 @@
         const removalFeature = turf.feature(geometryToRemove);
         const kept = [];
 
-        data.features.forEach((feature) => {
+        for (const feature of data.features) {
           const isPolygon = feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon');
           if (!isPolygon) {
             kept.push(feature);
-            return;
+            continue;
           }
-          let diff;
-          try {
-            diff = turf.difference(feature, removalFeature);
-          } catch (error) {
-            diff = feature;
-          }
+          const diff = robustTerritoryDifference(feature, removalFeature);
           if (!diff) {
             // Entire feature was inside the removed area — drop it.
-            return;
+            continue;
           }
           turf.flatten(diff).features.forEach((part) => {
             kept.push({
@@ -189,7 +214,7 @@
               geometry: part.geometry
             });
           });
-        });
+        }
 
         layerKmlData[layerId] = { type: 'FeatureCollection', features: kept };
         ensureKmlLayersForLayer(layerId);

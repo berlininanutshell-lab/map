@@ -200,17 +200,28 @@
           return;
         }
 
-        if (layerId === 'russian-advances') {
-          // Russian Control gains the ground; Ukrainian Control loses it.
-          addTerritoryFeature('main', feature.geometry, { push: false });
-          mergeTerritoryLayerPolygons('main');
-          subtractFromLayer('ukrainian-control', feature.geometry);
-        } else if (layerId === 'ukrainian-advances') {
-          // Russian Control loses the ground; Ukrainian Control gains it.
-          subtractFromMain(feature.geometry);
-          addTerritoryFeature('ukrainian-control', feature.geometry, { push: false });
-          mergeTerritoryLayerPolygons('ukrainian-control');
-        } else {
+        if (layerId !== 'russian-advances' && layerId !== 'ukrainian-advances') {
+          closeTerritoryPopup();
+          return;
+        }
+
+        try {
+          if (layerId === 'russian-advances') {
+            // Calculate the cut before changing either control layer. If it
+            // fails, keep the advance pending rather than leave overlapping
+            // or partially updated control polygons.
+            subtractFromLayer('ukrainian-control', feature.geometry);
+            addTerritoryFeature('main', feature.geometry, { push: false });
+            mergeTerritoryLayerPolygons('main');
+          } else {
+            // Russian Control loses the ground; Ukrainian Control gains it.
+            subtractFromMain(feature.geometry);
+            addTerritoryFeature('ukrainian-control', feature.geometry, { push: false });
+            mergeTerritoryLayerPolygons('ukrainian-control');
+          }
+        } catch (error) {
+          console.error('Failed to subtract an applied advance from existing control', error);
+          adminNotice('Could not apply this advance: the existing control boundary could not be cut. The pending advance was kept. Check the browser console for details.');
           closeTerritoryPopup();
           return;
         }

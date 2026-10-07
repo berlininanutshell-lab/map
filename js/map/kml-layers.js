@@ -122,7 +122,11 @@
         return false;
       }
 
-      const CONTESTED_BUFFER_KM = 2;
+      const CONTESTED_BUFFER_KM = 4;
+      const CITIES_OUTLINE_INNER_BUFFER_KM = 0.3;
+      const CONTESTED_FRONT_START = [34.31462230371, 51.87851293361];
+      const CONTESTED_FRONT_END = [35.33076423005, 47.55134608883];
+      const CONTESTED_ENDPOINT_MAX_SNAP_KM = 15;
       const contestedInputLayerIds = ['main', 'russian-advances', 'ukrainian-advances'];
       let ukraineLandMask = null;
       let contestedGeneratedFeatures = [];
@@ -139,95 +143,60 @@
         return merged;
       }
 
-      function effectiveRussianControl() {
+      function effectiveRussianControlTerritory() {
         const russianControl = unionTerritoryPolygons(
           (layerKmlData.main && layerKmlData.main.features || [])
             .concat(layerKmlData['russian-advances'] && layerKmlData['russian-advances'].features || [])
         );
-        if (!russianControl) {
-          return null;
-        }
-
         const ukrainianAdvances = unionTerritoryPolygons(
           layerKmlData['ukrainian-advances'] && layerKmlData['ukrainian-advances'].features || []
         );
-        return ukrainianAdvances ? turf.difference(russianControl, ukrainianAdvances) : russianControl;
+        const russianFront = russianControl && ukrainianAdvances
+          ? turf.difference(russianControl, ukrainianAdvances)
+          : russianControl;
+
+        return russianFront;
       }
 
-      function isFrontlineSegment(start, end, occupied) {
-        const middleLat = (start[1] + end[1]) / 2;
-        const radians = middleLat * Math.PI / 180;
-        const metersPerLng = 111320 * Math.cos(radians);
-        const metersPerLat = 110540;
-        const dx = (end[0] - start[0]) * metersPerLng;
-        const dy = (end[1] - start[1]) * metersPerLat;
-        const length = Math.hypot(dx, dy);
-        if (length < 1 || Math.abs(metersPerLng) < 1) {
-          return false;
+      function getRussianControlFrontRun() {
+        const russianControl = effectiveRussianControlTerritory();
+        if (!russianControl) {
+          return [];
         }
 
-        const offsetMeters = 60;
-        const offsetLng = -(dy / length) * offsetMeters / metersPerLng;
-        const offsetLat = (dx / length) * offsetMeters / metersPerLat;
-        for (const fraction of [0.25, 0.5, 0.75]) {
-          const sampleLng = start[0] + (end[0] - start[0]) * fraction;
-          const sampleLat = start[1] + (end[1] - start[1]) * fraction;
-          const left = turf.point([sampleLng + offsetLng, sampleLat + offsetLat]);
-          const right = turf.point([sampleLng - offsetLng, sampleLat - offsetLat]);
-          if (!turf.booleanPointInPolygon(left, ukraineLandMask) ||
-              !turf.booleanPointInPolygon(right, ukraineLandMask) ||
-              turf.booleanPointInPolygon(left, occupied) === turf.booleanPointInPolygon(right, occupied)) {
-            return false;
-          }
-        }
-        return true;
-      }
-
-      function getFrontlineRuns(occupied) {
-        const boundaries = turf.flatten(turf.polygonToLine(occupied)).features;
-        const runs = [];
+        const boundaries = turf.flatten(turf.polygonToLine(russianControl)).features;
+        const start = turf.point(CONTESTED_FRONT_START);
+        const end = turf.point(CONTESTED_FRONT_END);
+        let bestPath = null;
+        let bestSnapDistance = Infinity;
+        let bestEndpointDistances = null;
 
         boundaries.forEach((boundary) => {
-          const coordinates = boundary.geometry && boundary.geometry.coordinates;
-          if (!coordinates || coordinates.length < 2) {
-            return;
-          }
-          let run = [];
-          for (let i = 0; i < coordinates.length - 1; i++) {
-            const start = coordinates[i];
-            const end = coordinates[i + 1];
-            if (isFrontlineSegment(start, end, occupied)) {
-              if (!run.length) {
-                run.push(start);
-              }
-              run.push(end);
-            } else if (run.length > 1) {
-              runs.push(turf.lineString(run));
-              run = [];
-            } else {
-              run = [];
-            }
-          }
-          if (run.length > 1) {
-            runs.push(turf.lineString(run));
+          const snappedStart = turf.nearestPointOnLine(boundary, start, { units: 'kilometers' });
+          const snappedEnd = turf.nearestPointOnLine(boundary, end, { units: 'kilometers' });
+          const snapDistance = snappedStart.properties.dist + snappedEnd.properties.dist;
+          if (snapDistance < bestSnapDistance) {
+            bestSnapDistance = snapDistance;
+            bestEndpointDistances = [snappedStart.properties.dist, snappedEnd.properties.dist];
+            bestPath = turf.lineSlice(snappedStart, snappedEnd, boundary);
           }
         });
 
-        return runs;
+        if (!bestPath || bestEndpointDistances.some((distance) =>
+          distance > CONTESTED_ENDPOINT_MAX_SNAP_KM
+        )) {
+          throw new Error('Russian Control no longer has a boundary connecting the Contested endpoints.');
+        }
+        return [bestPath];
       }
 
       function buildContestedFeatures() {
-        const occupied = effectiveRussianControl();
-        if (!occupied || !occupied.geometry) {
+        const activeFrontRuns = getRussianControlFrontRun();
+        if (!activeFrontRuns.length) {
           return [];
         }
 
-        const frontlineRuns = getFrontlineRuns(occupied);
-        if (!frontlineRuns.length) {
-          return [];
-        }
-
-        const buffered = turf.buffer(turf.featureCollection(frontlineRuns), CONTESTED_BUFFER_KM, {
+        const buffered = turf.buffer(turf.featureCollection(activeFrontRuns), CONTESTED_BUFFER_KM, {
           units: 'kilometers',
           steps: 8
         });
@@ -236,22 +205,63 @@
           return [];
         }
 
-        const clipped = turf.intersect(corridor, ukraineLandMask);
-        const features = clipped
-          ? turf.flatten(clipped).features.map((part) => ({
-            type: 'Feature',
-            properties: { id: genId(), name: 'Contested', generated: true },
-            geometry: part.geometry
-          }))
-          : [];
-        frontlineRuns.forEach((run) => {
-          features.push({
-            type: 'Feature',
-            properties: { id: genId(), name: 'Contested', generated: true, frontline: true },
-            geometry: run.geometry
+        const features = turf.flatten(corridor).features.map((part) => ({
+          type: 'Feature',
+          properties: { id: genId(), name: 'Contested', generated: true },
+          geometry: part.geometry
+        }));
+        activeFrontRuns.forEach((run) => features.push({
+          type: 'Feature',
+          properties: {
+            id: genId(),
+            name: 'Contested',
+            generated: true,
+            frontline: true
+          },
+          geometry: run.geometry
+        }));
+        return features;
+      }
+
+      function buildCitiesOutlineInnerBuffer() {
+        const cityFeatures = layerKmlData['cities-outline'] &&
+          layerKmlData['cities-outline'].features || [];
+        const bufferFeatures = [];
+
+        cityFeatures.forEach((feature) => {
+          if (!feature.geometry ||
+              (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')) {
+            return;
+          }
+
+          turf.flatten(feature).features.forEach((polygon) => {
+            const inset = turf.buffer(polygon, -CITIES_OUTLINE_INNER_BUFFER_KM, {
+              units: 'kilometers',
+              steps: 8
+            });
+            if (!inset) {
+              return;
+            }
+
+            const innerBand = turf.difference(polygon, inset);
+            if (!innerBand) {
+              return;
+            }
+
+            turf.flatten(innerBand).features.forEach((bandPolygon) => {
+              bufferFeatures.push({
+                type: 'Feature',
+                properties: {
+                  name: feature.properties && feature.properties.name || 'City',
+                  cityBuffer: true
+                },
+                geometry: bandPolygon.geometry
+              });
+            });
           });
         });
-        return features;
+
+        return turf.featureCollection(bufferFeatures);
       }
 
       function contestedDisplayData() {
@@ -378,6 +388,35 @@
           map.addSource(sourceId, { type: 'geojson', data });
         }
 
+        if (layerId === 'cities-outline') {
+          const bufferSourceId = sourceId + '-inner-buffer';
+          const bufferData = buildCitiesOutlineInnerBuffer();
+          if (map.getSource(bufferSourceId)) {
+            map.getSource(bufferSourceId).setData(bufferData);
+          } else {
+            map.addSource(bufferSourceId, { type: 'geojson', data: bufferData });
+          }
+
+          const bufferFillId = bufferSourceId + '-fill';
+          if (!map.getLayer(bufferFillId)) {
+            map.addLayer({
+              id: bufferFillId,
+              type: 'fill',
+              source: bufferSourceId,
+              filter: ['==', ['get', 'cityBuffer'], true],
+              layout: { visibility },
+              paint: {
+                'fill-color': color,
+                'fill-opacity': 0.25,
+                'fill-outline-color': 'rgba(0, 0, 0, 0)'
+              }
+            });
+          } else {
+            map.setLayoutProperty(bufferFillId, 'visibility', visibility);
+            map.setPaintProperty(bufferFillId, 'fill-color', color);
+          }
+        }
+
         const fillId = sourceId + '-fill';
         if (!isOutlineOnly && !map.getLayer(fillId)) {
           map.addLayer({
@@ -386,7 +425,13 @@
             source: sourceId,
             filter: ['==', ['geometry-type'], 'Polygon'],
             layout: { visibility },
-            paint: { 'fill-color': color, 'fill-opacity': layerId === 'contested' ? 0.16 : 0.25, 'fill-outline-color': color }
+            paint: {
+              'fill-color': color,
+              'fill-opacity': layerId === 'contested' ? 0.16 : 0.25,
+              'fill-outline-color': layerId === 'contested'
+                ? ['case', ['==', ['get', 'generated'], true], 'rgba(0, 0, 0, 0)', color]
+                : color
+            }
           });
 
           // Wire up click-to-manage for territory polygons. Guarded by
@@ -439,7 +484,9 @@
         } else if (!isOutlineOnly) {
           map.setLayoutProperty(fillId, 'visibility', visibility);
           map.setPaintProperty(fillId, 'fill-color', color);
-          map.setPaintProperty(fillId, 'fill-outline-color', color);
+          map.setPaintProperty(fillId, 'fill-outline-color', layerId === 'contested'
+            ? ['case', ['==', ['get', 'generated'], true], 'rgba(0, 0, 0, 0)', color]
+            : color);
         } else if (map.getLayer(fillId)) {
           map.setLayoutProperty(fillId, 'visibility', 'none');
         }
