@@ -181,6 +181,7 @@
           postBlock +
           '<div class="marker-popup-actions">' +
           (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-apply">Apply the advance</button>' : '') +
+          (isAdmin() && layerId === 'main' ? '<button type="button" class="marker-popup-copy territory-popup-restore-advance">Move back to Russian advances</button>' : '') +
           (isAdmin() && isAdvance ? '<button type="button" class="marker-popup-copy territory-popup-smooth">Smooth</button>' : '') +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-edit">Edit shape (add/move points)</button>' : '') +
           (isAdmin() ? '<button type="button" class="marker-popup-copy territory-popup-kmz">Download KMZ</button>' : '') +
@@ -248,6 +249,15 @@
         if (applyBtn) {
           applyBtn.addEventListener('click', () => {
             applyAdvanceFeature(layerId, featureId);
+          });
+        }
+
+        const restoreAdvanceBtn = container.querySelector('.territory-popup-restore-advance');
+        if (restoreAdvanceBtn) {
+          restoreAdvanceBtn.addEventListener('click', () => {
+            if (window.confirm('Move this shape out of Russian Control and back to pending Russian advances?')) {
+              restoreRussianAdvanceFeature(featureId);
+            }
           });
         }
 

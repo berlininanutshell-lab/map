@@ -42,3 +42,7 @@ Manually drawn Contested polygons are stored separately and synced with the
 other territory layers. Admins can draw them with
 **Draw → Territory polygon → Contested**; the existing smoothing step rounds
 the shape before it is saved.
+
+Admins can move a separate Russian Control polygon back to pending Russian
+advances from that polygon's popup. This removes it from Russian Control and
+stores the same shape as an unapplied advance.

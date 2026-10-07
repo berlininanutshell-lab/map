@@ -231,3 +231,35 @@
         closeTerritoryPopup();
         drawHint.textContent = layerId === 'russian-advances' ? 'Advance applied to Russian Control.' : 'Advance applied to Ukrainian Control.';
       }
+
+      function restoreRussianAdvanceFeature(featureId) {
+        const feature = findTerritoryFeature('main', featureId);
+        if (!isAdmin() || !feature || !feature.geometry ||
+            (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')) {
+          closeTerritoryPopup();
+          return;
+        }
+
+        const advances = layerKmlData['russian-advances'] ||
+          { type: 'FeatureCollection', features: [] };
+        const restoredFeatures = turf.flatten(feature).features.map((part) => {
+          const properties = Object.assign({}, feature.properties || {});
+          const idExists = advances.features.some((advance) =>
+            advance.properties && advance.properties.id === properties.id
+          );
+          properties.id = properties.id && !idExists ? properties.id : genId();
+          return {
+            type: 'Feature',
+            properties,
+            geometry: part.geometry
+          };
+        });
+
+        removeTerritoryFeature('main', featureId, { push: false });
+        advances.features.push(...restoredFeatures);
+        layerKmlData['russian-advances'] = advances;
+        ensureKmlLayersForLayer('russian-advances');
+        pushTerritoriesToFirestore();
+        closeTerritoryPopup();
+        drawHint.textContent = 'Shape moved from Russian Control back to pending Russian advances.';
+      }
