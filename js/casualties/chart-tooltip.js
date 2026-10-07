@@ -91,6 +91,7 @@
         layers: [
           { id: 'main', name: 'Russian Control', visible: true, color: '#ff0000', renderMode: 'fill', thickness: 3 },
           { id: 'ukrainian-control', name: 'Ukrainian Control', visible: true, color: '#00008b', renderMode: 'fill', thickness: 3 },
+          { id: 'contested', name: 'Contested', visible: true, color: '#f2c14e', renderMode: 'fill', thickness: 2 },
           { id: 'russian-advances', name: 'Russian advances', visible: true, color: '#FF9400', renderMode: 'fill', thickness: 3 },
           { id: 'ukrainian-advances', name: 'Ukrainian advances', visible: true, color: '#0000ff', renderMode: 'fill', thickness: 3 },
           { id: 'cities-outline', name: 'Cities Outline', visible: true, color: '#ffffff', renderMode: 'outline', thickness: 2 }
@@ -142,13 +143,13 @@
       const polygonToolBtn = document.querySelector('.tool-option[data-tool="polygon"]');
       const territoryLayerPicker = document.getElementById('territoryLayerPicker');
 
-      // All four territory layers are persisted/synced. The polygon picker
-      // itself is intentionally restricted to the two pending advance
-      // layers; the control layers are modified only when an advance is applied.
-      const territoryLayerIds = ['main', 'ukrainian-control', 'russian-advances', 'ukrainian-advances'];
+      // Territory shapes are persisted/synced; the derived Contested band is
+      // rendered from current territory plus manually stored Contested polygons.
+      const territoryLayerIds = ['main', 'ukrainian-control', 'russian-advances', 'ukrainian-advances', 'contested'];
       const territoryAdvanceLayerIds = ['russian-advances', 'ukrainian-advances'];
+      const territoryDrawLayerIds = territoryAdvanceLayerIds.concat(['contested']);
       // All polygon/KML layers that are shared through the same compact
-      // Firestore document. Territory logic remains restricted to the four
+      // Firestore document. Territory logic remains restricted to the
       // ids above; extra managed layers such as Cities Outline are visual-only.
       const sharedLayerIds = territoryLayerIds.concat(['cities-outline']);
 

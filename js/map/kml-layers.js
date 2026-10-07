@@ -122,6 +122,212 @@
         return false;
       }
 
+      const CONTESTED_BUFFER_KM = 2;
+      const contestedInputLayerIds = ['main', 'russian-advances', 'ukrainian-advances'];
+      let ukraineLandMask = null;
+      let contestedGeneratedFeatures = [];
+      let contestedRefreshScheduled = false;
+
+      function unionTerritoryPolygons(features) {
+        const polygons = features.filter((feature) =>
+          feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
+        );
+        let merged = null;
+        polygons.forEach((feature) => {
+          merged = merged ? turf.union(merged, feature) : turf.feature(feature.geometry);
+        });
+        return merged;
+      }
+
+      function effectiveRussianControl() {
+        const russianControl = unionTerritoryPolygons(
+          (layerKmlData.main && layerKmlData.main.features || [])
+            .concat(layerKmlData['russian-advances'] && layerKmlData['russian-advances'].features || [])
+        );
+        if (!russianControl) {
+          return null;
+        }
+
+        const ukrainianAdvances = unionTerritoryPolygons(
+          layerKmlData['ukrainian-advances'] && layerKmlData['ukrainian-advances'].features || []
+        );
+        return ukrainianAdvances ? turf.difference(russianControl, ukrainianAdvances) : russianControl;
+      }
+
+      function isFrontlineSegment(start, end, occupied) {
+        const middleLat = (start[1] + end[1]) / 2;
+        const radians = middleLat * Math.PI / 180;
+        const metersPerLng = 111320 * Math.cos(radians);
+        const metersPerLat = 110540;
+        const dx = (end[0] - start[0]) * metersPerLng;
+        const dy = (end[1] - start[1]) * metersPerLat;
+        const length = Math.hypot(dx, dy);
+        if (length < 1 || Math.abs(metersPerLng) < 1) {
+          return false;
+        }
+
+        const offsetMeters = 60;
+        const offsetLng = -(dy / length) * offsetMeters / metersPerLng;
+        const offsetLat = (dx / length) * offsetMeters / metersPerLat;
+        for (const fraction of [0.25, 0.5, 0.75]) {
+          const sampleLng = start[0] + (end[0] - start[0]) * fraction;
+          const sampleLat = start[1] + (end[1] - start[1]) * fraction;
+          const left = turf.point([sampleLng + offsetLng, sampleLat + offsetLat]);
+          const right = turf.point([sampleLng - offsetLng, sampleLat - offsetLat]);
+          if (!turf.booleanPointInPolygon(left, ukraineLandMask) ||
+              !turf.booleanPointInPolygon(right, ukraineLandMask) ||
+              turf.booleanPointInPolygon(left, occupied) === turf.booleanPointInPolygon(right, occupied)) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function getFrontlineRuns(occupied) {
+        const boundaries = turf.flatten(turf.polygonToLine(occupied)).features;
+        const runs = [];
+
+        boundaries.forEach((boundary) => {
+          const coordinates = boundary.geometry && boundary.geometry.coordinates;
+          if (!coordinates || coordinates.length < 2) {
+            return;
+          }
+          let run = [];
+          for (let i = 0; i < coordinates.length - 1; i++) {
+            const start = coordinates[i];
+            const end = coordinates[i + 1];
+            if (isFrontlineSegment(start, end, occupied)) {
+              if (!run.length) {
+                run.push(start);
+              }
+              run.push(end);
+            } else if (run.length > 1) {
+              runs.push(turf.lineString(run));
+              run = [];
+            } else {
+              run = [];
+            }
+          }
+          if (run.length > 1) {
+            runs.push(turf.lineString(run));
+          }
+        });
+
+        return runs;
+      }
+
+      function buildContestedFeatures() {
+        const occupied = effectiveRussianControl();
+        if (!occupied || !occupied.geometry) {
+          return [];
+        }
+
+        const frontlineRuns = getFrontlineRuns(occupied);
+        if (!frontlineRuns.length) {
+          return [];
+        }
+
+        const buffered = turf.buffer(turf.featureCollection(frontlineRuns), CONTESTED_BUFFER_KM, {
+          units: 'kilometers',
+          steps: 8
+        });
+        const corridor = unionTerritoryPolygons(buffered.features);
+        if (!corridor) {
+          return [];
+        }
+
+        const clipped = turf.intersect(corridor, ukraineLandMask);
+        const features = clipped
+          ? turf.flatten(clipped).features.map((part) => ({
+            type: 'Feature',
+            properties: { id: genId(), name: 'Contested', generated: true },
+            geometry: part.geometry
+          }))
+          : [];
+        frontlineRuns.forEach((run) => {
+          features.push({
+            type: 'Feature',
+            properties: { id: genId(), name: 'Contested', generated: true, frontline: true },
+            geometry: run.geometry
+          });
+        });
+        return features;
+      }
+
+      function contestedDisplayData() {
+        const manual = layerKmlData.contested || { type: 'FeatureCollection', features: [] };
+        return {
+          type: 'FeatureCollection',
+          features: manual.features.concat(contestedGeneratedFeatures)
+        };
+      }
+
+      function refreshContestedLayer() {
+        if (!ukraineLandMask || contestedRefreshScheduled) {
+          return;
+        }
+        contestedRefreshScheduled = true;
+        window.requestAnimationFrame(() => {
+          contestedRefreshScheduled = false;
+          try {
+            contestedGeneratedFeatures = buildContestedFeatures();
+          } catch (error) {
+            contestedGeneratedFeatures = [];
+            console.error('Failed to calculate the Contested overlay', error);
+            if (typeof adminNotice === 'function') {
+              adminNotice('Could not update Contested. Check the browser console for details.');
+            }
+          }
+          if (map.getStyle()) {
+            ensureKmlLayersForLayer('contested');
+          }
+        });
+      }
+
+      function loadUkraineLandMask() {
+        fetch('data/ukraine-contested-mask.geojson')
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('Ukraine land mask request failed: ' + response.status);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (!data || !Array.isArray(data.features)) {
+              throw new Error('Ukraine land mask is not a GeoJSON FeatureCollection.');
+            }
+            const boundary = data.features.find((feature) =>
+              feature.properties && feature.properties.ADMIN === 'Ukraine'
+            );
+            if (!boundary || !boundary.geometry) {
+              throw new Error('Ukraine boundary is missing from the land mask.');
+            }
+
+            let land = turf.feature(boundary.geometry);
+            const lakes = data.features.filter((feature) =>
+              feature !== boundary &&
+              feature.geometry &&
+              (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
+            );
+            lakes.forEach((lake) => {
+              const withoutWater = turf.difference(land, lake);
+              if (!withoutWater) {
+                throw new Error('Could not subtract an inland water body from the Ukraine land mask.');
+              }
+              land = withoutWater;
+            });
+
+            ukraineLandMask = land;
+            refreshContestedLayer();
+          })
+          .catch((error) => {
+            console.error('Failed to load the Ukraine land mask for Contested', error);
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = 'Contested is unavailable because the Ukraine land mask could not be loaded.';
+            errorEl.style.display = 'block';
+          });
+      }
+
       // Adds (or updates) the geojson source + fill/line/point layers for
       // one layer's KML data, and syncs their visibility to that layer's
       // On/Off state. Safe to call repeatedly, including after a style
@@ -141,7 +347,9 @@
         }
 
         const sourceId = 'kml-' + layerId;
-        const data = layerKmlData[layerId] || { type: 'FeatureCollection', features: [] };
+        const data = layerId === 'contested'
+          ? contestedDisplayData()
+          : layerKmlData[layerId] || { type: 'FeatureCollection', features: [] };
         const visibility = layer.visible ? 'visible' : 'none';
         const color = layer.color;
         const isOutlineOnly = layer.renderMode === 'outline';
@@ -178,7 +386,7 @@
             source: sourceId,
             filter: ['==', ['geometry-type'], 'Polygon'],
             layout: { visibility },
-            paint: { 'fill-color': color, 'fill-opacity': 0.25, 'fill-outline-color': color }
+            paint: { 'fill-color': color, 'fill-opacity': layerId === 'contested' ? 0.16 : 0.25, 'fill-outline-color': color }
           });
 
           // Wire up click-to-manage for territory polygons. Guarded by
@@ -205,15 +413,20 @@
               if (isClickOnMapObject(event)) {
                 return;
               }
-              const rendered = event.features && event.features[0];
+              const rendered = (event.features || []).find((feature) =>
+                feature.properties && feature.properties.id && !feature.properties.generated
+              );
               const featureId = rendered && rendered.properties && rendered.properties.id;
               if (!featureId) {
                 return;
               }
               openTerritoryFeaturePopup(layerId, featureId, event.lngLat);
             });
-            map.on('mouseenter', fillId, () => {
-              if (territoryLayerIds.includes(layerId) && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
+            map.on('mouseenter', fillId, (event) => {
+              const hasManagedShape = (event.features || []).some((feature) =>
+                feature.properties && feature.properties.id && !feature.properties.generated
+              );
+              if (hasManagedShape && territoryLayerIds.includes(layerId) && !state.frontlineHistoryMode && !state.drawingTool && !state.territoryEdit) {
                 map.getCanvasContainer().style.cursor = 'pointer';
               }
             });
@@ -242,12 +455,12 @@
             source: sourceId,
             filter: lineFilter,
             layout: { visibility, 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': color, 'line-width': isOutlineOnly ? outlineThickness : 3 }
+            paint: { 'line-color': color, 'line-width': isOutlineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3 }
           });
         } else {
           map.setLayoutProperty(lineId, 'visibility', visibility);
           map.setPaintProperty(lineId, 'line-color', color);
-          map.setPaintProperty(lineId, 'line-width', isOutlineOnly ? outlineThickness : 3);
+          map.setPaintProperty(lineId, 'line-width', isOutlineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3);
         }
 
         const pointId = sourceId + '-point';
@@ -277,4 +490,9 @@
         if (territoryLayerIds.includes(layerId) && sidebarTab === 'advances') {
           renderAdvancesView();
         }
+        if (contestedInputLayerIds.includes(layerId)) {
+          refreshContestedLayer();
+        }
       }
+
+      map.on('load', loadUkraineLandMask);

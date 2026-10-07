@@ -24,3 +24,18 @@ match /mapState/geolocations/locations/{locationId} {
 
 The browser also hides the publishing and delete controls from non-admins;
 Firestore rules are the authoritative access control.
+
+## Contested overlay
+
+The **Contested** layer shows a 2 km buffer around the live boundary of
+Russian Control. Pending Russian advances are added and pending Ukrainian
+advances are subtracted, so the overlay updates before an advance is applied.
+The generated band is clipped to Ukrainian land; manually drawn Contested
+polygons are stored separately and synced with the other territory layers.
+Admins can draw them with **Draw → Territory polygon → Contested**; the
+existing smoothing step rounds the shape before it is saved.
+
+`data/ukraine-contested-mask.geojson` contains Ukraine's country boundary and
+nearby inland-water polygons used to keep the generated and hand-drawn areas
+off the sea and mapped reservoirs. It is extracted from Natural Earth's
+10m Admin-0 Countries and Lakes datasets (public domain).

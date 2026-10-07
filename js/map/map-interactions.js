@@ -28,8 +28,7 @@
       // rubber-band point, then, if enough vertices are left, close the
       // ring and hand it off to applyTerritoryPolygon instead of pushing
       // it into state.drawings (a territory polygon is never a plain
-      // drawing: it edits main/russian-advances/ukrainian-advances
-      // directly and is never shown as its own shape).
+      // drawing: it edits its selected territory layer directly).
       function finishPolygonDraft() {
         if (!state.draft) {
           return;

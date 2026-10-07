@@ -125,17 +125,19 @@
           downloadTerritoryKmz(layer.id);
         });
 
-        importBtn = document.createElement('button');
-        importBtn.type = 'button';
-        importBtn.className = 'toggle-btn admin-only';
-        importBtn.textContent = 'Import';
-        importBtn.title =
-          'Import polygons from a KML/KMZ file into ' +
-          layer.name;
+        if (layer.id !== 'contested') {
+          importBtn = document.createElement('button');
+          importBtn.type = 'button';
+          importBtn.className = 'toggle-btn admin-only';
+          importBtn.textContent = 'Import';
+          importBtn.title =
+            'Import polygons from a KML/KMZ file into ' +
+            layer.name;
 
-        importBtn.addEventListener('click', () => {
-          startTerritoryImport(layer.id);
-        });
+          importBtn.addEventListener('click', () => {
+            startTerritoryImport(layer.id);
+          });
+        }
       }
 
       const toggle = document.createElement('button');

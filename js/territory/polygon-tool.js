@@ -1,6 +1,6 @@
       // ---- Territory polygon tool ----
-      // Lets an admin redraw the front line by hand: pick a layer and
-      // draw a closed shape.
+      // Lets an admin draw a pending advance or a hand-marked Contested
+      // area by choosing a layer and drawing a closed shape.
       //
       //  - Drawing on "main" adds the shape straight into main as its
       //    own new feature (own id), sitting alongside whatever main
@@ -19,8 +19,8 @@
       //
       // Every shape keeps its own id (never merged into its
       // neighbours) specifically so it stays individually selectable,
-      // editable, and deletable. The full state of these three layers
-      // is synced to every visitor through territoriesDocRef.
+      // editable, and deletable. Territory shapes are synced to every
+      // visitor through territoriesDocRef.
 
       // All Polygon/MultiPolygon features currently held by a layer
       // (from its loaded KML plus any earlier territory edits).
@@ -54,7 +54,7 @@
         return data.features.find((feature) => feature.properties && feature.properties.id === featureId) || null;
       }
 
-      // Serializes the three territory layers for Firestore. Each
+      // Serializes the territory layers for Firestore. Each
       // layer is JSON.stringify'd into a single string field because
       // Firestore rejects arrays nested directly inside arrays, which
       // polygon coordinate rings always are.
@@ -206,6 +206,21 @@
         } catch (error) {
           console.error('Invalid territory polygon shape', error);
           drawHint.textContent = 'That shape was too small or self-crossing — try again.';
+          return;
+        }
+
+        if (layerId === 'contested') {
+          if (!ukraineLandMask) {
+            drawHint.textContent = 'The Ukraine land mask is not ready yet — try again in a moment.';
+            return;
+          }
+          const clipped = turf.intersect(drawnPolygon, ukraineLandMask);
+          if (!clipped) {
+            drawHint.textContent = 'That area is outside Ukrainian land — nothing added.';
+            return;
+          }
+          addTerritoryFeature('contested', clipped.geometry || clipped);
+          drawHint.textContent = 'Added a rounded manual Contested area. Click it to edit or delete.';
           return;
         }
 

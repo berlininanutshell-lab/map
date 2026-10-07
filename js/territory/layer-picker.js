@@ -1,11 +1,11 @@
-      // Rebuilds the "Advance type" buttons from the current layer
+      // Rebuilds the territory drawing buttons from the current layer
       // names/colors. Called once at startup and again every time
       // renderLayers() runs, so a color change (admin recolor, or the
       // shared-color Firestore sync) is reflected here too.
       function renderTerritoryLayerPicker() {
         territoryLayerPicker.querySelectorAll('.territory-layer-option').forEach((btn) => btn.remove());
 
-        territoryAdvanceLayerIds.forEach((layerId) => {
+        territoryDrawLayerIds.forEach((layerId) => {
           const layer = getLayerById(layerId);
           if (!layer) {
             return;
@@ -45,5 +45,5 @@
         lineDashed: 'Left-click to add points, right-click to finish the dashed line.',
         arrow: 'Left-click to add points, right-click to finish the arrow.',
         pinpoint: 'Click the map to place a pinpoint.',
-        polygon: 'Left-click to add points, right-click to finish and smooth the advance.'
+        polygon: 'Choose a territory type, then left-click to draw and smooth its polygon.'
       };

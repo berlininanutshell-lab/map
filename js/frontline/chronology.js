@@ -1,5 +1,5 @@
       // ---- Frontline chronology ----
-      // A snapshot is an immutable copy of all three territory layers plus
+      // A snapshot is an immutable copy of all territory layers plus
       // the live advances-area totals at the exact moment the admin locks it.
       // Historical views never write back to the live territories document.
       const frontlineHistoryListEl = document.getElementById('frontlineHistoryList');
@@ -218,6 +218,7 @@
             ukrainianControl: packedSnapshot.packed['ukrainian-control'],
             russianAdvances: packedSnapshot.packed['russian-advances'],
             ukrainianAdvances: packedSnapshot.packed['ukrainian-advances'],
+            contested: packedSnapshot.packed.contested,
             russianAdvanceKm2: russian.km2,
             ukrainianAdvanceKm2: ukrainian.km2,
             russianAdvanceShapeCount: russian.count,
@@ -264,7 +265,8 @@
             main: await readSnapshotFeatureCollection(entry.main),
             'ukrainian-control': await readSnapshotFeatureCollection(entry.ukrainianControl),
             'russian-advances': await readSnapshotFeatureCollection(entry.russianAdvances),
-            'ukrainian-advances': await readSnapshotFeatureCollection(entry.ukrainianAdvances)
+            'ukrainian-advances': await readSnapshotFeatureCollection(entry.ukrainianAdvances),
+            contested: await readSnapshotFeatureCollection(entry.contested)
           });
         }
         return frontlineSnapshotCache.get(date);
@@ -313,6 +315,8 @@
                 if (typeof raw === 'string') {
                   layerKmlData[layerId] = JSON.parse(await unpackLayerString(raw));
                   territoryLoadedFromFirestore.add(layerId);
+                } else if (state.frontlineLiveBackup && state.frontlineLiveBackup[layerId]) {
+                  layerKmlData[layerId] = state.frontlineLiveBackup[layerId];
                 }
               }
               restored = true;

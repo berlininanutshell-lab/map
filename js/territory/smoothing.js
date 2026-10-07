@@ -2,7 +2,7 @@
       // A newly drawn polygon is not committed immediately. RMB finishes
       // the raw shape, then this small control lets the admin choose how
       // many smoothing passes to apply. The preview updates live; Done
-      // finally creates the selected Russian or Ukrainian pending advance.
+      // finally creates the selected pending advance or manual Contested area.
       let territorySmoothingControlsEl = null;
 
       function clearTerritorySmoothingPreview() {
@@ -108,7 +108,7 @@
         territorySmoothingControlsEl = document.createElement('div');
         territorySmoothingControlsEl.className = 'territory-smoothing-controls';
         territorySmoothingControlsEl.innerHTML =
-          '<span class="territory-smoothing-title">Smooth advance</span>' +
+          '<span class="territory-smoothing-title">Smooth ' + (layerId === 'contested' ? 'Contested area' : 'advance') + '</span>' +
           '<label>Iterations <input class="territory-smoothing-range" type="range" min="0" max="6" step="1" value="1" /></label>' +
           '<span class="territory-smoothing-value">1×</span>' +
           '<button type="button" class="territory-smoothing-done">Done</button>' +
@@ -127,12 +127,15 @@
         territorySmoothingControlsEl.querySelector('.territory-smoothing-done').addEventListener('click', finishTerritorySmoothing);
         territorySmoothingControlsEl.querySelector('.territory-smoothing-cancel').addEventListener('click', () => {
           cancelTerritorySmoothing();
-          drawHint.textContent = 'Polygon cancelled. Draw another advance.';
+          drawHint.textContent = 'Polygon cancelled. Draw another ' +
+            (layerId === 'contested' ? 'Contested area.' : 'advance.');
         });
 
         updateTerritorySmoothingPreview();
-        drawHint.textContent = 'Choose the smoothing amount, then click Done to create the ' +
-          (layerId === 'russian-advances' ? 'Russian' : 'Ukrainian') + ' advance.';
+        drawHint.textContent = layerId === 'contested'
+          ? 'Choose the smoothing amount, then click Done to add this manual Contested area.'
+          : 'Choose the smoothing amount, then click Done to create the ' +
+            (layerId === 'russian-advances' ? 'Russian' : 'Ukrainian') + ' advance.';
       }
 
       // Dissolves all polygon features in a territory layer into the
