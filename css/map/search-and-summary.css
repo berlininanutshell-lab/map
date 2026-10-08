@@ -6,10 +6,15 @@
       }
 
       #searchBox {
-        position: relative;
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        z-index: 700;
         display: flex;
         gap: 8px;
-        padding: 14px 18px 4px;
+        width: min(440px, calc(100vw - 28px));
+        padding: 0;
+        transform: translateX(-50%);
       }
 
       #searchInput {
@@ -32,9 +37,9 @@
       #searchResults {
         position: absolute;
         top: calc(100% + 2px);
-        left: 18px;
-        right: 18px;
-        z-index: 20;
+        left: 0;
+        right: 0;
+        z-index: 710;
         max-height: 220px;
         overflow-y: auto;
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -73,4 +78,41 @@
         padding: 10px 12px;
         color: #94a5b4;
         font-size: 12px;
+      }
+
+      #mapOnlyToggleBtn {
+        position: fixed;
+        top: 88px;
+        left: calc(var(--sidebar-width, 320px) + 14px);
+        z-index: 700;
+        min-height: 36px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        background: rgba(15, 21, 28, 0.92);
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      #mapOnlyToggleBtn:hover {
+        background: rgba(30, 40, 52, 0.96);
+      }
+
+      body.map-only-mode > :not(#map):not(#mapOnlyToggleBtn) {
+        display: none !important;
+      }
+
+      body.map-only-mode #map .maplibregl-ctrl:not(.maplibregl-ctrl-attrib) {
+        display: none !important;
+      }
+
+      body.map-only-mode #mapOnlyToggleBtn {
+        top: 12px;
+        left: 12px;
+      }
+
+      body.sidebar-collapsed:not(.map-only-mode) #mapOnlyToggleBtn {
+        left: 12px;
       }

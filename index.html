@@ -37,7 +37,6 @@
     <link rel="stylesheet" href="css/frontline/admin-lock.css" />
     <link rel="stylesheet" href="css/advances/advances.css" />
     <link rel="stylesheet" href="css/geolocations/geolocations.css" />
-    <link rel="stylesheet" href="css/lostarmour/lostarmour.css" />
     <link rel="stylesheet" href="contact.css" />
   </head>
   <body>
@@ -63,6 +62,13 @@
         <div id="viewerList" aria-live="polite"></div>
       </div>
     </div>
+    <div id="searchBox">
+      <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" aria-label="Search for a place or coordinates" />
+      <div id="searchResults" hidden></div>
+    </div>
+    <button id="mapOnlyToggleBtn" type="button" aria-pressed="false" aria-label="Hide interface" title="Hide interface">
+      Hide interface
+    </button>
     <button id="sidebarToggleBtn" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="sidebar">
       <span aria-hidden="true">‹</span>
     </button>
@@ -136,10 +142,6 @@
             <button id="openAuthBtn" type="button">Log in</button>
             <button id="settingsBtn" type="button" hidden>Settings</button>
             <button id="logoutBtn" type="button" hidden>Log out</button>
-          </div>
-          <div id="searchBox">
-            <input id="searchInput" type="text" placeholder="Search a place, or type lat, lng" autocomplete="off" />
-            <div id="searchResults" hidden></div>
           </div>
           <div id="mapSummary">Dark theme • 3 visible layers</div>
           <div id="layersList" aria-live="polite"></div>
@@ -275,26 +277,10 @@
       <div class="author-credit">
       <span>Map by <strong>Что по фронту?</strong> <span class="author-alt">What's Up on the Front</span></span>
       <span class="author-links">
-        <a href="https://t.me/whatsuponthefront" target="_blank" rel="noopener noreferrer" aria-label="Telegram channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 15.17l-.4 5.6c.57 0 .82-.25 1.12-.54l2.69-2.57 5.57 4.08c1.02.57 1.75.27 2.03-.94l3.67-17.2c.33-1.5-.54-2.09-1.54-1.72L1.35 9.6c-1.47.57-1.45 1.4-.25 1.77l5.5 1.72L19.4 5.1c.6-.4 1.15-.18.7.22z"/></svg>Telegram</a>
         <a href="https://x.com/whatsuponfront" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter) profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</a>
       </span>
     </div>
     </aside>
-          <details id="laPanel" class="la-panel" open>
-            <summary>LostArmour overlay<span class="la-sub">claimed control</span></summary>
-            <div class="la-body">
-              <label class="la-row"><input type="checkbox" id="laToggle" /> <span>Show LostArmour territory</span></label>
-              <select id="laFileSel" class="la-select" hidden aria-label="LostArmour KML file"></select>
-              <div id="laGroups" class="la-groups"></div>
-              <div class="la-btns">
-                <button id="laCompareBtn" class="la-btn la-primary" type="button">Compare with Russian Control</button>
-                <button id="laClearBtn" class="la-btn" type="button" hidden>Clear</button>
-              </div>
-              <label class="la-btn la-upload admin-only">Load KML from my computer<input id="laFileInput" type="file" accept=".kml,.xml" hidden /></label>
-              <div id="laResult" class="la-result" aria-live="polite"></div>
-              <div id="laNote" class="la-note"></div>
-            </div>
-          </details>
     <div id="coordinatePopup" role="status" aria-live="polite">
       <div id="coordinateHeader">
         <strong>Coordinates</strong>
@@ -385,7 +371,6 @@
         <div class="author-credit">
       <span>Map by <strong>Что по фронту?</strong> <span class="author-alt">What's Up on the Front</span></span>
       <span class="author-links">
-        <a href="https://t.me/whatsuponthefront" target="_blank" rel="noopener noreferrer" aria-label="Telegram channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 15.17l-.4 5.6c.57 0 .82-.25 1.12-.54l2.69-2.57 5.57 4.08c1.02.57 1.75.27 2.03-.94l3.67-17.2c.33-1.5-.54-2.09-1.54-1.72L1.35 9.6c-1.47.57-1.45 1.4-.25 1.77l5.5 1.72L19.4 5.1c.6-.4 1.15-.18.7.22z"/></svg>Telegram</a>
         <a href="https://x.com/whatsuponfront" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter) profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</a>
       </span>
     </div>
@@ -445,8 +430,6 @@
     <script src="js/map/map-interactions.js"></script>
     <script src="js/geolocations/publisher.js"></script>
     <script src="js/maintenance/maintenance-mode.js"></script>
-    <script src="js/lostarmour/embedded-data.js"></script>
-    <script src="js/lostarmour/lostarmour.js"></script>
     <script src="js/ruler/ruler.js"></script>
     <script src="layers.js"></script>
     <script src="contact.js"></script>
