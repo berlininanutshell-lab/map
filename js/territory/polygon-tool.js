@@ -11,11 +11,9 @@
       //    taken; a Ukrainian advance only "counts" through ground
       //    main currently shows as taken) and added to the advances
       //    layer as its own pending shape, visible to everyone. An
-      //    admin then clicks that shape on the map and chooses "Apply
-      //    the advance" (see openTerritoryFeaturePopup /
-      //    applyAdvanceFeature below) to fold it into main and remove
-      //    it from the advances layer, or "Delete" to discard it, or
-      //    "Edit shape" to add/move points first.
+      //    admin can apply one shape from its map popup or all pending
+      //    shapes for that side from the Advances tab. Shapes can also
+      //    be deleted or edited from their map popups.
       //
       // Every shape keeps its own id (never merged into its
       // neighbours) specifically so it stays individually selectable,
@@ -125,6 +123,9 @@
           });
         });
         ensureKmlLayersForLayer(layerId);
+        if (sidebarTab === 'advances') {
+          renderAdvancesView();
+        }
         if (!options || options.push !== false) {
           pushTerritoriesToFirestore();
         }
@@ -143,6 +144,9 @@
           return;
         }
         ensureKmlLayersForLayer(layerId);
+        if (sidebarTab === 'advances') {
+          renderAdvancesView();
+        }
         if (!options || options.push !== false) {
           pushTerritoriesToFirestore();
         }

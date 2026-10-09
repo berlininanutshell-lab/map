@@ -193,16 +193,9 @@
       // advance was smoothed before applying: without the dissolve, the
       // old control polygon and the newly applied polygon remain as two
       // separate features and their shared boundary gets drawn visibly.
-      function applyAdvanceFeature(layerId, featureId) {
-        const feature = findTerritoryFeature(layerId, featureId);
-        if (!feature) {
-          closeTerritoryPopup();
-          return;
-        }
-
+      function applyAdvanceGeometry(layerId, geometry) {
         if (layerId !== 'russian-advances' && layerId !== 'ukrainian-advances') {
-          closeTerritoryPopup();
-          return;
+          return false;
         }
 
         try {
@@ -210,18 +203,26 @@
             // Calculate the cut before changing either control layer. If it
             // fails, keep the advance pending rather than leave overlapping
             // or partially updated control polygons.
-            subtractFromLayer('ukrainian-control', feature.geometry);
-            addTerritoryFeature('main', feature.geometry, { push: false });
+            subtractFromLayer('ukrainian-control', geometry);
+            addTerritoryFeature('main', geometry, { push: false });
             mergeTerritoryLayerPolygons('main');
           } else {
             // Russian Control loses the ground; Ukrainian Control gains it.
-            subtractFromMain(feature.geometry);
-            addTerritoryFeature('ukrainian-control', feature.geometry, { push: false });
+            subtractFromMain(geometry);
+            addTerritoryFeature('ukrainian-control', geometry, { push: false });
             mergeTerritoryLayerPolygons('ukrainian-control');
           }
         } catch (error) {
           console.error('Failed to subtract an applied advance from existing control', error);
           adminNotice('Could not apply this advance: the existing control boundary could not be cut. The pending advance was kept. Check the browser console for details.');
+          return false;
+        }
+        return true;
+      }
+
+      function applyAdvanceFeature(layerId, featureId) {
+        const feature = findTerritoryFeature(layerId, featureId);
+        if (!feature || !applyAdvanceGeometry(layerId, feature.geometry)) {
           closeTerritoryPopup();
           return;
         }
@@ -230,4 +231,36 @@
         pushTerritoriesToFirestore();
         closeTerritoryPopup();
         drawHint.textContent = layerId === 'russian-advances' ? 'Advance applied to Russian Control.' : 'Advance applied to Ukrainian Control.';
+      }
+
+      function applyAllAdvances(layerId) {
+        if (state.role !== 'admin' || state.frontlineHistoryMode) {
+          return;
+        }
+
+        const features = layerPolygonFeatures(layerId);
+        if (!features.length) {
+          renderAdvancesView();
+          return;
+        }
+
+        let geometry;
+        try {
+          geometry = unionPolygonFeatures(features);
+        } catch (error) {
+          console.error('Failed to combine pending advances', error);
+          adminNotice('Could not apply these advances: the pending shapes could not be combined. Check the browser console for details.');
+          return;
+        }
+
+        if (!geometry || !applyAdvanceGeometry(layerId, geometry)) {
+          return;
+        }
+
+        features.forEach((feature) => {
+          removeTerritoryFeature(layerId, feature.properties.id, { push: false });
+        });
+        pushTerritoriesToFirestore();
+        renderAdvancesView();
+        drawHint.textContent = layerId === 'russian-advances' ? 'Advances applied to Russian Control.' : 'Advances applied to Ukrainian Control.';
       }

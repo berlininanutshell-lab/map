@@ -142,6 +142,7 @@
         document.getElementById('russiaAdvancesAsOf').textContent = asOf;
         document.getElementById('russiaAdvancesShapeCount').textContent =
           russia.count + ' pending shape' + (russia.count === 1 ? '' : 's');
+        updateAdvanceApplyButton('applyRussianAdvancesBtn', russia.count);
 
         const ukraine = sumLayerAreaKm2('ukrainian-advances');
         document.getElementById('ukraineAdvancesValue').innerHTML =
@@ -149,4 +150,27 @@
         document.getElementById('ukraineAdvancesAsOf').textContent = asOf;
         document.getElementById('ukraineAdvancesShapeCount').textContent =
           ukraine.count + ' pending shape' + (ukraine.count === 1 ? '' : 's');
+        updateAdvanceApplyButton('applyUkrainianAdvancesBtn', ukraine.count);
       }
+
+      function updateAdvanceApplyButton(buttonId, pendingCount) {
+        const button = document.getElementById(buttonId);
+        const hasPending = pendingCount > 0;
+        button.disabled = !hasPending || state.frontlineHistoryMode;
+        button.title = hasPending && state.frontlineHistoryMode
+          ? 'Return to the live map to apply advances.'
+          : '';
+        button.classList.toggle('has-pending', hasPending);
+        button.textContent = hasPending ? 'Apply advances' : 'No advances';
+      }
+
+      document.getElementById('applyRussianAdvancesBtn').addEventListener('click', () => {
+        if (state.role === 'admin') {
+          applyAllAdvances('russian-advances');
+        }
+      });
+      document.getElementById('applyUkrainianAdvancesBtn').addEventListener('click', () => {
+        if (state.role === 'admin') {
+          applyAllAdvances('ukrainian-advances');
+        }
+      });

@@ -293,6 +293,7 @@
         layerKmlData['ukrainian-advances'] = loaded['ukrainian-advances'];
         territoryLayerIds.forEach((layerId) => ensureKmlLayersForLayer(layerId));
 
+        renderAdvancesView();
         renderFrontlineView();
       }
 
