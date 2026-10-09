@@ -244,15 +244,16 @@
           return;
         }
 
-        let geometry;
+        let combined;
         try {
-          geometry = unionPolygonFeatures(features);
+          combined = unionPolygonFeatures(features);
         } catch (error) {
           console.error('Failed to combine pending advances', error);
           adminNotice('Could not apply these advances: the pending shapes could not be combined. Check the browser console for details.');
           return;
         }
 
+        const geometry = combined && (combined.geometry || combined);
         if (!geometry || !applyAdvanceGeometry(layerId, geometry)) {
           return;
         }
