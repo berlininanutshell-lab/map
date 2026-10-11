@@ -59,6 +59,10 @@
       // not seen by anyone else) if Firestore isn't set up.
       const territoriesDocRef = db ? db.collection('mapState').doc('territories') : null;
 
+      // The pro-Russian-sources frontline is a separate shared line so it
+      // never gets mixed with visitors' ordinary, local-only drawings.
+      const russianFrontlineDocRef = db ? db.collection('mapState').doc('russianFrontline') : null;
+
       // Daily frontline snapshots live in a subcollection so history can grow
       // without turning one Firestore document into a giant payload.
       const frontlineHistoryCollectionRef = db

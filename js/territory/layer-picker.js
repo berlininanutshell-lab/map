@@ -43,6 +43,7 @@
         brush: 'Drag on the map to draw a freehand stroke.',
         line: 'Left-click to add points, right-click to finish the line.',
         lineDashed: 'Left-click to add points, right-click to finish the dashed line.',
+        'russian-frontline': 'Left-click to trace the shared frontline, right-click to publish it for everyone.',
         arrow: 'Left-click to add points, right-click to finish the arrow.',
         pinpoint: 'Click the map to place a pinpoint.',
         polygon: 'Choose a territory type, then left-click to draw and smooth its polygon.'

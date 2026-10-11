@@ -64,7 +64,7 @@
 
       let thicknessInput = null;
 
-      if (layer.renderMode === 'outline') {
+      if (layer.renderMode === 'outline' || layer.renderMode === 'line') {
         thicknessInput = document.createElement('input');
         thicknessInput.type = 'range';
         thicknessInput.min = '1';
@@ -72,21 +72,18 @@
         thicknessInput.step = '1';
         thicknessInput.value = String(layer.thickness || 2);
         thicknessInput.className = 'layer-thickness-input admin-only';
-        thicknessInput.title =
-          'Outline thickness: ' + thicknessInput.value + ' px';
+        const thicknessLabel = layer.renderMode === 'line' ? 'Line thickness' : 'Outline thickness';
+        thicknessInput.title = thicknessLabel + ': ' + thicknessInput.value + ' px';
 
         thicknessInput.setAttribute(
           'aria-label',
-          'Change ' + layer.name + ' outline thickness'
+          'Change ' + layer.name + ' ' + thicknessLabel.toLowerCase()
         );
 
         thicknessInput.addEventListener('input', () => {
           layer.thickness = Number(thicknessInput.value);
 
-          thicknessInput.title =
-            'Outline thickness: ' +
-            thicknessInput.value +
-            ' px';
+          thicknessInput.title = thicknessLabel + ': ' + thicknessInput.value + ' px';
 
           ensureKmlLayersForLayer(layer.id);
 
@@ -112,6 +109,18 @@
 
       let kmzBtn = null;
       let importBtn = null;
+      let clearFrontlineBtn = null;
+
+      if (layer.id === 'russian-frontline') {
+        clearFrontlineBtn = document.createElement('button');
+        clearFrontlineBtn.type = 'button';
+        clearFrontlineBtn.className = 'toggle-btn admin-only';
+        clearFrontlineBtn.textContent = 'Clear';
+        clearFrontlineBtn.title = 'Remove the shared pro-Russian-sources frontline';
+        clearFrontlineBtn.addEventListener('click', () => {
+          clearRussianFrontline();
+        });
+      }
 
       if (sharedLayerIds.includes(layer.id)) {
         kmzBtn = document.createElement('button');
@@ -166,6 +175,10 @@
         actions.appendChild(importBtn);
       }
 
+      if (clearFrontlineBtn) {
+        actions.appendChild(clearFrontlineBtn);
+      }
+
       actions.appendChild(toggle);
 
       item.appendChild(dot);
@@ -208,7 +221,7 @@
             Number(thicknesses[layer.id]);
 
           if (
-            layer.renderMode === 'outline' &&
+            (layer.renderMode === 'outline' || layer.renderMode === 'line') &&
             Number.isFinite(sharedThickness) &&
             sharedThickness !== layer.thickness
           ) {

@@ -363,6 +363,7 @@
         const visibility = layer.visible ? 'visible' : 'none';
         const color = layer.color;
         const isOutlineOnly = layer.renderMode === 'outline';
+        const isLineOnly = layer.renderMode === 'line';
         const outlineThickness = Math.max(1, Math.min(12, Number(layer.thickness) || 2));
 
         // Territory layers (main / the two advances layers) need a
@@ -418,7 +419,7 @@
         }
 
         const fillId = sourceId + '-fill';
-        if (!isOutlineOnly && !map.getLayer(fillId)) {
+        if (!isOutlineOnly && !isLineOnly && !map.getLayer(fillId)) {
           map.addLayer({
             id: fillId,
             type: 'fill',
@@ -481,13 +482,13 @@
               }
             });
           }
-        } else if (!isOutlineOnly) {
+        } else if (!isOutlineOnly && !isLineOnly) {
           map.setLayoutProperty(fillId, 'visibility', visibility);
           map.setPaintProperty(fillId, 'fill-color', color);
           map.setPaintProperty(fillId, 'fill-outline-color', layerId === 'contested'
             ? ['case', ['==', ['get', 'generated'], true], 'rgba(0, 0, 0, 0)', color]
             : color);
-        } else if (map.getLayer(fillId)) {
+        } else if ((isOutlineOnly || isLineOnly) && map.getLayer(fillId)) {
           map.setLayoutProperty(fillId, 'visibility', 'none');
         }
 
@@ -502,12 +503,12 @@
             source: sourceId,
             filter: lineFilter,
             layout: { visibility, 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': color, 'line-width': isOutlineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3 }
+            paint: { 'line-color': color, 'line-width': isOutlineOnly || isLineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3 }
           });
         } else {
           map.setLayoutProperty(lineId, 'visibility', visibility);
           map.setPaintProperty(lineId, 'line-color', color);
-          map.setPaintProperty(lineId, 'line-width', isOutlineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3);
+          map.setPaintProperty(lineId, 'line-width', isOutlineOnly || isLineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3);
         }
 
         const pointId = sourceId + '-point';

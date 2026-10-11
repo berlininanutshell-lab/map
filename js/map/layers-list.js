@@ -7,6 +7,89 @@
         }
       }
 
+      let russianFrontlinePushChain = Promise.resolve();
+      let russianFrontlinePushesInFlight = 0;
+      let russianFrontlineSnapshotSeq = 0;
+      let russianFrontlineSyncBlocked = false;
+
+      function clearRussianFrontline() {
+        if (state.role !== 'admin' || state.frontlineHistoryMode) {
+          return;
+        }
+        layerKmlData['russian-frontline'] = { type: 'FeatureCollection', features: [] };
+        ensureKmlLayersForLayer('russian-frontline');
+        pushRussianFrontlineToFirestore();
+      }
+
+      function pushRussianFrontlineToFirestore() {
+        if (state.role !== 'admin' || state.frontlineHistoryMode) {
+          return;
+        }
+        if (!russianFrontlineDocRef) {
+          adminNotice('The shared frontline cannot be saved because Firebase is unavailable.');
+          return;
+        }
+
+        const data = layerKmlData['russian-frontline'] || { type: 'FeatureCollection', features: [] };
+        const json = JSON.stringify(data);
+        russianFrontlinePushesInFlight++;
+        russianFrontlinePushChain = russianFrontlinePushChain.then(async () => {
+          try {
+            const packed = await packLayerString(json);
+            await russianFrontlineDocRef.set({ geojson: packed });
+            russianFrontlineSyncBlocked = false;
+          } catch (error) {
+            console.error('Failed to save shared pro-Russian-sources frontline', error);
+            russianFrontlineSyncBlocked = true;
+            const code = error && error.code || 'unknown-error';
+            const hint = code === 'permission-denied' ? ' Check the Firestore rules for mapState/russianFrontline.' : '';
+            adminNotice('Could not save the shared frontline (' + code + '). It is only kept on this screen.' + hint);
+          } finally {
+            russianFrontlinePushesInFlight--;
+          }
+        });
+      }
+
+      if (russianFrontlineDocRef) {
+        russianFrontlineDocRef.onSnapshot(async (doc) => {
+          if (russianFrontlineSyncBlocked && !doc.metadata.hasPendingWrites) {
+            return;
+          }
+          if (russianFrontlinePushesInFlight > 0 && !doc.metadata.hasPendingWrites) {
+            return;
+          }
+
+          const seq = ++russianFrontlineSnapshotSeq;
+          try {
+            let parsed = { type: 'FeatureCollection', features: [] };
+            if (doc.exists) {
+              const raw = doc.data() && doc.data().geojson;
+              if (typeof raw !== 'string') {
+                console.error('Shared pro-Russian-sources frontline document has no GeoJSON data.');
+                return;
+              }
+              parsed = JSON.parse(await unpackLayerString(raw));
+              if (!parsed || !Array.isArray(parsed.features) || parsed.type !== 'FeatureCollection') {
+                throw new Error('Stored frontline is not a GeoJSON FeatureCollection.');
+              }
+              parsed.features = parsed.features.filter((feature) =>
+                feature && feature.geometry && feature.geometry.type === 'LineString' &&
+                Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length >= 2
+              );
+            }
+            if (seq !== russianFrontlineSnapshotSeq) {
+              return;
+            }
+            layerKmlData['russian-frontline'] = parsed;
+            ensureKmlLayersForLayer('russian-frontline');
+          } catch (error) {
+            console.error('Could not read shared pro-Russian-sources frontline', error);
+          }
+        }, (error) => {
+          console.error('Failed to sync shared pro-Russian-sources frontline', error);
+          adminNotice('The shared pro-Russian-sources frontline could not be loaded. Check the Firestore rules.');
+        });
+      }
 
       // Keeps every visitor's flags in sync with whatever an admin last
       // placed/moved/deleted, in real time — including on first page
@@ -151,12 +234,18 @@
           // The flag tool is only ever meant to be reachable by admins —
           // it's hidden via CSS for everyone else, but this guard covers
           // it too in case the role changed after the menu was opened.
-          if ((button.dataset.tool === 'flag' || button.dataset.tool === 'polygon') && (state.role !== 'admin' || state.frontlineHistoryMode)) {
+          if ((button.dataset.tool === 'flag' || button.dataset.tool === 'polygon' || button.dataset.tool === 'russian-frontline') && (state.role !== 'admin' || state.frontlineHistoryMode)) {
             return;
           }
 
           state.drawingTool = button.dataset.tool;
           updateThicknessControl();
+          if (button.dataset.tool === 'russian-frontline') {
+            const frontlineLayer = getLayerById('russian-frontline');
+            frontlineLayer.visible = true;
+            renderLayers();
+            ensureKmlLayersForLayer('russian-frontline');
+          }
           if (button.dataset.tool === 'flag') {
             state.flagType = button.dataset.flagNation === 'russia' ? 'russia' : 'ukraine';
           }

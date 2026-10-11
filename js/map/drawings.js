@@ -31,9 +31,14 @@
       }
 
       function makeLineFeature(coordinates, tool) {
+        const layer = tool === 'russian-frontline' ? getLayerById('russian-frontline') : null;
         return {
           type: 'Feature',
-          properties: { color: state.drawingColor, tool, thickness: state.drawingThickness },
+          properties: {
+            color: layer ? layer.color : state.drawingColor,
+            tool,
+            thickness: layer ? layer.thickness : state.drawingThickness
+          },
           geometry: { type: 'LineString', coordinates }
         };
       }

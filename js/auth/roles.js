@@ -2,10 +2,11 @@
       // Anyone can browse the map without an account. Logging in (any
       // account) unlocks the draw tools and the layer on/off toggles.
       // An email listed here additionally gets admin-only controls: the
-      // flag tool (place + drag flags) and per-layer polygon color
-      // pickers. Edit this list to set who's an admin — it's a simple
-      // client-side check, not a real access-control boundary, so don't
-      // rely on it to keep out a determined visitor with dev tools.
+      // flag tool (place + drag flags), the shared pro-Russian-sources
+      // frontline tool, and per-layer appearance controls. Edit this
+      // list to set who's an admin — it's a simple client-side check,
+      // not a real access-control boundary, so don't rely on it to keep
+      // out a determined visitor with dev tools.
       const ADMIN_EMAILS = ['berlininanutshell@gmail.com'];
 
       function currentRole() {
@@ -50,7 +51,7 @@
 
         // Non-admins can't have the flag tool armed, and the layer list
         // needs to add/remove its admin-only color pickers.
-        if (role !== 'admin' && state.drawingTool === 'flag') {
+        if (role !== 'admin' && (state.drawingTool === 'flag' || state.drawingTool === 'russian-frontline')) {
           deactivateDrawingTool();
         }
         if (role !== 'admin') {

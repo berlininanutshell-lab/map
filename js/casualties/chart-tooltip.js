@@ -94,6 +94,7 @@
           { id: 'contested', name: 'Contested', visible: true, color: '#f2c14e', renderMode: 'fill', thickness: 2 },
           { id: 'russian-advances', name: 'Russian advances', visible: true, color: '#FF9400', renderMode: 'fill', thickness: 3 },
           { id: 'ukrainian-advances', name: 'Ukrainian advances', visible: true, color: '#0000ff', renderMode: 'fill', thickness: 3 },
+          { id: 'russian-frontline', name: 'Frontline according to pro-Russian sources', visible: true, color: '#ff4d4d', renderMode: 'line', thickness: 3 },
           { id: 'cities-outline', name: 'Cities Outline', visible: true, color: '#ffffff', renderMode: 'outline', thickness: 2 }
         ],
         currentStyle: 'Dark Matter',

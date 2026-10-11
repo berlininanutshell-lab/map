@@ -46,6 +46,9 @@
         }
 
         for (const [layerId, fileNames] of Object.entries(manifest)) {
+          if (layerId === 'russian-frontline') {
+            continue;
+          }
           if (sharedLayerIds.includes(layerId) && territoryLoadedFromFirestore.has(layerId)) {
             // Firestore already gave us (or will give us) this layer's
             // authoritative data — don't stomp on it with the static

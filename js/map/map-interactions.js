@@ -1,8 +1,7 @@
-      // Line, dashed line, and arrow are all "open" multi-point tools:
-      // left-click adds a point and keeps going, right-click ends the
-      // drawing. They share this helper.
+      // Open multi-point tools add a point on left-click and finish on
+      // right-click. They share this helper.
       function isOpenLineTool(tool) {
-        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow' || tool === 'polygon';
+        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow' || tool === 'polygon' || tool === 'russian-frontline';
       }
 
       // Right-click ends an in-progress line/dashed-line/arrow: drop
@@ -17,7 +16,25 @@
         const coords = state.draft.geometry.coordinates;
         coords.pop();
         if (coords.length >= 2) {
-          state.drawings.push(state.draft);
+          if (state.drawingTool === 'russian-frontline') {
+            if (state.role !== 'admin' || state.frontlineHistoryMode) {
+              state.draft = null;
+              updateDrawings();
+              return;
+            }
+            layerKmlData['russian-frontline'] = {
+              type: 'FeatureCollection',
+              features: [{
+                type: 'Feature',
+                properties: { source: 'pro-Russian sources' },
+                geometry: { type: 'LineString', coordinates: coords }
+              }]
+            };
+            ensureKmlLayersForLayer('russian-frontline');
+            pushRussianFrontlineToFirestore();
+          } else {
+            state.drawings.push(state.draft);
+          }
         }
         state.draft = null;
         updateDrawings();
@@ -191,7 +208,7 @@
         }
 
         if (isOpenLineTool(state.drawingTool)) {
-          if (state.drawingTool === 'polygon' && (state.role !== 'admin' || state.frontlineHistoryMode)) {
+          if ((state.drawingTool === 'polygon' || state.drawingTool === 'russian-frontline') && (state.role !== 'admin' || state.frontlineHistoryMode)) {
             return;
           }
           if (!state.draft) {

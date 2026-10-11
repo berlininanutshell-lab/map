@@ -39,6 +39,11 @@ The three layers above are the ones already defined in `index.html`'s
 
 - Supports KML `Point`, `LineString`, and `Polygon` geometry (including
   ones nested inside `MultiGeometry`).
+- The "Frontline according to pro-Russian sources" layer is maintained
+  separately: an admin draws it with Draw → "Pro-Russian sources
+  frontline". It is shared through Firestore and does not use this
+  manifest. Firestore rules must allow public reads and admin-only
+  writes to `mapState/russianFrontline`.
 - This only works once the page is actually hosted somewhere with the
   `kml/` folder alongside it — a fetch for local files doesn't work when
   the map is just previewed as a standalone page.
