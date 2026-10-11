@@ -29,10 +29,12 @@
       .author-links {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: 6px;
       }
 
-      .author-links a {
+      .author-links a,
+      .author-links button {
         display: inline-flex;
         align-items: center;
         gap: 5px;
@@ -43,11 +45,21 @@
         color: #f5f8ff;
         font-size: 12px;
         text-decoration: none;
+        font-family: inherit;
         transition: background 0.15s ease;
+        cursor: pointer;
       }
 
-      .author-links a:hover {
+      .author-links a:hover,
+      .author-links button:hover {
         background: rgba(255, 255, 255, 0.1);
+      }
+
+      .share-website-status {
+        flex-basis: 100%;
+        color: #98a9b9;
+        font-size: 11px;
+        text-align: right;
       }
 
       .author-links svg {
