@@ -6,6 +6,7 @@
       // page, listed in kml/manifest.json — see the README in the kml
       // folder for how to add your own.
       const layerKmlData = {};
+      const wiredRussianFrontlineClickLayers = new Set();
 
       function getLayerById(layerId) {
         return state.layers.find((layer) => layer.id === layerId);
@@ -509,6 +510,31 @@
           map.setLayoutProperty(lineId, 'visibility', visibility);
           map.setPaintProperty(lineId, 'line-color', color);
           map.setPaintProperty(lineId, 'line-width', isOutlineOnly || isLineOnly ? outlineThickness : layerId === 'contested' ? 2 : 3);
+        }
+
+        if (layerId === 'russian-frontline' && !wiredRussianFrontlineClickLayers.has(lineId)) {
+          wiredRussianFrontlineClickLayers.add(lineId);
+          map.on('click', lineId, (event) => {
+            if (state.role !== 'admin' || state.frontlineHistoryMode || state.drawingTool || state.territoryEdit) {
+              return;
+            }
+            const rendered = (event.features || []).find((feature) =>
+              feature.properties && feature.properties.id
+            );
+            if (rendered) {
+              openRussianFrontlineFeaturePopup(rendered.properties.id, event.lngLat);
+            }
+          });
+          map.on('mouseenter', lineId, () => {
+            if (state.role === 'admin' && !state.frontlineHistoryMode && !state.drawingTool) {
+              map.getCanvasContainer().style.cursor = 'pointer';
+            }
+          });
+          map.on('mouseleave', lineId, () => {
+            if (!state.drawingTool) {
+              map.getCanvasContainer().style.cursor = '';
+            }
+          });
         }
 
         const pointId = sourceId + '-point';

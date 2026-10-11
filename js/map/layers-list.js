@@ -11,6 +11,73 @@
       let russianFrontlinePushesInFlight = 0;
       let russianFrontlineSnapshotSeq = 0;
       let russianFrontlineSyncBlocked = false;
+      let russianFrontlinePopup = null;
+
+      function closeRussianFrontlinePopup() {
+        if (russianFrontlinePopup) {
+          russianFrontlinePopup.remove();
+          russianFrontlinePopup = null;
+        }
+      }
+
+      function openRussianFrontlineFeaturePopup(featureId, lngLat) {
+        if (state.role !== 'admin' || state.frontlineHistoryMode || state.drawingTool) {
+          return;
+        }
+        const data = layerKmlData['russian-frontline'];
+        const feature = data && data.features.find((entry) =>
+          entry.properties && entry.properties.id === featureId
+        );
+        if (!feature) {
+          return;
+        }
+
+        closeRussianFrontlinePopup();
+        const content = document.createElement('div');
+        content.className = 'marker-popup';
+        const title = document.createElement('div');
+        title.className = 'marker-popup-title';
+        title.textContent = 'Pro-Russian sources frontline';
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'marker-popup-delete';
+        removeButton.textContent = 'Delete line';
+        content.append(title, removeButton);
+
+        const popup = new maplibregl.Popup({ offset: 14, closeButton: true, closeOnClick: false })
+          .setLngLat(lngLat)
+          .setDOMContent(content)
+          .addTo(map);
+        russianFrontlinePopup = popup;
+        popup.on('close', () => {
+          if (russianFrontlinePopup === popup) {
+            russianFrontlinePopup = null;
+          }
+        });
+        removeButton.addEventListener('click', () => {
+          if (state.role !== 'admin' || state.frontlineHistoryMode) {
+            closeRussianFrontlinePopup();
+            return;
+          }
+          const currentData = layerKmlData['russian-frontline'];
+          if (!currentData) {
+            closeRussianFrontlinePopup();
+            return;
+          }
+          const before = currentData.features.length;
+          currentData.features = currentData.features.filter((entry) =>
+            !entry.properties || entry.properties.id !== featureId
+          );
+          if (currentData.features.length === before) {
+            closeRussianFrontlinePopup();
+            return;
+          }
+          ensureKmlLayersForLayer('russian-frontline');
+          pushRussianFrontlineToFirestore();
+          closeRussianFrontlinePopup();
+          adminNotice('Frontline line deleted.');
+        });
+      }
 
       function clearRussianFrontline() {
         if (state.role !== 'admin' || state.frontlineHistoryMode) {
@@ -76,11 +143,18 @@
                 feature && feature.geometry && feature.geometry.type === 'LineString' &&
                 Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length >= 2
               );
+              parsed.features.forEach((feature) => {
+                feature.properties = feature.properties || {};
+                if (!feature.properties.id) {
+                  feature.properties.id = genId();
+                }
+              });
             }
             if (seq !== russianFrontlineSnapshotSeq) {
               return;
             }
             layerKmlData['russian-frontline'] = parsed;
+            closeRussianFrontlinePopup();
             ensureKmlLayersForLayer('russian-frontline');
           } catch (error) {
             console.error('Could not read shared pro-Russian-sources frontline', error);

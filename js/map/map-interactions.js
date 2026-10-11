@@ -22,14 +22,14 @@
               updateDrawings();
               return;
             }
-            layerKmlData['russian-frontline'] = {
-              type: 'FeatureCollection',
-              features: [{
-                type: 'Feature',
-                properties: { source: 'pro-Russian sources' },
-                geometry: { type: 'LineString', coordinates: coords }
-              }]
-            };
+            const frontlineData = layerKmlData['russian-frontline'] ||
+              { type: 'FeatureCollection', features: [] };
+            frontlineData.features.push({
+              type: 'Feature',
+              properties: { id: genId(), source: 'pro-Russian sources' },
+              geometry: { type: 'LineString', coordinates: coords }
+            });
+            layerKmlData['russian-frontline'] = frontlineData;
             ensureKmlLayersForLayer('russian-frontline');
             pushRussianFrontlineToFirestore();
           } else {
