@@ -185,7 +185,7 @@
         if (!bestPath || bestEndpointDistances.some((distance) =>
           distance > CONTESTED_ENDPOINT_MAX_SNAP_KM
         )) {
-          throw new Error('Russian Control no longer has a boundary connecting the Contested endpoints.');
+          return [];
         }
         return [bestPath];
       }
