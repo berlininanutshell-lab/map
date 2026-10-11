@@ -65,6 +65,7 @@
         if (state.frontlineHistoryMode) {
           return;
         }
+        invalidateContestedCache();
         // Copy the current state right now; packing happens asynchronously
         // and pushes are queued so an older save can never land after a
         // newer one.

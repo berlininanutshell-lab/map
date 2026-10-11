@@ -159,6 +159,9 @@
 
         renderLayersModule();
         ensureKmlLayersForLayer(layer.id);
+        if (layer.id === 'contested') {
+          refreshContestedLayer();
+        }
       });
 
       actions.appendChild(colorInput);

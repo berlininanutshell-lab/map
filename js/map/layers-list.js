@@ -268,6 +268,9 @@
             if (!parsed) {
               return;
             }
+            if (['main', 'russian-advances', 'ukrainian-advances'].includes(layerId)) {
+              invalidateContestedCache();
+            }
             layerKmlData[layerId] = parsed;
 
             territoryLoadedFromFirestore.add(layerId);

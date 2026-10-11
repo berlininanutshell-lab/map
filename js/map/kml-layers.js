@@ -124,6 +124,9 @@
       }
 
       const CONTESTED_BUFFER_KM = 4;
+      const CONTESTED_BUFFER_SIMPLIFY_TOLERANCE = 0.002;
+      // Roughly 50 m: used only when deriving the Contested overlay.
+      const CONTESTED_TERRITORY_SIMPLIFY_TOLERANCE = 0.0005;
       const CITIES_OUTLINE_INNER_BUFFER_KM = 0.3;
       const CONTESTED_FRONT_START = [34.31462230371, 51.87851293361];
       const CONTESTED_FRONT_END = [35.33076423005, 47.55134608883];
@@ -131,11 +134,23 @@
       const contestedInputLayerIds = ['main', 'russian-advances', 'ukrainian-advances'];
       let ukraineLandMask = null;
       let contestedGeneratedFeatures = [];
-      let contestedRefreshScheduled = false;
+      let contestedRefreshTimer = null;
+      let contestedCacheRevision = 0;
+      const contestedBuildCache = new WeakMap();
 
-      function unionTerritoryPolygons(features) {
+      function invalidateContestedCache() {
+        contestedCacheRevision++;
+      }
+
+      function unionTerritoryPolygons(features, simplifyTolerance) {
         const polygons = features.filter((feature) =>
           feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
+        ).map((feature) => simplifyTolerance
+          ? turf.simplify(turf.feature(feature.geometry), {
+            tolerance: simplifyTolerance,
+            highQuality: false
+          })
+          : feature
         );
         let merged = null;
         polygons.forEach((feature) => {
@@ -147,10 +162,12 @@
       function effectiveRussianControlTerritory() {
         const russianControl = unionTerritoryPolygons(
           (layerKmlData.main && layerKmlData.main.features || [])
-            .concat(layerKmlData['russian-advances'] && layerKmlData['russian-advances'].features || [])
+            .concat(layerKmlData['russian-advances'] && layerKmlData['russian-advances'].features || []),
+          CONTESTED_TERRITORY_SIMPLIFY_TOLERANCE
         );
         const ukrainianAdvances = unionTerritoryPolygons(
-          layerKmlData['ukrainian-advances'] && layerKmlData['ukrainian-advances'].features || []
+          layerKmlData['ukrainian-advances'] && layerKmlData['ukrainian-advances'].features || [],
+          CONTESTED_TERRITORY_SIMPLIFY_TOLERANCE
         );
         const russianFront = russianControl && ukrainianAdvances
           ? turf.difference(russianControl, ukrainianAdvances)
@@ -191,13 +208,23 @@
         return [bestPath];
       }
 
-      function buildContestedFeatures() {
+      function calculateContestedFeatures() {
         const activeFrontRuns = getRussianControlFrontRun();
         if (!activeFrontRuns.length) {
           return [];
         }
 
-        const buffered = turf.buffer(turf.featureCollection(activeFrontRuns), CONTESTED_BUFFER_KM, {
+        // Buffering the full-resolution control boundary can involve tens
+        // of thousands of vertices and block the UI. Simplify only the
+        // buffer input; the original frontline geometry remains untouched
+        // and is still used for display.
+        const bufferRuns = activeFrontRuns.map((run) =>
+          turf.simplify(run, {
+            tolerance: CONTESTED_BUFFER_SIMPLIFY_TOLERANCE,
+            highQuality: false
+          })
+        );
+        const buffered = turf.buffer(turf.featureCollection(bufferRuns), CONTESTED_BUFFER_KM, {
           units: 'kilometers',
           steps: 8
         });
@@ -221,6 +248,38 @@
           },
           geometry: run.geometry
         }));
+        return features;
+      }
+
+      function buildContestedFeatures() {
+        const main = layerKmlData.main;
+        const russianAdvances = layerKmlData['russian-advances'];
+        const ukrainianAdvances = layerKmlData['ukrainian-advances'];
+        if (!main || !russianAdvances || !ukrainianAdvances) {
+          return calculateContestedFeatures();
+        }
+
+        let byRussianAdvances = contestedBuildCache.get(main);
+        if (!byRussianAdvances) {
+          byRussianAdvances = new WeakMap();
+          contestedBuildCache.set(main, byRussianAdvances);
+        }
+        let byUkrainianAdvances = byRussianAdvances.get(russianAdvances);
+        if (!byUkrainianAdvances) {
+          byUkrainianAdvances = new WeakMap();
+          byRussianAdvances.set(russianAdvances, byUkrainianAdvances);
+        }
+
+        const cached = byUkrainianAdvances.get(ukrainianAdvances);
+        if (cached && cached.revision === contestedCacheRevision) {
+          return cached.features;
+        }
+
+        const features = calculateContestedFeatures();
+        byUkrainianAdvances.set(ukrainianAdvances, {
+          revision: contestedCacheRevision,
+          features
+        });
         return features;
       }
 
@@ -274,12 +333,14 @@
       }
 
       function refreshContestedLayer() {
-        if (!ukraineLandMask || contestedRefreshScheduled) {
+        if (!ukraineLandMask) {
           return;
         }
-        contestedRefreshScheduled = true;
-        window.requestAnimationFrame(() => {
-          contestedRefreshScheduled = false;
+        if (contestedRefreshTimer) {
+          window.clearTimeout(contestedRefreshTimer);
+        }
+        contestedRefreshTimer = window.setTimeout(() => {
+          contestedRefreshTimer = null;
           try {
             contestedGeneratedFeatures = buildContestedFeatures();
           } catch (error) {
@@ -292,7 +353,7 @@
           if (map.getStyle()) {
             ensureKmlLayersForLayer('contested');
           }
-        });
+        }, 100);
       }
 
       function loadUkraineLandMask() {
