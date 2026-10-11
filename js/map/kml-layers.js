@@ -125,8 +125,6 @@
 
       const CONTESTED_BUFFER_KM = 4;
       const CONTESTED_BUFFER_SIMPLIFY_TOLERANCE = 0.002;
-      // Roughly 50 m: used only when deriving the Contested overlay.
-      const CONTESTED_TERRITORY_SIMPLIFY_TOLERANCE = 0.0005;
       const CITIES_OUTLINE_INNER_BUFFER_KM = 0.3;
       const CONTESTED_FRONT_START = [34.31462230371, 51.87851293361];
       const CONTESTED_FRONT_END = [35.33076423005, 47.55134608883];
@@ -160,14 +158,15 @@
       }
 
       function effectiveRussianControlTerritory() {
+        // Keep the generated frontline on the same full-resolution boundary
+        // as the territory layers shown on the map. Simplification is limited
+        // to the separate buffer input below.
         const russianControl = unionTerritoryPolygons(
           (layerKmlData.main && layerKmlData.main.features || [])
-            .concat(layerKmlData['russian-advances'] && layerKmlData['russian-advances'].features || []),
-          CONTESTED_TERRITORY_SIMPLIFY_TOLERANCE
+            .concat(layerKmlData['russian-advances'] && layerKmlData['russian-advances'].features || [])
         );
         const ukrainianAdvances = unionTerritoryPolygons(
-          layerKmlData['ukrainian-advances'] && layerKmlData['ukrainian-advances'].features || [],
-          CONTESTED_TERRITORY_SIMPLIFY_TOLERANCE
+          layerKmlData['ukrainian-advances'] && layerKmlData['ukrainian-advances'].features || []
         );
         const russianFront = russianControl && ukrainianAdvances
           ? turf.difference(russianControl, ukrainianAdvances)
