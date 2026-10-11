@@ -97,7 +97,7 @@
       function isClickOnMapObject(event) {
         const target = event.originalEvent && event.originalEvent.target;
         if (target && target.closest &&
-            target.closest('.maplibregl-marker, .maplibregl-popup, .territory-vertex-handle, .territory-vertex-add')) {
+            target.closest('.maplibregl-marker, .maplibregl-popup, .territory-vertex-handle, .territory-vertex-add, .russian-frontline-vertex-handle, .russian-frontline-vertex-add')) {
           return true;
         }
         if (map.getLayer('user-drawing-points')) {
@@ -576,7 +576,8 @@
         if (layerId === 'russian-frontline' && !wiredRussianFrontlineClickLayers.has(lineId)) {
           wiredRussianFrontlineClickLayers.add(lineId);
           map.on('click', lineId, (event) => {
-            if (state.role !== 'admin' || state.frontlineHistoryMode || state.drawingTool || state.territoryEdit) {
+            if (state.role !== 'admin' || state.frontlineHistoryMode || state.drawingTool ||
+                state.territoryEdit || state.russianFrontlineEdit) {
               return;
             }
             const rendered = (event.features || []).find((feature) =>
@@ -587,7 +588,8 @@
             }
           });
           map.on('mouseenter', lineId, () => {
-            if (state.role === 'admin' && !state.frontlineHistoryMode && !state.drawingTool) {
+            if (state.role === 'admin' && !state.frontlineHistoryMode && !state.drawingTool &&
+                !state.russianFrontlineEdit) {
               map.getCanvasContainer().style.cursor = 'pointer';
             }
           });

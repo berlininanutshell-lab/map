@@ -25,6 +25,29 @@
         cursor: copy;
       }
 
+      .russian-frontline-vertex-handle {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ff4d4d;
+        border: 2px solid #1a1f26;
+        box-shadow: 0 0 0 1px rgba(255, 77, 77, 0.65);
+        cursor: grab;
+      }
+
+      .russian-frontline-vertex-handle:active {
+        cursor: grabbing;
+      }
+
+      .russian-frontline-vertex-add {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 77, 77, 0.45);
+        border: 1.5px dashed #ff4d4d;
+        cursor: copy;
+      }
+
       .territory-edit-controls {
         position: fixed;
         left: 50%;

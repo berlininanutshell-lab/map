@@ -278,6 +278,9 @@
           return;
         }
 
+        if (state.russianFrontlineEdit) {
+          finishRussianFrontlineEdit(false);
+        }
         if (!state.frontlineHistoryMode) {
           state.frontlineLiveBackup = cloneTerritoryData();
         }

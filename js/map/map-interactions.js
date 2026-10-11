@@ -179,7 +179,7 @@
       });
 
       map.on('click', (event) => {
-        if (state.territorySmoothing) {
+        if (state.territorySmoothing || state.russianFrontlineEdit) {
           return;
         }
         if (!state.drawingTool || state.drawingTool === 'brush' || state.isBrushing) {

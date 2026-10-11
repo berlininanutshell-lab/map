@@ -115,6 +115,7 @@
         // dragged/added/removed via "Edit shape" — see
         // enterVertexEditMode / finishVertexEditMode below.
         territoryEdit: null,
+        russianFrontlineEdit: null,
         // Non-null while a newly drawn territory polygon is waiting for
         // the smoothing amount to be chosen before it becomes an advance.
         territorySmoothing: null,

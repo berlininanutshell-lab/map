@@ -54,6 +54,9 @@
         if (role !== 'admin' && (state.drawingTool === 'flag' || state.drawingTool === 'russian-frontline')) {
           deactivateDrawingTool();
         }
+        if (role !== 'admin' && state.russianFrontlineEdit) {
+          finishRussianFrontlineEdit(false);
+        }
         if (role !== 'admin') {
           const frontlineTab = document.getElementById('frontlineTabBtn');
           const legendTab = document.getElementById('legendTabBtn');
