@@ -51,7 +51,11 @@
 
         // Non-admins can't have the flag tool armed, and the layer list
         // needs to add/remove its admin-only color pickers.
-        if (role !== 'admin' && (state.drawingTool === 'flag' || state.drawingTool === 'russian-frontline')) {
+        if (role !== 'admin' && (
+          state.drawingTool === 'flag' ||
+          state.drawingTool === 'russian-frontline' ||
+          state.drawingTool === 'contested-circle'
+        )) {
           deactivateDrawingTool();
         }
         if (role !== 'admin' && state.russianFrontlineEdit) {

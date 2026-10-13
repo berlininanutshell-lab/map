@@ -46,5 +46,6 @@
         'russian-frontline': 'Left-click to trace the shared frontline, right-click to publish it for everyone.',
         arrow: 'Left-click to add points, right-click to finish the arrow.',
         pinpoint: 'Click the map to place a pinpoint.',
-        polygon: 'Choose a territory type, then left-click to draw and smooth its polygon.'
+        polygon: 'Choose a territory type, then left-click to draw and smooth its polygon.',
+        'contested-circle': 'Click to set the center, move to set the radius, then click again to add a Contested circle.'
       };

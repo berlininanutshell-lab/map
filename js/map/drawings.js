@@ -3,6 +3,20 @@
         if (state.draft) {
           features.push(state.draft);
         }
+        if (state.circleRadiusGuide) {
+          features.push(state.circleRadiusGuide);
+        }
+        if (state.circleRadiusLabel) {
+          features.push(state.circleRadiusLabel);
+        }
+        if (state.circleCenter) {
+          const contestedLayer = getLayerById('contested');
+          features.push({
+            type: 'Feature',
+            properties: { color: contestedLayer ? contestedLayer.color : '#f2c14e', tool: 'contested-circle-center' },
+            geometry: { type: 'Point', coordinates: state.circleCenter }
+          });
+        }
 
         clearDrawingsBtn.disabled = features.length === 0;
 

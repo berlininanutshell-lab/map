@@ -154,6 +154,10 @@
           return;
         }
 
+        if (state.drawingTool === 'contested-circle') {
+          return;
+        }
+
         if (state.drawingTool === 'polygon' && state.draft) {
           finishPolygonDraft();
           return;

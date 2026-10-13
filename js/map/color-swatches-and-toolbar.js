@@ -62,6 +62,9 @@
       clearDrawingsBtn.addEventListener('click', () => {
         state.drawings = [];
         state.draft = null;
+        state.circleCenter = null;
+        state.circleRadiusGuide = null;
+        state.circleRadiusLabel = null;
         state.isBrushing = false;
         map.dragPan.enable();
         updateDrawings();

@@ -448,8 +448,34 @@
           // The flag tool is only ever meant to be reachable by admins —
           // it's hidden via CSS for everyone else, but this guard covers
           // it too in case the role changed after the menu was opened.
-          if ((button.dataset.tool === 'flag' || button.dataset.tool === 'polygon' || button.dataset.tool === 'russian-frontline') && (state.role !== 'admin' || state.frontlineHistoryMode)) {
+          if (
+            ['flag', 'polygon', 'russian-frontline', 'contested-circle'].includes(button.dataset.tool) &&
+            (state.role !== 'admin' || state.frontlineHistoryMode)
+          ) {
             return;
+          }
+          if (state.territorySmoothing && button.dataset.tool !== 'polygon') {
+            drawHint.textContent = 'Finish or cancel the pending territory polygon before choosing another drawing tool.';
+            return;
+          }
+
+          if (state.drawingTool === 'contested-circle' && button.dataset.tool !== 'contested-circle') {
+            state.circleCenter = null;
+            state.circleRadiusGuide = null;
+            state.circleRadiusLabel = null;
+            state.draft = null;
+            updateDrawings();
+          }
+          if (button.dataset.tool === 'contested-circle') {
+            state.circleCenter = null;
+            state.circleRadiusGuide = null;
+            state.circleRadiusLabel = null;
+            state.draft = null;
+            const contestedLayer = getLayerById('contested');
+            contestedLayer.visible = true;
+            renderLayers();
+            ensureKmlLayersForLayer('contested');
+            updateDrawings();
           }
 
           state.drawingTool = button.dataset.tool;

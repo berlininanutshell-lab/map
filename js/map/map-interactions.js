@@ -4,6 +4,38 @@
         return tool === 'line' || tool === 'lineDashed' || tool === 'arrow' || tool === 'polygon' || tool === 'russian-frontline';
       }
 
+      function makeContestedCircleDraft(center, edge) {
+        const radiusKm = turf.distance(turf.point(center), turf.point(edge), { units: 'kilometers' });
+        if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+          return null;
+        }
+
+        const layer = getLayerById('contested');
+        const color = layer ? layer.color : '#f2c14e';
+        const circle = turf.circle(center, radiusKm, { steps: 256, units: 'kilometers' });
+        circle.properties = { color, tool: 'contested-circle-preview' };
+
+        const midpoint = turf.midpoint(turf.point(center), turf.point(edge)).geometry.coordinates;
+        return {
+          circle,
+          radiusKm,
+          guide: {
+            type: 'Feature',
+            properties: { color, tool: 'contested-circle-radius' },
+            geometry: { type: 'LineString', coordinates: [center, edge] }
+          },
+          label: {
+            type: 'Feature',
+            properties: {
+              color,
+              tool: 'contested-circle-radius-label',
+              label: 'Radius: ' + radiusKm.toFixed(2) + ' km'
+            },
+            geometry: { type: 'Point', coordinates: midpoint }
+          }
+        };
+      }
+
       // Right-click ends an in-progress line/dashed-line/arrow: drop
       // the trailing point that was only ever a rubber-band preview
       // (never confirmed with a left-click), then commit whatever's
@@ -161,6 +193,32 @@
           const coords = state.draft.geometry.coordinates;
           coords[coords.length - 1] = [event.lngLat.lng, event.lngLat.lat];
           updateDrawings();
+          return;
+        }
+
+        if (state.drawingTool === 'contested-circle' && state.circleCenter) {
+          const edge = [event.lngLat.lng, event.lngLat.lat];
+          try {
+            const circleDraft = makeContestedCircleDraft(state.circleCenter, edge);
+            if (!circleDraft) {
+              state.draft = null;
+              state.circleRadiusGuide = null;
+              state.circleRadiusLabel = null;
+              drawHint.textContent = 'Move the pointer away from the center to set a radius.';
+            } else {
+              state.draft = circleDraft.circle;
+              state.circleRadiusGuide = circleDraft.guide;
+              state.circleRadiusLabel = circleDraft.label;
+              drawHint.textContent = circleDraft.label.properties.label + ' · click to add the circle.';
+            }
+          } catch (error) {
+            console.error('Failed to preview Contested circle', error);
+            state.draft = null;
+            state.circleRadiusGuide = null;
+            state.circleRadiusLabel = null;
+            drawHint.textContent = 'Could not create this circle. Move the pointer and try again.';
+          }
+          updateDrawings();
         }
       });
 
@@ -204,6 +262,50 @@
           }
           placeFlag(event.lngLat.lng, event.lngLat.lat, state.flagType);
           pushFlagsToFirestore();
+          return;
+        }
+
+        if (state.drawingTool === 'contested-circle') {
+          if (state.role !== 'admin' || state.frontlineHistoryMode) {
+            return;
+          }
+          if (!state.circleCenter) {
+            state.circleCenter = coordinate;
+            state.draft = null;
+            state.circleRadiusGuide = null;
+            state.circleRadiusLabel = null;
+            drawHint.textContent = 'Move the pointer to set the radius, then click again to add the circle.';
+            updateDrawings();
+            return;
+          }
+
+          let circleDraft;
+          try {
+            circleDraft = makeContestedCircleDraft(state.circleCenter, coordinate);
+          } catch (error) {
+            console.error('Failed to create Contested circle', error);
+            drawHint.textContent = 'Could not create this circle. Choose another radius.';
+            return;
+          }
+          if (!circleDraft) {
+            drawHint.textContent = 'Radius must be greater than zero. Move away from the center and click again.';
+            return;
+          }
+
+          if (!ukraineLandMask) {
+            drawHint.textContent = 'The Ukraine land mask is not ready yet — try again in a moment.';
+            return;
+          }
+          if (!applyTerritoryPolygon(circleDraft.circle.geometry.coordinates[0], 'contested')) {
+            return;
+          }
+
+          state.circleCenter = null;
+          state.circleRadiusGuide = null;
+          state.circleRadiusLabel = null;
+          state.draft = null;
+          updateDrawings();
+          drawHint.textContent = 'Added a Contested circle with radius ' + circleDraft.radiusKm.toFixed(2) + ' km.';
           return;
         }
 
@@ -293,6 +395,68 @@
           }
         });
         map.addLayer({
+          id: 'user-drawing-circle-fill',
+          type: 'fill',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'tool'], 'contested-circle-preview']],
+          paint: {
+            'fill-color': ['get', 'color'],
+            'fill-opacity': 0.12
+          }
+        });
+        map.addLayer({
+          id: 'user-drawing-circle-outline',
+          type: 'line',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'tool'], 'contested-circle-preview']],
+          layout: { 'line-join': 'round' },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 2.5,
+            'line-opacity': 0.95
+          }
+        });
+        map.addLayer({
+          id: 'user-drawing-circle-radius',
+          type: 'line',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'tool'], 'contested-circle-radius']],
+          layout: { 'line-cap': 'round' },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 2.5,
+            'line-dasharray': [2, 2]
+          }
+        });
+        map.addLayer({
+          id: 'user-drawing-circle-radius-label',
+          type: 'symbol',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'tool'], 'contested-circle-radius-label']],
+          layout: {
+            'text-field': ['get', 'label'],
+            'text-size': 13,
+            'text-allow-overlap': true
+          },
+          paint: {
+            'text-color': ['get', 'color'],
+            'text-halo-color': '#0b0f14',
+            'text-halo-width': 1.5
+          }
+        });
+        map.addLayer({
+          id: 'user-drawing-circle-center',
+          type: 'circle',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'tool'], 'contested-circle-center']],
+          paint: {
+            'circle-radius': 7,
+            'circle-color': ['get', 'color'],
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
+          }
+        });
+        map.addLayer({
           id: 'user-drawing-lines',
           type: 'line',
           source: 'user-drawings',
@@ -300,7 +464,8 @@
             'all',
             ['==', ['geometry-type'], 'LineString'],
             ['!=', ['get', 'tool'], 'arrow'],
-            ['!=', ['get', 'tool'], 'lineDashed']
+            ['!=', ['get', 'tool'], 'lineDashed'],
+            ['!=', ['get', 'tool'], 'contested-circle-radius']
           ],
           layout: {
             'line-cap': 'round',
@@ -371,7 +536,12 @@
           id: 'user-drawing-points',
           type: 'circle',
           source: 'user-drawings',
-          filter: ['==', ['geometry-type'], 'Point'],
+          filter: [
+            'all',
+            ['==', ['geometry-type'], 'Point'],
+            ['!=', ['get', 'tool'], 'contested-circle-center'],
+            ['!=', ['get', 'tool'], 'contested-circle-radius-label']
+          ],
           paint: {
             'circle-radius': 7,
             'circle-color': ['get', 'color'],
@@ -399,6 +569,17 @@
         // source/layer, so re-create each layer's KML shapes from the
         // data already loaded in memory.
         state.layers.forEach((layer) => ensureKmlLayersForLayer(layer.id));
+        [
+          'user-drawing-circle-fill',
+          'user-drawing-circle-outline',
+          'user-drawing-circle-radius',
+          'user-drawing-circle-radius-label',
+          'user-drawing-circle-center'
+        ].forEach((layerId) => {
+          if (map.getLayer(layerId)) {
+            map.moveLayer(layerId);
+          }
+        });
       });
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: true }));

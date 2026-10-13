@@ -248,16 +248,23 @@
         if (layerId === 'contested') {
           if (!ukraineLandMask) {
             drawHint.textContent = 'The Ukraine land mask is not ready yet — try again in a moment.';
-            return;
+            return false;
           }
-          const clipped = turf.intersect(drawnPolygon, ukraineLandMask);
+          let clipped;
+          try {
+            clipped = turf.intersect(drawnPolygon, ukraineLandMask);
+          } catch (error) {
+            console.error('Failed to clip Contested polygon to the Ukraine land mask', error);
+            drawHint.textContent = 'Could not clip that Contested area to Ukrainian land — try another shape.';
+            return false;
+          }
           if (!clipped) {
             drawHint.textContent = 'That area is outside Ukrainian land — nothing added.';
-            return;
+            return false;
           }
           addTerritoryFeature('contested', clipped.geometry || clipped);
           drawHint.textContent = 'Added a rounded manual Contested area. Click it to edit or delete.';
-          return;
+          return true;
         }
 
         const mainGeometry = unionPolygonFeatures(layerPolygonFeatures('main'));

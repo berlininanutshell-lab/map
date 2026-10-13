@@ -23,6 +23,13 @@
 
       lineVariantMenu.querySelectorAll('.tool-option').forEach((button) => {
         button.addEventListener('click', () => {
+          if (state.drawingTool === 'contested-circle') {
+            state.circleCenter = null;
+            state.circleRadiusGuide = null;
+            state.circleRadiusLabel = null;
+            state.draft = null;
+            updateDrawings();
+          }
           state.drawingTool = button.dataset.tool;
           updateThicknessControl();
           document.querySelectorAll('.tool-option').forEach((option) => {

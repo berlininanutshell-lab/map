@@ -21,6 +21,9 @@
         // half-drawn once the tool is disarmed.
         state.isBrushing = false;
         state.draft = null;
+        state.circleCenter = null;
+        state.circleRadiusGuide = null;
+        state.circleRadiusLabel = null;
         cancelTerritorySmoothing();
         map.dragPan.enable();
         updateDrawings();
