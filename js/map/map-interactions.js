@@ -271,9 +271,15 @@
           }
           if (!state.circleCenter) {
             state.circleCenter = coordinate;
-            state.draft = null;
-            state.circleRadiusGuide = null;
-            state.circleRadiusLabel = null;
+            const centerPoint = map.project(coordinate);
+            const previewEdge = map.unproject([centerPoint.x + 40, centerPoint.y]);
+            const initialPreview = makeContestedCircleDraft(
+              coordinate,
+              [previewEdge.lng, previewEdge.lat]
+            );
+            state.draft = initialPreview.circle;
+            state.circleRadiusGuide = initialPreview.guide;
+            state.circleRadiusLabel = initialPreview.label;
             drawHint.textContent = 'Move the pointer to set the radius, then click again to add the circle.';
             updateDrawings();
             return;
@@ -395,13 +401,25 @@
           }
         });
         map.addLayer({
+          id: 'user-drawing-circle-outline-halo',
+          type: 'line',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'tool'], 'contested-circle-preview']],
+          layout: { 'line-join': 'round' },
+          paint: {
+            'line-color': '#111820',
+            'line-width': 7,
+            'line-opacity': 0.9
+          }
+        });
+        map.addLayer({
           id: 'user-drawing-circle-fill',
           type: 'fill',
           source: 'user-drawings',
           filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'tool'], 'contested-circle-preview']],
           paint: {
             'fill-color': ['get', 'color'],
-            'fill-opacity': 0.12
+            'fill-opacity': 0.16
           }
         });
         map.addLayer({
@@ -412,8 +430,20 @@
           layout: { 'line-join': 'round' },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': 2.5,
-            'line-opacity': 0.95
+            'line-width': 3.5,
+            'line-opacity': 1
+          }
+        });
+        map.addLayer({
+          id: 'user-drawing-circle-radius-halo',
+          type: 'line',
+          source: 'user-drawings',
+          filter: ['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'tool'], 'contested-circle-radius']],
+          layout: { 'line-cap': 'round' },
+          paint: {
+            'line-color': '#111820',
+            'line-width': 6,
+            'line-opacity': 0.9
           }
         });
         map.addLayer({
@@ -570,8 +600,10 @@
         // data already loaded in memory.
         state.layers.forEach((layer) => ensureKmlLayersForLayer(layer.id));
         [
+          'user-drawing-circle-outline-halo',
           'user-drawing-circle-fill',
           'user-drawing-circle-outline',
+          'user-drawing-circle-radius-halo',
           'user-drawing-circle-radius',
           'user-drawing-circle-radius-label',
           'user-drawing-circle-center'
