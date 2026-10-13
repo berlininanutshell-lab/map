@@ -48,22 +48,28 @@
         const coords = state.draft.geometry.coordinates;
         coords.pop();
         if (coords.length >= 2) {
-          if (state.drawingTool === 'russian-frontline') {
+          if (['russian-frontline', 'ukrainian-frontline'].includes(state.drawingTool)) {
             if (state.role !== 'admin' || state.frontlineHistoryMode) {
               state.draft = null;
               updateDrawings();
               return;
             }
-            const frontlineData = layerKmlData['russian-frontline'] ||
+            const frontlineLayerId = state.drawingTool;
+            const frontlineData = layerKmlData[frontlineLayerId] ||
               { type: 'FeatureCollection', features: [] };
             frontlineData.features.push({
               type: 'Feature',
-              properties: { id: genId(), source: 'pro-Russian sources' },
+              properties: {
+                id: genId(),
+                source: frontlineLayerId === 'russian-frontline'
+                  ? 'pro-Russian sources'
+                  : 'pro-Ukrainian sources'
+              },
               geometry: { type: 'LineString', coordinates: coords }
             });
-            layerKmlData['russian-frontline'] = frontlineData;
-            ensureKmlLayersForLayer('russian-frontline');
-            pushRussianFrontlineToFirestore();
+            layerKmlData[frontlineLayerId] = frontlineData;
+            ensureKmlLayersForLayer(frontlineLayerId);
+            pushFrontlineToFirestore(frontlineLayerId);
           } else {
             state.drawings.push(state.draft);
           }
@@ -237,7 +243,7 @@
       });
 
       map.on('click', (event) => {
-        if (state.territorySmoothing || state.russianFrontlineEdit) {
+        if (state.territorySmoothing || state.russianFrontlineEdit || state.ukrainianFrontlineEdit) {
           return;
         }
         if (!state.drawingTool || state.drawingTool === 'brush' || state.isBrushing) {
@@ -316,7 +322,12 @@
         }
 
         if (isOpenLineTool(state.drawingTool)) {
-          if ((state.drawingTool === 'polygon' || state.drawingTool === 'russian-frontline') && (state.role !== 'admin' || state.frontlineHistoryMode)) {
+          if (
+            (state.drawingTool === 'polygon' ||
+              state.drawingTool === 'russian-frontline' ||
+              state.drawingTool === 'ukrainian-frontline') &&
+            (state.role !== 'admin' || state.frontlineHistoryMode)
+          ) {
             return;
           }
           if (!state.draft) {

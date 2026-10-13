@@ -45,7 +45,7 @@
       }
 
       function makeLineFeature(coordinates, tool) {
-        const layer = tool === 'russian-frontline' ? getLayerById('russian-frontline') : null;
+        const layer = ['russian-frontline', 'ukrainian-frontline'].includes(tool) ? getLayerById(tool) : null;
         return {
           type: 'Feature',
           properties: {

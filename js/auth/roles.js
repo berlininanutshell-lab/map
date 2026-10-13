@@ -54,11 +54,12 @@
         if (role !== 'admin' && (
           state.drawingTool === 'flag' ||
           state.drawingTool === 'russian-frontline' ||
+          state.drawingTool === 'ukrainian-frontline' ||
           state.drawingTool === 'contested-circle'
         )) {
           deactivateDrawingTool();
         }
-        if (role !== 'admin' && state.russianFrontlineEdit) {
+        if (role !== 'admin' && (state.russianFrontlineEdit || state.ukrainianFrontlineEdit)) {
           finishRussianFrontlineEdit(false);
         }
         if (role !== 'admin') {

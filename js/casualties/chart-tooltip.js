@@ -95,6 +95,7 @@
           { id: 'russian-advances', name: 'Russian advances', visible: true, color: '#FF9400', renderMode: 'fill', thickness: 3 },
           { id: 'ukrainian-advances', name: 'Ukrainian advances', visible: true, color: '#0000ff', renderMode: 'fill', thickness: 3 },
           { id: 'russian-frontline', name: 'Frontline according to pro-Russian sources', visible: true, color: '#ff4d4d', renderMode: 'line', thickness: 3 },
+          { id: 'ukrainian-frontline', name: 'Frontline according to pro-Ukrainian sources', visible: true, color: '#4da3ff', renderMode: 'line', thickness: 3 },
           { id: 'cities-outline', name: 'Cities Outline', visible: true, color: '#ffffff', renderMode: 'outline', thickness: 2 }
         ],
         currentStyle: 'Dark Matter',
@@ -119,6 +120,7 @@
         // enterVertexEditMode / finishVertexEditMode below.
         territoryEdit: null,
         russianFrontlineEdit: null,
+        ukrainianFrontlineEdit: null,
         // Non-null while a newly drawn territory polygon is waiting for
         // the smoothing amount to be chosen before it becomes an advance.
         territorySmoothing: null,

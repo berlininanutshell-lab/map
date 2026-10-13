@@ -49,7 +49,7 @@
       });
 
       function updateThicknessControl() {
-        const enabled = ['line', 'lineDashed', 'russian-frontline', 'brush', 'arrow'].includes(state.drawingTool);
+        const enabled = ['line', 'lineDashed', 'russian-frontline', 'ukrainian-frontline', 'brush', 'arrow'].includes(state.drawingTool);
         drawThickness.disabled = !enabled;
         drawThickness.parentElement.hidden = !enabled;
       }

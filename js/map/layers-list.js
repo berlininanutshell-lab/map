@@ -13,6 +13,14 @@
       let russianFrontlineSyncBlocked = false;
       let russianFrontlinePopup = null;
       let russianFrontlineEditControlsEl = null;
+      const ukrainianFrontlineSync = {
+        pushChain: Promise.resolve(),
+        pushesInFlight: 0,
+        snapshotSeq: 0,
+        syncBlocked: false,
+        popup: null,
+        editControls: null
+      };
 
       function closeRussianFrontlinePopup() {
         if (russianFrontlinePopup) {
@@ -21,8 +29,32 @@
         }
       }
 
+      function closeUkrainianFrontlinePopup() {
+        if (ukrainianFrontlineSync.popup) {
+          ukrainianFrontlineSync.popup.remove();
+          ukrainianFrontlineSync.popup = null;
+        }
+      }
+
+      function frontlineEditStateKey(layerId) {
+        return layerId === 'russian-frontline' ? 'russianFrontlineEdit' : 'ukrainianFrontlineEdit';
+      }
+
+      function frontlineSourceLabel(layerId) {
+        return layerId === 'russian-frontline' ? 'Pro-Russian sources' : 'Pro-Ukrainian sources';
+      }
+
+      function closeFrontlinePopup(layerId) {
+        if (layerId === 'russian-frontline') {
+          closeRussianFrontlinePopup();
+        } else {
+          closeUkrainianFrontlinePopup();
+        }
+      }
+
       function refreshRussianFrontlineEdit(edit) {
-        const data = layerKmlData['russian-frontline'];
+        const layerId = edit.layerId || 'russian-frontline';
+        const data = layerKmlData[layerId];
         const feature = data && data.features.find((entry) =>
           entry.properties && entry.properties.id === edit.featureId
         );
@@ -30,7 +62,7 @@
           return;
         }
         feature.geometry = { type: 'LineString', coordinates: edit.coordinates.map((coord) => coord.slice()) };
-        ensureKmlLayersForLayer('russian-frontline');
+        ensureKmlLayersForLayer(layerId);
       }
 
       function rebuildRussianFrontlineEditMarkers(edit) {
@@ -41,7 +73,10 @@
 
         edit.coordinates.forEach((coord, index) => {
           const el = document.createElement('div');
-          el.className = 'russian-frontline-vertex-handle';
+          const handleClass = edit.layerId === 'ukrainian-frontline'
+            ? 'ukrainian-frontline-vertex-handle'
+            : 'russian-frontline-vertex-handle';
+          el.className = handleClass;
           el.title = 'Drag to move · right-click to remove';
           const marker = new maplibregl.Marker({ element: el, draggable: true })
             .setLngLat(coord)
@@ -73,7 +108,10 @@
           const b = edit.coordinates[i + 1];
           const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
           const el = document.createElement('div');
-          el.className = 'russian-frontline-vertex-add';
+          const addClass = edit.layerId === 'ukrainian-frontline'
+            ? 'ukrainian-frontline-vertex-add'
+            : 'russian-frontline-vertex-add';
+          el.className = addClass;
           el.title = 'Click to add a point here';
           const marker = new maplibregl.Marker({ element: el }).setLngLat(midpoint).addTo(map);
           el.addEventListener('click', (event) => {
@@ -87,19 +125,28 @@
       }
 
       function finishRussianFrontlineEdit(commit) {
-        const edit = state.russianFrontlineEdit;
+        const edit = state.russianFrontlineEdit || state.ukrainianFrontlineEdit;
         if (!edit) {
           return;
         }
         edit.vertexMarkers.forEach((marker) => marker.remove());
         edit.midMarkers.forEach((marker) => marker.remove());
-        if (russianFrontlineEditControlsEl) {
-          russianFrontlineEditControlsEl.remove();
-          russianFrontlineEditControlsEl = null;
+        const editKey = frontlineEditStateKey(edit.layerId || 'russian-frontline');
+        const controls = edit.layerId === 'ukrainian-frontline'
+          ? ukrainianFrontlineSync.editControls
+          : russianFrontlineEditControlsEl;
+        if (controls) {
+          controls.remove();
+          if (edit.layerId === 'ukrainian-frontline') {
+            ukrainianFrontlineSync.editControls = null;
+          } else {
+            russianFrontlineEditControlsEl = null;
+          }
         }
-        state.russianFrontlineEdit = null;
+        state[editKey] = null;
 
-        const data = layerKmlData['russian-frontline'];
+        const layerId = edit.layerId || 'russian-frontline';
+        const data = layerKmlData[layerId];
         const feature = data && data.features.find((entry) =>
           entry.properties && entry.properties.id === edit.featureId
         );
@@ -108,17 +155,18 @@
         }
         if (!commit) {
           feature.geometry = edit.originalGeometry;
-          ensureKmlLayersForLayer('russian-frontline');
+          ensureKmlLayersForLayer(layerId);
           return;
         }
         feature.geometry = { type: 'LineString', coordinates: edit.coordinates.map((coord) => coord.slice()) };
-        ensureKmlLayersForLayer('russian-frontline');
-        pushRussianFrontlineToFirestore();
+        ensureKmlLayersForLayer(layerId);
+        pushFrontlineToFirestore(layerId);
         adminNotice('Frontline line updated.');
       }
 
-      function enterRussianFrontlineEdit(featureId) {
-        const data = layerKmlData['russian-frontline'];
+      function enterRussianFrontlineEdit(featureId, layerId) {
+        layerId = layerId || 'russian-frontline';
+        const data = layerKmlData[layerId];
         const feature = data && data.features.find((entry) =>
           entry.properties && entry.properties.id === featureId
         );
@@ -127,25 +175,32 @@
           return;
         }
         closeRussianFrontlinePopup();
-        state.russianFrontlineEdit = {
+        const editKey = frontlineEditStateKey(layerId);
+        state[editKey] = {
+          layerId,
           featureId,
           coordinates: feature.geometry.coordinates.map((coord) => coord.slice()),
           originalGeometry: JSON.parse(JSON.stringify(feature.geometry)),
           vertexMarkers: [],
           midMarkers: []
         };
-        rebuildRussianFrontlineEditMarkers(state.russianFrontlineEdit);
-        russianFrontlineEditControlsEl = document.createElement('div');
-        russianFrontlineEditControlsEl.className = 'territory-edit-controls russian-frontline-edit-controls';
-        russianFrontlineEditControlsEl.innerHTML =
+        rebuildRussianFrontlineEditMarkers(state[editKey]);
+        const controls = document.createElement('div');
+        controls.className = 'territory-edit-controls russian-frontline-edit-controls';
+        controls.innerHTML =
           '<span>Drag points to move · click + to add · right-click a point to remove</span>' +
           '<button type="button" class="territory-edit-done">Done</button>' +
           '<button type="button" class="territory-edit-cancel">Cancel</button>';
-        document.body.appendChild(russianFrontlineEditControlsEl);
-        russianFrontlineEditControlsEl.querySelector('.territory-edit-done').addEventListener('click', () => {
+        document.body.appendChild(controls);
+        if (layerId === 'ukrainian-frontline') {
+          ukrainianFrontlineSync.editControls = controls;
+        } else {
+          russianFrontlineEditControlsEl = controls;
+        }
+        controls.querySelector('.territory-edit-done').addEventListener('click', () => {
           finishRussianFrontlineEdit(true);
         });
-        russianFrontlineEditControlsEl.querySelector('.territory-edit-cancel').addEventListener('click', () => {
+        controls.querySelector('.territory-edit-cancel').addEventListener('click', () => {
           finishRussianFrontlineEdit(false);
         });
       }

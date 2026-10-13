@@ -62,6 +62,7 @@
       // The pro-Russian-sources frontline is a separate shared line so it
       // never gets mixed with visitors' ordinary, local-only drawings.
       const russianFrontlineDocRef = db ? db.collection('mapState').doc('russianFrontline') : null;
+      const ukrainianFrontlineDocRef = db ? db.collection('mapState').doc('ukrainianFrontline') : null;
 
       // Daily frontline snapshots live in a subcollection so history can grow
       // without turning one Firestore document into a giant payload.
