@@ -1,20 +1,18 @@
       // ---- Roles ----
       // Anyone can browse the map without an account. Logging in (any
       // account) unlocks the draw tools and the layer on/off toggles.
-      // An email listed here additionally gets admin-only controls: the
-      // flag tool (place + drag flags), the shared pro-Russian-sources
-      // frontline tool, and per-layer appearance controls. Edit this
-      // list to set who's an admin — it's a simple client-side check,
-      // not a real access-control boundary, so don't rely on it to keep
-      // out a determined visitor with dev tools.
-      const ADMIN_EMAILS = ['berlininanutshell@gmail.com'];
+      // A UID listed here additionally gets admin-only controls: the
+      // flag tool (place + drag flags), the shared frontline tools,
+      // and per-layer appearance controls. This is only a client-side
+      // check that shows/hides controls; real access control is
+      // enforced by the Firestore rules.
+      const ADMIN_UIDS = ['UbkHA9FHSdUuUWjmuLSRB7I05963'];
 
       function currentRole() {
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
           return 'guest';
         }
-        const email = (auth.currentUser.email || '').toLowerCase();
-        return ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
+        return ADMIN_UIDS.includes(auth.currentUser.uid) ? 'admin' : 'user';
       }
 
       // Applies the current role to the page: shows/hides the draw
