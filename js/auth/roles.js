@@ -33,8 +33,14 @@
       // tools, layer toggles and admin-only controls, and updates the
       // account bar. Called on every auth-state change.
       function applyRole() {
+        // Auth może odpowiedzieć, zanim wszystkie skrypty się wykonają.
+        if (typeof state === 'undefined') {
+          window.addEventListener('load', applyRole, { once: true });
+          return;
+        }
         const role = currentRole();
         state.role = role;
+        // ... reszta funkcji bez zmian
 
         document.body.classList.toggle('logged-in', role !== 'guest');
         document.body.classList.toggle('is-admin', role === 'admin');
