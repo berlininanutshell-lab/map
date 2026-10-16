@@ -160,7 +160,7 @@
         }
         feature.geometry = { type: 'LineString', coordinates: edit.coordinates.map((coord) => coord.slice()) };
         ensureKmlLayersForLayer(layerId);
-        pushFrontlineToFirestore(layerId);
+        pushRussianFrontlineToFirestore(layerId);
         adminNotice('Frontline line updated.');
       }
 
