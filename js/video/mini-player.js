@@ -1,4 +1,14 @@
 (function () {
+  // --- teksty zależne od języka przeglądarki (domyślnie angielski) ---
+  const LANG = (navigator.language || 'en').slice(0, 2);
+  const TEXT = {
+    en: { ph: 'Paste a link (Telegram, X, YouTube…)', bad: 'Unsupported link.' },
+    pl: { ph: 'Wklej link (Telegram, X, YouTube…)', bad: 'Nieobsługiwany link.' },
+    uk: { ph: 'Вставте посилання (Telegram, X, YouTube…)', bad: 'Непідтримуване посилання.' },
+    ru: { ph: 'Вставьте ссылку (Telegram, X, YouTube…)', bad: 'Неподдерживаемая ссылка.' }
+  };
+  const t = TEXT[LANG] || TEXT.en;
+
   // --- rozpoznawanie linku -> co osadzić ---
   function parseVideoUrl(raw) {
     let u;
@@ -49,7 +59,7 @@
       <button type="button" class="mp-close" aria-label="Close player">×</button>
     </div>
     <form class="mp-form">
-      <input class="mp-input" type="text" placeholder="Wklej link (Telegram, X, YouTube…)" autocomplete="off" />
+      <input class="mp-input" type="text" placeholder="${t.ph}" autocomplete="off" />
       <button type="submit">▶</button>
     </form>
     <div class="mp-error" hidden></div>
@@ -72,7 +82,7 @@
     err.hidden = true;
     const info = parseVideoUrl(raw);
     if (!info) {
-      err.textContent = 'Nieobsługiwany link.';
+      err.textContent = t.bad;
       err.hidden = false;
       return;
     }
