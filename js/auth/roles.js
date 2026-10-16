@@ -8,11 +8,25 @@
       // enforced by the Firestore rules.
       const ADMIN_UIDS = ['UbkHA9FHSdUuUWjmuLSRB7I05963'];
 
+      function isAdminUser(user) {
+        return !!user && !user.isAnonymous && ADMIN_UIDS.includes(user.uid);
+      }
+
+      // TYMCZASOWO: żeby contact.js dalej działał bez zmian.
+      // Odpowiada "true" tylko dla e-maila aktualnie zalogowanego admina.
+      const ADMIN_EMAILS = {
+        includes(email) {
+          const user = typeof auth !== 'undefined' && auth ? auth.currentUser : null;
+          return isAdminUser(user) &&
+            String(email || '').toLowerCase() === String(user.email || '').toLowerCase();
+        }
+      };
+
       function currentRole() {
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
           return 'guest';
         }
-        return ADMIN_UIDS.includes(auth.currentUser.uid) ? 'admin' : 'user';
+        return isAdminUser(auth.currentUser) ? 'admin' : 'user';
       }
 
       // Applies the current role to the page: shows/hides the draw
