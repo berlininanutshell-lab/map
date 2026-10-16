@@ -118,8 +118,16 @@
           return safeSource;
         }
         const className = popup ? 'geo-popup-source' : 'geo-location-source';
+        const canPlay = window.miniPlayer &&
+          typeof window.miniPlayer.parseVideoUrl === 'function' &&
+          window.miniPlayer.parseVideoUrl(sourceUrl.href);
         return '<a class="' + className + '" href="' + escapeHtml(sourceUrl.href) +
-          '" target="_blank" rel="noopener noreferrer">' + safeSource + '</a>';
+          '" target="_blank" rel="noopener noreferrer">' + safeSource + '</a>' +
+          (canPlay
+            ? '<button type="button" class="mp-inline-btn" data-video-url="' +
+              escapeHtml(sourceUrl.href) +
+              '" title="Open in mini-player" aria-label="Open in mini-player">▶ Play</button>'
+            : '');
       }
 
       function geoLocationPopupHtml(location) {

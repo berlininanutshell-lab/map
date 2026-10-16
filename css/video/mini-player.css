@@ -1,0 +1,34 @@
+#miniPlayerBtn {
+  position: fixed; left: 12px; bottom: 76px; z-index: 900;
+  padding: 8px 12px; border-radius: 999px; border: 1px solid #2a3340;
+  background: #0b0f14; color: #ffb45b; cursor: pointer; font: 600 13px system-ui;
+}
+#miniPlayer {
+  position: fixed; right: 16px; bottom: 16px; z-index: 1000;
+  width: 340px; max-width: calc(100vw - 24px);
+  background: #0b0f14; color: #e8edf2; border: 1px solid #2a3340;
+  border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.5); overflow: hidden;
+}
+#miniPlayer[hidden] { display: none; }
+.mp-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; background: #141a22; cursor: grab; user-select: none; touch-action: none;
+}
+.mp-header:active { cursor: grabbing; }
+.mp-close { background: none; border: 0; color: inherit; font-size: 20px; cursor: pointer; }
+.mp-form { display: flex; gap: 6px; padding: 8px; }
+.mp-input {
+  flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px;
+  border: 1px solid #2a3340; background: #0b0f14; color: inherit;
+}
+.mp-form button { padding: 0 12px; border-radius: 6px; border: 0; background: #ffb45b; cursor: pointer; }
+.mp-error { color: #ff6b6b; font-size: 12px; padding: 0 10px 8px; }
+.mp-body iframe, .mp-body video { display: block; width: 100%; border: 0; background: #000; }
+
+/* przycisk ▶ Play przy linkach w geolokalizacjach */
+.mp-inline-btn {
+  margin-left: 6px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid rgba(255, 148, 0, 0.35); background: rgba(255, 148, 0, 0.1);
+  color: #ffb45b; cursor: pointer; font: 700 10px system-ui; vertical-align: middle;
+}
+.mp-inline-btn:hover { background: rgba(255, 148, 0, 0.2); }
