@@ -12,16 +12,6 @@
         return !!user && !user.isAnonymous && ADMIN_UIDS.includes(user.uid);
       }
 
-      // TYMCZASOWO: żeby contact.js dalej działał bez zmian.
-      // Odpowiada "true" tylko dla e-maila aktualnie zalogowanego admina.
-      const ADMIN_EMAILS = {
-        includes(email) {
-          const user = typeof auth !== 'undefined' && auth ? auth.currentUser : null;
-          return isAdminUser(user) &&
-            String(email || '').toLowerCase() === String(user.email || '').toLowerCase();
-        }
-      };
-
       function currentRole() {
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
           return 'guest';

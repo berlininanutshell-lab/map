@@ -666,9 +666,8 @@
     teardown();
     cc.user = user && !user.isAnonymous ? user : null;
     cc.verified = !!(cc.user && cc.user.emailVerified);
-    const email = cc.user ? (cc.user.email || '').toLowerCase() : '';
     // Admin only counts once the email is verified (the rules check this too).
-    cc.isAdmin = cc.verified && Array.isArray(ADMIN_EMAILS) && ADMIN_EMAILS.includes(email);
+    cc.isAdmin = cc.verified && isAdminUser(cc.user);
 
     if (cc.verified) {
       if (cc.isAdmin) startAdmin(); else startUser();
