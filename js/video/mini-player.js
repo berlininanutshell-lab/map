@@ -140,9 +140,4 @@
     e.stopPropagation();
     window.miniPlayer.open(btn.dataset.videoUrl);
   });
-
-  // publisher.js mógł się wyrenderować, zanim mini-player się załadował
-  if (typeof window.renderGeolocationsView === 'function') {
-    window.renderGeolocationsView();
-  }
 })();
