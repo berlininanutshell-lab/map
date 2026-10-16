@@ -1,5 +1,5 @@
 #miniPlayerBtn {
-  position: fixed; right: 12px; bottom: 40px; z-index: 900;
+  position: fixed; right: 12px; bottom: 60px; z-index: 900;
   padding: 8px 12px; border-radius: 999px; border: 1px solid #2a3340;
   background: #0b0f14; color: #ffb45b; cursor: pointer; font: 600 13px system-ui;
 }

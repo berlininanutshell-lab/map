@@ -18,7 +18,7 @@
     if (host === 't.me' || host === 'telegram.me') {
       const p = parts[0] === 's' ? parts.slice(1) : parts;
       if (p.length >= 2 && /^\d+$/.test(p[1]))
-        return { type: 'iframe', src: `https://t.me/${p[0]}/${p[1]}?embed=1&mode=tme`, h: 420 };
+        return { type: 'iframe', src: `https://t.me/${p[0]}/${p[1]}?embed=1&mode=tme&dark=1`, h: 420 };
     }
 
     // X / Twitter
