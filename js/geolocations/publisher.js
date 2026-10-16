@@ -197,7 +197,13 @@
         // style.load can fire while isStyleLoaded() still reports false.
         // The style itself is available then, and adding custom sources and
         // layers at that point is safe.
-        if (!map.getStyle()) {
+        let currentStyle = null;
+        try {
+          currentStyle = map.getStyle();
+        } catch (error) {
+          currentStyle = null;
+        }
+        if (!currentStyle) {
           return;
         }
         ['ukraine', 'russia'].forEach((nation) => {
