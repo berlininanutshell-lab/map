@@ -69,6 +69,7 @@
       // the constitutional border of the Russian Federation.
       const layerLineBtn = document.getElementById('layerLineBtn');
       const layerLineMenu = document.getElementById('layerLineMenu');
+      document.body.appendChild(layerLineMenu); // poza sidebarem, żeby nic go nie przycinało      
 
       if (typeof toolHints !== 'undefined' && !toolHints['constitutional-border']) {
         toolHints['constitutional-border'] =

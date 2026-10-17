@@ -239,7 +239,7 @@
       }
       #layerLineMenu {
         position: fixed;
-        z-index: 1200;
+        z-index: 5000;
         display: flex;
         flex-direction: column;
         gap: 2px;
