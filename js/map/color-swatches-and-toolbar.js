@@ -28,6 +28,7 @@
           !toolMenu.hidden &&
           !toolMenu.contains(event.target) &&
           !lineVariantMenu.contains(event.target) &&
+          !layerLineMenu.contains(event.target) &&
           !drawToolsBtn.contains(event.target) &&
           !mapContainer.contains(event.target) &&
           !(territorySmoothingControlsEl && territorySmoothingControlsEl.contains(event.target))
@@ -37,9 +38,15 @@
         if (!lineVariantMenu.hidden && !lineVariantMenu.contains(event.target) && event.target !== lineToolBtn) {
           closeLineVariantMenu();
         }
+        if (!layerLineMenu.hidden && !layerLineMenu.contains(event.target) && event.target !== layerLineBtn) {
+          closeLayerLineMenu();
+        }
       });
 
       document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !layerLineMenu.hidden) {
+          closeLayerLineMenu();
+        }
         if (event.key === 'Escape' && !lineVariantMenu.hidden) {
           closeLineVariantMenu();
         }

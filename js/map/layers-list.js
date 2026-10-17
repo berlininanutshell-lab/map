@@ -504,7 +504,7 @@
           // it's hidden via CSS for everyone else, but this guard covers
           // it too in case the role changed after the menu was opened.
           if (
-            ['flag', 'polygon', 'russian-frontline', 'contested-circle'].includes(button.dataset.tool) &&
+            ['flag', 'polygon', 'russian-frontline', 'ukrainian-frontline', 'constitutional-border', 'contested-circle'].includes(button.dataset.tool) &&
             (state.role !== 'admin' || state.frontlineHistoryMode)
           ) {
             return;
@@ -535,11 +535,13 @@
 
           state.drawingTool = button.dataset.tool;
           updateThicknessControl();
-          if (button.dataset.tool === 'russian-frontline') {
-            const frontlineLayer = getLayerById('russian-frontline');
-            frontlineLayer.visible = true;
-            renderLayers();
-            ensureKmlLayersForLayer('russian-frontline');
+          if (['russian-frontline', 'ukrainian-frontline', 'constitutional-border'].includes(button.dataset.tool)) {
+            const frontlineLayer = getLayerById(button.dataset.tool);
+            if (frontlineLayer) {
+              frontlineLayer.visible = true;
+              renderLayers();
+              ensureKmlLayersForLayer(button.dataset.tool);
+            }
           }
           if (button.dataset.tool === 'flag') {
             state.flagType = button.dataset.flagNation === 'russia' ? 'russia' : 'ukraine';

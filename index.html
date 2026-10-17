@@ -88,9 +88,7 @@
         <div id="toolMenu" hidden>
           <button class="tool-option" type="button" data-tool="brush" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">〰</span>Brush</button>
           <button class="tool-option" type="button" data-tool="line" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Line</button>
-          <button class="tool-option admin-only" type="button" data-tool="russian-frontline" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Pro-Russian sources frontline</button>
-          <button class="tool-option admin-only" type="button" data-tool="ukrainian-frontline" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">／</span>Pro-Ukrainian sources frontline</button>
-          <button class="tool-option" type="button" data-tool="arrow" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⇢</span>Arrow</button>
+          <button id="layerLineBtn" class="tool-option admin-only" type="button" data-tool="russian-frontline" aria-pressed="false" title="Right-click to choose the layer"><span class="tool-symbol" aria-hidden="true">／</span>Line for layers</button>
           <button class="tool-option" type="button" data-tool="pinpoint" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⌖</span>Pinpoint</button>
           <button class="tool-option admin-only" type="button" data-tool="polygon" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">⬠</span>Territory polygon</button>
           <button class="tool-option admin-only" type="button" data-tool="contested-circle" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">◯</span>Contested circle</button>
@@ -119,6 +117,11 @@
           <button id="clearDrawingsBtn" class="clear-drawings" type="button" disabled><span class="tool-symbol" aria-hidden="true">×</span>Clear all drawings</button>
         </div>
         <div id="lineVariantMenu" hidden>
+        <div id="layerLineMenu" hidden>
+          <button class="tool-option" type="button" data-tool="russian-frontline" aria-pressed="false">Pro-Russian sources frontline</button>
+          <button class="tool-option" type="button" data-tool="ukrainian-frontline" aria-pressed="false">Pro-Ukrainian sources frontline</button>
+          <button class="tool-option" type="button" data-tool="constitutional-border" aria-pressed="false">Constitutional border of RF</button>
+        </div>
           <button class="tool-option" type="button" data-tool="lineDashed" aria-pressed="false"><span class="tool-symbol" aria-hidden="true">┄</span>Dashed line</button>
         </div>
       </header>
@@ -444,6 +447,7 @@
     <script src="js/ruler/ruler.js"></script>
     <script src="js/utils/share-website.js"></script>
     <script src="layers.js"></script>
+    <script src="js/frontline/constitutional-border.js"></script>
     <script src="contact.js"></script>
   </body>
 </html>

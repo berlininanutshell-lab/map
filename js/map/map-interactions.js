@@ -1,7 +1,8 @@
       // Open multi-point tools add a point on left-click and finish on
       // right-click. They share this helper.
       function isOpenLineTool(tool) {
-        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow' || tool === 'polygon' || tool === 'russian-frontline';
+        return tool === 'line' || tool === 'lineDashed' || tool === 'arrow' || tool === 'polygon' ||
+          tool === 'russian-frontline' || tool === 'ukrainian-frontline' || tool === 'constitutional-border';
       }
 
       function makeContestedCircleDraft(center, edge) {
@@ -48,7 +49,7 @@
         const coords = state.draft.geometry.coordinates;
         coords.pop();
         if (coords.length >= 2) {
-          if (['russian-frontline', 'ukrainian-frontline'].includes(state.drawingTool)) {
+          if (['russian-frontline', 'ukrainian-frontline', 'constitutional-border'].includes(state.drawingTool)) {
             if (state.role !== 'admin' || state.frontlineHistoryMode) {
               state.draft = null;
               updateDrawings();
@@ -63,13 +64,19 @@
                 id: genId(),
                 source: frontlineLayerId === 'russian-frontline'
                   ? 'pro-Russian sources'
-                  : 'pro-Ukrainian sources'
+                  : frontlineLayerId === 'ukrainian-frontline'
+                    ? 'pro-Ukrainian sources'
+                    : 'constitutional border'
               },
               geometry: { type: 'LineString', coordinates: coords }
             });
             layerKmlData[frontlineLayerId] = frontlineData;
             ensureKmlLayersForLayer(frontlineLayerId);
-            pushFrontlineToFirestore(frontlineLayerId);
+            if (frontlineLayerId === 'constitutional-border') {
+              pushConstitutionalBorderToFirestore();
+            } else {
+              pushFrontlineToFirestore(frontlineLayerId);
+            }
           } else {
             state.drawings.push(state.draft);
           }
@@ -325,7 +332,8 @@
           if (
             (state.drawingTool === 'polygon' ||
               state.drawingTool === 'russian-frontline' ||
-              state.drawingTool === 'ukrainian-frontline') &&
+              state.drawingTool === 'ukrainian-frontline' ||
+              state.drawingTool === 'constitutional-border') &&
             (state.role !== 'admin' || state.frontlineHistoryMode)
           ) {
             return;

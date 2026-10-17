@@ -7,10 +7,12 @@
       // is active, since they're really the same tool.
       function closeLineVariantMenu() {
         lineVariantMenu.hidden = true;
+        closeLayerLineMenu();
       }
 
       lineToolBtn.addEventListener('contextmenu', (event) => {
         event.preventDefault();
+        closeLayerLineMenu();
         lineVariantMenu.hidden = false;
 
         const menuWidth = 170;
@@ -49,7 +51,7 @@
       });
 
       function updateThicknessControl() {
-        const enabled = ['line', 'lineDashed', 'russian-frontline', 'ukrainian-frontline', 'brush', 'arrow'].includes(state.drawingTool);
+        const enabled = ['line', 'lineDashed', 'russian-frontline', 'ukrainian-frontline', 'constitutional-border', 'brush', 'arrow'].includes(state.drawingTool);
         drawThickness.disabled = !enabled;
         drawThickness.parentElement.hidden = !enabled;
       }
@@ -60,3 +62,40 @@
       });
 
       updateThicknessControl();
+
+      // ---- "Line for layers" flyout ----
+      // Left-click arms the last chosen variant (pro-Russian by default);
+      // right-click opens a menu to choose pro-Russian, pro-Ukrainian or
+      // the constitutional border of the Russian Federation.
+      const layerLineBtn = document.getElementById('layerLineBtn');
+      const layerLineMenu = document.getElementById('layerLineMenu');
+
+      if (typeof toolHints !== 'undefined' && !toolHints['constitutional-border']) {
+        toolHints['constitutional-border'] =
+          'Click to add points to the constitutional border of the Russian Federation. Right-click to finish the line.';
+      }
+
+      function closeLayerLineMenu() {
+        layerLineMenu.hidden = true;
+      }
+
+      layerLineBtn.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        closeLineVariantMenu();
+        layerLineMenu.hidden = false;
+        const menuWidth = 240;
+        const menuHeight = 130;
+        const left = Math.min(event.clientX, window.innerWidth - menuWidth - 8);
+        const top = Math.min(event.clientY, window.innerHeight - menuHeight - 8);
+        layerLineMenu.style.left = Math.max(8, left) + 'px';
+        layerLineMenu.style.top = Math.max(8, top) + 'px';
+      });
+
+      layerLineMenu.querySelectorAll('.tool-option').forEach((button) => {
+        button.addEventListener('click', () => {
+          layerLineBtn.dataset.tool = button.dataset.tool;
+          layerLineBtn.title = 'Current: ' + button.textContent.trim() + ' (right-click to change)';
+          layerLineBtn.click(); // the shared tool handler arms the chosen tool
+          closeLayerLineMenu();
+        });
+      });
