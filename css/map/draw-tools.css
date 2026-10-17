@@ -237,3 +237,31 @@
         font-size: 11px;
         line-height: 1.4;
       }
+      #layerLineMenu {
+        position: fixed;
+        z-index: 1200;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 230px;
+        padding: 6px;
+        background: #111820;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      #layerLineMenu[hidden] { display: none; }
+      #layerLineMenu .tool-option {
+        display: block;
+        width: 100%;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #edf5ff;
+        font: inherit;
+        font-size: 12px;
+        text-align: left;
+        cursor: pointer;
+      }
+      #layerLineMenu .tool-option:hover { background: rgba(255, 148, 0, 0.15); }
