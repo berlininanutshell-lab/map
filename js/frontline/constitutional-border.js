@@ -103,6 +103,24 @@
     });
   }
 
+  // Wspólny punkt zapisu linii warstw. Definiuje się tylko, gdy żaden
+  // wcześniej załadowany plik jej nie dostarcza.
+  if (typeof pushFrontlineToFirestore !== 'function') {
+    window.pushFrontlineToFirestore = function (layerId) {
+      if (layerId === 'constitutional-border') {
+        return pushConstitutionalBorderToFirestore();
+      }
+      if (layerId === 'russian-frontline' && typeof pushRussianFrontlineToFirestore === 'function') {
+        return pushRussianFrontlineToFirestore(layerId);
+      }
+      if (layerId === 'ukrainian-frontline' && typeof pushUkrainianFrontlineToFirestore === 'function') {
+        return pushUkrainianFrontlineToFirestore(layerId);
+      }
+      console.warn('No Firestore save function for layer', layerId);
+      adminNotice('This line could not be saved: no save function for ' + layerId + '.');
+    };
+  }
+  
   renderLayers();
   safeEnsure();
 })();
